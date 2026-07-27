@@ -1,0 +1,434 @@
+
+html, body {
+  overflow-x: hidden;
+  max-width: 100%;
+}
+
+#root {
+  overflow-x: hidden;
+}
+
+/* ---------- Container ---------- */
+.roles-container, .panel {
+  padding: 24px;
+  background-color: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  margin: 0 auto;
+  margin-top: 10px;
+  overflow-x: hidden;
+}
+
+h2 {
+  margin-top: 0;
+  margin-bottom: 20px;
+  color: #333333;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.message {
+  padding: 12px;
+  border-radius: 6px;
+  margin-bottom: 20px;
+  font-weight: 500;
+  text-align: center;
+}
+
+.message.success {
+  background-color: #d1e7dd;
+  color: #0f5132;
+  border: 1px solid #badbcc;
+}
+
+.message.error {
+  background-color: #f8d7da;
+  color: #b05159;
+  border: 1px solid #f5c2c7;
+}
+
+/* ---------- Forms ---------- */
+.user-form {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.add-role-form {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 24px;
+  align-items: center;
+  background-color: #f8f9fa;
+}
+
+input,
+select {
+  padding: 10px 12px;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  font-size: 14px;
+  width: 100%;
+  box-sizing: border-box;
+  background-color: #f8f9fa;
+  color: #495057;
+  transition: border-color 0.2s;
+}
+
+input:focus,
+select:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+}
+
+/* ---------- Buttons ---------- */
+button {
+  background-color: #4980bf;
+  color: white;
+  border: none;
+  padding: 10px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  transition: background-color 0.2s, transform 0.1s;
+}
+
+button:hover {
+  background-color: #9caea8;
+}
+
+button:active {
+  transform: scale(0.98);
+}
+
+button[style*="#dc3545"] {
+  background-color: #c8535e;
+  color: white;
+}
+
+button[style*="#dc3545"]:hover {
+  background-color: #c82333;
+}
+
+input[type="file"]::file-selector-button {
+  background-color: #8b99b8;
+  color: white;
+  border: none;
+  padding: 8px 7px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 600;
+  margin-right: 10px;
+  transition: background-color 0.2s ease;
+}
+
+input[type="file"]::file-selector-button:hover {
+  background-color: #8b99b8;
+}
+
+/* ---------- Table wrapper (only this scrolls if ever needed) ---------- */
+.table-scroll-wrapper {
+  width: 100%;
+  overflow-x: auto;
+}
+
+/* ---------- Table ---------- */
+.roles-table {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+  margin-top: 10px;
+  border-bottom: 1px solid #a2a6ab;
+  background-color: #ffffff;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+}
+
+/* Add this new class for employee table */
+.employee-table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.employee-table {
+  width: 100%;
+  min-width: 600px; /* Prevents table from becoming too squished on small screens */
+  border-collapse: collapse;
+  margin-top: 10px;
+  border-bottom: 1px solid #a2a6ab;
+  background-color: #ffffff;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+}
+
+/* Column widths for employee table */
+.employee-table th,
+.employee-table td {
+  padding: 10px 12px;
+  text-align: left;
+  font-size: 14px;
+  border-bottom: 1px solid #d6dade;
+  color: #292b2d;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.employee-table th {
+  background-color: #26384a;
+  color: #fdfdfd;
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 12px;
+  letter-spacing: 0.5px;
+}
+
+.employee-table tr:hover {
+  background-color: #f8f9fa;
+}
+
+/* Specific column widths for employee table */
+.employee-table th:nth-child(1),
+.employee-table td:nth-child(1) {
+  width: 25%; /* Name */
+}
+
+.employee-table th:nth-child(2),
+.employee-table td:nth-child(2) {
+  width: 20%; /* Email */
+}
+
+.employee-table th:nth-child(3),
+.employee-table td:nth-child(3) {
+  width: 15%; /* Phone */
+}
+
+.employee-table th:nth-child(4),
+.employee-table td:nth-child(4) {
+  width: 25%; /* Designation */
+}
+
+.employee-table th:last-child,
+.employee-table td:last-child {
+  width: 15%; /* Actions */
+  text-align: center;
+}
+
+/* Keep the table scrolling on small screens */
+@media (max-width: 768px) {
+  .employee-table-wrapper {
+    margin: 0 -16px; /* Negative margin to allow full-width scroll */
+    padding: 0 16px;
+  }
+  
+  .employee-table {
+    min-width: 500px;
+  }
+  
+  .employee-table th,
+  .employee-table td {
+    padding: 8px 10px;
+    font-size: 13px;
+  }
+}
+
+/* Remove the old employee-table width:40% rule */
+/* Keep roles-table styles as they were */
+.roles-table {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+  margin-top: 10px;
+  border-bottom: 1px solid #a2a6ab;
+  background-color: #ffffff;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+}
+
+/* Hide default calendar icon and use custom */
+input[type="date"]::-webkit-calendar-picker-indicator {
+  opacity: 0;
+  position: absolute;
+  right: 0;
+  width: 100%;
+  height: 100%;
+  cursor: pointer;
+}
+
+input[type="date"] {
+  position: relative;
+  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="%235aa7ef" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>');
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 16px;
+  padding-right: 35px;
+}
+
+/* For Firefox */
+input[type="date"] {
+  -webkit-appearance: none;
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+input[type="date"]::-moz-calendar-picker-indicator {
+  opacity: 0;
+  position: absolute;
+  right: 0;
+  width: 100%;
+  height: 100%;
+  cursor: pointer;
+}
+
+/* ... rest of your existing CSS ... */
+
+.roles-table th,
+.roles-table td {
+  padding: 10px 12px;
+  text-align: left;
+  font-size: 14px;
+  border-bottom: 1px solid #d6dade;
+  color: #292b2d;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.roles-table th {
+  background-color: #26384a;
+  color: #fdfdfd;
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 12px;
+  letter-spacing: 0.5px;
+}
+
+.roles-table tr:hover {
+  background-color: #f8f9fa;
+}
+
+/* ---------- Column widths (Total perfectly equals 100%) ---------- */
+/* Name */
+.roles-table th:nth-child(1),
+.roles-table td:nth-child(1) {
+  width: 25%; 
+}
+
+/* Email */
+.roles-table th:nth-child(2),
+.roles-table td:nth-child(2) {
+  width: 40%; 
+}
+
+/* Role */
+.roles-table th:nth-child(3),
+.roles-table td:nth-child(3) {
+  width: 15%; 
+}
+
+/* Actions */
+.roles-table th:last-child,
+.roles-table td:last-child {
+  width: 20%; 
+  text-align: left;
+  overflow: visible;
+}
+
+.roles-table td button {
+  padding: 6px 12px;
+  margin-right: 8px;
+  font-size: 12px;
+}
+
+.roles-table td button:last-child {
+  margin-right: 0;
+}
+
+.btn-icon {
+  width: 28px;
+  height: 28px;
+  padding: 5px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-right: 0; 
+}
+
+@media (max-width: 768px) {
+  .user-form {
+    grid-template-columns: 1fr;
+  }
+
+  .add-role-form {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+/* ---------- Modals ---------- */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 1000;
+  /* You can remove flexbox properties here if you use the fallback below */
+}
+
+/* Address input white background */
+.address-input {
+  background-color: white !important;
+  color: #333 !important;
+  border: 1px solid #ccc !important;
+  padding: 8px 12px !important;
+  border-radius: 4px !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+.address-input:focus {
+  outline: none !important;
+  border-color: #5aa7ef !important;
+  box-shadow: 0 0 0 2px rgba(90, 167, 239, 0.2) !important;
+}
+
+.modal-content {
+  /* Add these 4 lines for absolute centering */
+  position: fixed; 
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  
+  /* Keep your existing styles */
+  background-color: white;
+  padding: 30px;
+  border-radius: 8px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+  width: 600px; 
+  max-width: 90%;
+  z-index: 1001; /* Ensure it sits above the overlay */
+}
+.modal-content h3 {
+  margin-top: 0;
+  margin-bottom: 20px;
+  color: #333;
+}
+
+.modal-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  margin-bottom: 20px;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}

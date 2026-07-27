@@ -1,0 +1,108 @@
+/* ================= On-screen preview sizing ================= */
+.print-page.size-A4 {
+  width: 210mm;
+  min-height: 297mm;
+  margin: 0 auto;
+  padding: 12mm;
+  background: #fff;
+  box-sizing: border-box;
+}
+
+.print-page.size-A5 {
+  width: 148mm;
+  min-height: 210mm;
+  margin: 0 auto;
+  padding: 8mm;
+  background: #fff;
+  box-sizing: border-box;
+  font-size: 12px;
+}
+
+.print-page.size-Thermal58 {
+  width: 58mm;
+  min-height: auto;
+  margin: 0 auto;
+  padding: 2mm;
+  background: #fff;
+  box-sizing: border-box;
+  font-size: 10px;
+  font-family: 'Courier New', monospace;
+}
+
+/* ================= Keeps print content off-screen until printing ================= */
+/* Used by PrintTrigger — content renders briefly before window.print() fires,
+   this keeps it from flashing visible in the middle of the page. */
+.print-only-mount {
+  position: fixed;
+  left: -9999px;
+  top: 0;
+}
+
+@media print {
+  .print-only-mount {
+    position: static;
+    left: auto;
+  }
+
+  body * {
+    visibility: hidden;
+  }
+  .print-page,
+  .print-page * {
+    visibility: visible;
+  }
+  .print-page {
+    position: absolute;
+    top: 0;
+    left: 0;
+    margin: 0;
+    box-shadow: none;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+}
+
+/* ================= Thermal-specific helpers ================= */
+.print-page.size-Thermal58 .print-header {
+  text-align: center;
+  font-weight: bold;
+  margin-bottom: 4px;
+}
+
+.print-page.size-Thermal58 .thermal-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  margin-bottom: 2px;
+}
+
+.print-page.size-Thermal58 table {
+  width: 100%;
+  font-size: 9px;
+  border-collapse: collapse;
+}
+
+.print-page.size-Thermal58 hr {
+  border: none;
+  border-top: 1px dashed #000;
+  margin: 4px 0;
+}
+
+/* ================= A4 / A5 shared table styling ================= */
+.print-page.size-A4 table,
+.print-page.size-A5 table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 8px;
+}
+
+.print-page.size-A4 table th,
+.print-page.size-A4 table td,
+.print-page.size-A5 table th,
+.print-page.size-A5 table td {
+  border: 1px solid #ccc;
+  padding: 6px;
+  text-align: left;
+}

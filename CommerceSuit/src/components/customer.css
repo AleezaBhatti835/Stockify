@@ -1,0 +1,152 @@
+.user-form label {
+    display: block;
+    width: 100%;
+    text-align: left;
+    margin-bottom: 5px;
+    font-weight: 500;
+    align-items: center;
+}
+
+/* Message Popup Styles - Modified to appear ON TOP of modal */
+.message-popup-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100000; /* Higher than modal */
+  pointer-events: none;
+}
+.btn-primary {
+  background-color: #2a8ae3 !important;
+  color: #fff !important;
+}
+
+.btn-cancel {
+  background-color: #e5e7eb !important;
+  color: #374151 !important;
+}
+
+
+.message-popup {
+  position: relative;
+  background: white;
+  border-radius: 12px;
+  padding: 28px 36px;
+  max-width: 520px;
+  min-width: 320px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  pointer-events: auto;
+  animation: popIn 0.3s ease-out;
+  border: none;
+}
+
+.message-popup.error {
+  border-top: 5px solid #dc3545;
+}
+
+.message-popup.success {
+  border-top: 5px solid #28a745;
+}
+
+.message-popup-close {
+  position: absolute;
+  top: 8px;
+  right: 12px;
+  background: none;
+  border: none;
+  font-size: 28px;
+  color: #6c757d;
+  cursor: pointer;
+  padding: 0;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: all 0.2s;
+  line-height: 1;
+}
+
+.message-popup-close:hover {
+  background-color: #f8f9fa;
+  color: #343a40;
+  transform: rotate(90deg);
+}
+
+.message-popup-content {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  font-size: 1rem;
+  color: #212529;
+  padding-right: 24px;
+  padding-top: 4px;
+}
+
+.message-popup-icon {
+  font-size: 1.6rem;
+  flex-shrink: 0;
+  margin-top: -2px;
+}
+
+.message-popup-text {
+  flex: 1;
+  line-height: 1.5;
+}
+
+.message-popup-text strong {
+  display: block;
+  font-size: 1.1rem;
+  margin-bottom: 4px;
+}
+
+@keyframes popIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.8) translateY(-30px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* Modal overlay - ensure it's below message popup */
+.modal-overlay {
+  z-index: 9999;
+}
+
+/* Modal content relative positioning */
+.modal-content {
+  position: relative;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+/* For the modal to have proper scroll */
+.custom-modal-content {
+  position: relative;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.address-box-gray {
+  background-color: #f8f9fa;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 20px;
+  width: 100%;
+  text-align: left; /* Changed from center to left */
+  color: #1f2937;
+  min-height: 70px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: flex-start; /* Changed from center to flex-start */
+  justify-content: flex-start; /* Changed from center to flex-start */
+  white-space: pre-wrap;
+}
