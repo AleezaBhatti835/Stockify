@@ -333,7 +333,7 @@ const AddPurchaseRebate = () => {
             }
           }}
         >
-          {completing ? 'Processing...' : '💳 Rebate'}
+          {completing ? 'Processing...' : '↩  Rebate'}
         </button>
       </div>
 

@@ -1,13 +1,23 @@
 import { useState, useEffect } from 'react';
+import './purchase.css';
+import '../roles.css';
+const todayStr = () => new Date().toISOString().slice(0, 10);
 
 const API_BASE_URL = 'http://localhost:5000';
 
 function PurchaseRebateList() {
     const [rebates, setRebates] = useState([]);
+    const [filteredRebates, setFilteredRebates] = useState([]);
+    const [suppliers, setSuppliers] = useState([]);
     const [loading, setLoading] = useState(false);
     const [viewRebate, setViewRebate] = useState(null);
     const [viewDetails, setViewDetails] = useState([]);
     const [viewLoading, setViewLoading] = useState(false);
+
+    // ================= FILTER STATES =================
+    const [fromDate, setFromDate] = useState(todayStr());
+    const [toDate, setToDate] = useState(todayStr());
+    const [selectedSupplierFilter, setSelectedSupplierFilter] = useState('');
 
     // ================= PAGINATION STATES =================
     const [currentPage, setCurrentPage] = useState(1);
@@ -15,19 +25,72 @@ function PurchaseRebateList() {
 
     useEffect(() => {
         fetchRebates();
+        fetchSuppliers();
     }, []);
+
+    useEffect(() => {
+        applyFilters();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [rebates, fromDate, toDate, selectedSupplierFilter]);
 
     const fetchRebates = async () => {
         setLoading(true);
         try {
             const res = await fetch(`${API_BASE_URL}/api/purchase-rebates`);
             const data = await res.json();
-            setRebates(Array.isArray(data) ? data : []);
+            // Sort in ascending order (oldest first, latest at the end)
+            const sortedData = (Array.isArray(data) ? data : []).sort((a, b) => {
+                const dateA = new Date(a.rebateDate || a.createdAt);
+                const dateB = new Date(b.rebateDate || b.createdAt);
+                return dateA - dateB;
+            });
+            setRebates(sortedData);
         } catch (err) {
             console.error('Error fetching rebates:', err);
         } finally {
             setLoading(false);
         }
+    };
+
+    const fetchSuppliers = async () => {
+        try {
+            const res = await fetch(`${API_BASE_URL}/api/suppliers`);
+            const data = await res.json();
+            setSuppliers(Array.isArray(data) ? data : []);
+        } catch (err) {
+            console.error('Error fetching suppliers:', err);
+        }
+    };
+
+    const applyFilters = () => {
+        let filtered = [...rebates];
+
+        if (fromDate && toDate) {
+            const from = new Date(fromDate);
+            const to = new Date(toDate);
+            to.setHours(23, 59, 59, 999);
+
+            filtered = filtered.filter(r => {
+                const rDate = new Date(r.rebateDate || r.createdAt);
+                return rDate >= from && rDate <= to;
+            });
+        }
+
+        if (selectedSupplierFilter) {
+            filtered = filtered.filter(r =>
+                r.supplier?._id === selectedSupplierFilter ||
+                r.supplier === selectedSupplierFilter
+            );
+        }
+
+        setFilteredRebates(filtered);
+        setCurrentPage(1);
+    };
+
+    const clearFilters = () => {
+        setFromDate(todayStr());
+        setToDate(todayStr());
+        setSelectedSupplierFilter('');
     };
 
     const openView = async (rebate) => {
@@ -46,7 +109,8 @@ function PurchaseRebateList() {
         }
     };
 
-    const getSupplierName = (r) => r.supplier?.companyName || r.supplier?.contactPerson || 'Unknown Supplier';
+    // Supplier's own NAME first (contactPerson), company name only as fallback
+    const getSupplierName = (r) => r.supplier?.contactPerson || r.supplier?.companyName || 'Unknown Supplier';
 
     // ================= A4 PRINT LOGIC =================
     const handlePrintRebate = () => {
@@ -142,34 +206,83 @@ function PurchaseRebateList() {
     // ================= PAGINATION LOGIC =================
     const indexOfLastItem = currentPage * itemsPerPage;
     const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-    const currentRebates = rebates.slice(indexOfFirstItem, indexOfLastItem);
-    const totalPages = Math.ceil(rebates.length / itemsPerPage);
+    const currentRebates = filteredRebates.slice(indexOfFirstItem, indexOfLastItem);
+    const totalPages = Math.ceil(filteredRebates.length / itemsPerPage);
 
     return (
         <div style={{ ...styles.wrapper, marginBottom: '50%' }}>
             <div style={{ ...styles.card, padding: 0, overflow: 'hidden' }}>
-                <div style={{ textAlign: 'center', alignItems: 'center', marginTop: '20px' }} className="po-header">
-                    <h2>Purchase Rebate List</h2>
+               
+
+                {/* ==================== FILTERS ==================== */}
+                <div style={styles.filterContainer}>
+                    
+                    <div style={styles.filterRow}>
+                          <div style={styles.filterGroup}>
+                            <label style={styles.filterLabel}>Supplier</label>
+                            <select
+                                style={styles.filterInput}
+                                value={selectedSupplierFilter}
+                                onChange={(e) => setSelectedSupplierFilter(e.target.value)}
+                            >
+                                <option value="">All Suppliers</option>
+                                {suppliers.map(s => (
+                                    <option key={s._id} value={s._id}>
+                                        {s.contactPerson || s.companyName}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                        <div style={styles.filterGroup}>
+                            <label style={styles.filterLabel}>From Date</label>
+                            <input
+                                type="date"
+                                style={styles.filterInput}
+                                value={fromDate}
+                                onChange={(e) => setFromDate(e.target.value)}
+                            />
+                        </div>
+
+                        <div style={styles.filterGroup}>
+                            <label style={styles.filterLabel}>To Date</label>
+                            <input
+                                type="date"
+                                style={styles.filterInput}
+                                value={toDate}
+                                onChange={(e) => setToDate(e.target.value)}
+                            />
+                        </div>
+
+                      
+
+                        <button style={styles.clearFilterBtn} onClick={clearFilters}>
+                            Clear Filters
+                        </button>
+                    </div>
+
+                    <div style={styles.filterStats}>
+                        Showing {filteredRebates.length} of {rebates.length} record{filteredRebates.length !== 1 ? 's' : ''}
+                    </div>
                 </div>
 
                 <div style={{ overflowX: 'auto' }}>
-                    <table style={{ ...styles.table, width: '90%', marginLeft: '50px' }}>
+                    <table className='roles-table' style={{width:'80%',marginLeft:'30px'}}>
                         <thead>
                             <tr>
-                                <th style={styles.th}>Sr#</th>
-                                <th style={styles.th}>Date</th>
+                                <th style={{ ...styles.th, textAlign: 'left',width:'10%' }}>Sr#</th>
+                                <th style={{ ...styles.th, textAlign: 'left',width:'15%' }}>Date</th>
                                 <th style={styles.th}>Rebate #</th>
                                 <th style={styles.th}>Invoice #</th>
                                 <th style={styles.th}>Supplier</th>
-                                <th style={{ ...styles.th, textAlign: 'right' }}>Amount</th>
-                                <th style={{ ...styles.th, textAlign: 'center' }}>Action</th>
+                                <th style={{ ...styles.th, textAlign: 'left' ,width:'17%'}}>Amount</th>
+                                <th style={{ ...styles.th, textAlign: 'center',width:'17%' }}>Action</th>
                             </tr>
                         </thead>
                         <tbody>
                             {loading ? (
                                 <tr><td colSpan="7" style={styles.emptyCell}>Loading...</td></tr>
                             ) : currentRebates.length === 0 ? (
-                                <tr><td colSpan="7" style={styles.emptyCell}>No purchase rebates recorded yet.</td></tr>
+                                <tr><td colSpan="7" style={styles.emptyCell}>No purchase rebates found.</td></tr>
                             ) : (
                                 currentRebates.map((r, index) => {
                                     const serialNumber = (currentPage - 1) * itemsPerPage + index + 1;
@@ -180,10 +293,10 @@ function PurchaseRebateList() {
                                             <td style={{ ...styles.td, fontWeight: 700, color: '#0f172a' }}>{r.rebateNumber}</td>
                                             <td style={styles.td}>{r.invoiceNumber || r.purchase?.invoiceNumber || '—'}</td>
                                             <td style={styles.td}>{getSupplierName(r)}</td>
-                                            <td style={{ ...styles.td, textAlign: 'right', fontWeight: 600, color: '#10b981' }}>
+                                            <td style={{ ...styles.td, textAlign: 'left', fontWeight: 600, color: '#10b981' }}>
                                                 Rs. {r.totalAmount.toFixed(2)}
                                             </td>
-                                            <td style={{ padding: '15px', textAlign: 'right', marginLeft: '80%' }}>
+                                            <td style={{ padding: '15px', textAlign: 'left', marginLeft: '10%' }}>
                                                 <button
                                                     onClick={() => openView(r)}
                                                     style={styles.iconBtnView}
@@ -310,10 +423,11 @@ function PurchaseRebateList() {
 }
 
 const styles = {
-    wrapper: { display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '0px', },
+    wrapper: { background: '#fff', borderBottom: '1px solid #e2e8f0',borderRadius:'20px',
+display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '0px',width:'95%',marginLeft:'20px' },
     card: { background: '#fff', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' },
-    table: { width: '100%', borderCollapse: 'collapse' },
-    th: { textAlign: 'left', padding: '12px 16px', background: '#3c4e6b', fontSize: '12px', color: '#fff', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' },
+    table: { width: '100%',borderRadius:'20%', borderCollapse: 'collapse' },
+    th: { textAlign: 'left', padding: '12px 16px', background: ' #26384a', fontSize: '12px', color: '#fff', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' },
     td: { padding: '10px 16px', textAlign: 'left', fontSize: '14px', borderBottom: '1px solid #f1f5f9', color: '#334155' },
     emptyCell: { padding: '30px 0', textAlign: 'center', color: '#94a3b8', fontSize: '14px' },
     iconBtnView: {
@@ -328,6 +442,57 @@ const styles = {
         transition: 'all 0.2s',
         backgroundColor: '#ebf5fc',
         marginLeft: '50px'
+    },
+
+    // Filter styles
+    filterContainer: {
+        padding: '16px 30px',
+    },
+    filterRow: {
+        display: 'flex',
+        gap: '16px',
+        alignItems: 'flex-end',
+        flexWrap: 'wrap'
+    },
+    filterGroup: {
+        display: 'flex',
+        flexDirection: 'column',
+        flex: '1',
+        minWidth: '160px'
+    },
+    filterLabel: {
+        fontSize: '12px',
+        fontWeight: 700,
+        color: '#475569',
+        marginBottom: '4px',
+        textAlign: 'left'
+    },
+    filterInput: {
+        padding: '8px 12px',
+        borderRadius: '6px',
+        border: '1px solid #cbd5e1',
+        fontSize: '13px',
+        backgroundColor: '#fff',
+        outline: 'none',
+        width: '100%',
+        boxSizing: 'border-box'
+    },
+    clearFilterBtn: {
+        padding: '9px 16px',
+        background: '#6c757d',
+        color: '#fafafa',
+        border: '1px solid #cfcece',
+        borderRadius: '6px',
+        cursor: 'pointer',
+        fontWeight: 600,
+        fontSize: '13px',
+        whiteSpace: 'nowrap'
+    },
+    filterStats: {
+        marginTop: '10px',
+        fontSize: '12px',
+        color: '#555',
+        textAlign: 'right'
     },
 
     // Receipt Modal Styles

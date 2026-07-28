@@ -328,8 +328,8 @@ function Dashboard({ user, onLogout }) {
       'expense-category': 'Expense Category',
       'expense': 'Expense',
       'stock-breakage': 'Stock Breakage',
-      'add-purchase-rebate':'Add Purchase Rebate',
-      'purchase-rebate-list':'Purchase Rebate List'
+      'add-purchase-rebate': 'Add Purchase Rebate',
+      'purchase-rebate-list': 'Purchase Rebate List'
     };
     return titles[activeTab] || 'Dashboard';
   };
@@ -355,10 +355,11 @@ function Dashboard({ user, onLogout }) {
         <div className="sidebar-overlay" onClick={toggleSidebar}></div>
       )}
 
-      {/* Sidebar */}
-      <aside className={`sidebar ${isSidebarOpen ? 'open' : 'closed'}`}>
-        <div className="sidebar-header">
-          <h2>CAPOBIZ</h2>
+    <aside className={`sidebar ${isSidebarOpen ? 'open' : 'closed'}`}>
+        <div className="sidebar-header" >
+          {/* Use img tag to display the logo inside the sidebar */}
+          <img src="/logotextt(1).png" alt="Stockify Logo" style={{ width: '150px', height: '75px',marginLeft:'45px'}} />
+          
           {isMobile && (
             <button className="close-sidebar-btn" onClick={toggleSidebar}>×</button>
           )}

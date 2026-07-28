@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 350 100" width="350" height="100">
+  <!-- Brand Icon: Isometric Box representing 'Stock' with a digital node representing 'ify' -->
+  <g transform="translate(10, 15)">
+    <!-- Box Left Side -->
+    <path d="M 35 15 L 10 30 L 10 60 L 35 75 Z" fill="#223747" opacity="0.9"/>
+    <!-- Box Right Side -->
+    <path d="M 35 15 L 60 30 L 60 60 L 35 75 Z" fill="#3c4e6b"/>
+    <!-- Box Top -->
+    <path d="M 35 15 L 10 30 L 35 45 L 60 30 Z" fill="#ebf5fc"/>
+    
+    <!-- Digital Node / Sync Element (Emerald Green) -->
+    <circle cx="35" cy="45" r="5" fill="#10b981" />
+    <path d="M 35 45 L 35 75" fill="none" stroke="#10b981" stroke-width="2.5" />
+    <path d="M 35 45 L 60 30" fill="none" stroke="#10b981" stroke-width="2.5" />
+  </g>
+
+  <!-- Typography: Stockify -->
+  <text x="90" y="65" font-family="'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="38" font-weight="800" fill="#0f172a" letter-spacing="-0.5">
+    Stock<tspan fill="#10b981">ify</tspan>
+  </text>
+  
+  <!-- Optional Subtitle -->
+  <text x="92" y="85" font-family="'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="12" font-weight="600" fill="#64748b" letter-spacing="2">
+    INVENTORY & POS
+  </text>
+</svg>
