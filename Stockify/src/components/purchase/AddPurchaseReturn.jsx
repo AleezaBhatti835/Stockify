@@ -453,10 +453,10 @@ const PurchaseReturnByInvoice = () => {
   const selectedSupplierObj = suppliers.find(s => s._id === woSupplierId) || {};
 
   return (
-    <div className="add-purchase-wrapper">
+    <div className="add-purchase-wrapper" style={{ width: '100%',marginBottom:'90px' }}>
       <MessagePopup message={message.text} type={message.type} onClose={() => setMessage({ text: '', type: '' })} />
 
-      <div style={{ textAlign: 'center', alignItems: 'center' }} className="po-header">
+      <div style={{ textAlign: 'center', alignItems: 'center',marginTop:'20px' }} className="po-header">
         <h2>Purchase Return Management</h2>
       </div>
 
@@ -616,7 +616,7 @@ const PurchaseReturnByInvoice = () => {
             </div>
             <button 
               className="btn-submit-order" 
-              style={{ backgroundColor: '#223747',width:'18%', padding: '14px 40px', border: 'none', borderRadius: '4px', color: '#fff', fontWeight: 'bold', cursor: 'pointer' }} 
+              style={{ backgroundColor: '#4d9b6b',width:'24%', padding: '15px 1px', border: 'none', borderRadius: '4px', color: '#fff', fontWeight: 'bold', cursor: 'pointer' }} 
               disabled={completing || !purchase || withTotalAmount === 0} 
               onClick={() => {
                 if (withTotalAmount > 0) {
@@ -627,7 +627,7 @@ const PurchaseReturnByInvoice = () => {
                 }
               }}
             >
-              {completing ? 'Processing...' : '↩  Return'}
+              {completing ? 'Processing...' : 'Complete Return '}
             </button>
           </div>
         </>

@@ -73,7 +73,7 @@
 .sidebar-nav-wrapper {
   flex: 1;
   overflow-y: auto;
-  padding: 10px 0;
+  padding: 1px 0;
 }
 
 .sidebar-nav {
@@ -124,7 +124,7 @@
 }
 
 .submenu li {
-  padding: 10px 0;
+  padding: 1px 0;
   font-size: 13px;
   color: rgba(255, 255, 255, 0.881);
   cursor: pointer;
@@ -132,6 +132,7 @@
   text-align: center;
   align-items: center;
   margin-left: 30px;
+  height: 35px;
 }
 
 .submenu li:hover {

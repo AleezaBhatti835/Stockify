@@ -215,7 +215,7 @@ const AddPurchaseRebate = () => {
   const totalAmount = lineItems.reduce((sum, row) => sum + ((row.transactionQty || 0) * row.unitPrice), 0);
 
   return (
-    <div className="add-purchase-wrapper" style={{width:'95%',marginBottom:'10px'}}>
+    <div className="add-purchase-wrapper" style={{width:'95%',marginBottom:'90px'}}>
       <MessagePopup message={message.text} type={message.type} onClose={() => setMessage({ text: '', type: '' })} />
 
         <div style={{ textAlign: 'center', alignItems: 'center' }} className="po-header">
@@ -325,7 +325,7 @@ const AddPurchaseRebate = () => {
         </div>
         <button
           className="btn-submit-order"
-          style={{ backgroundColor: '#223747', width: '18%', padding: '14px 40px', border: 'none', borderRadius: '4px', color: '#fff', fontWeight: 'bold', cursor: 'pointer' }}
+          style={{ backgroundColor: '#4d9b6b', width: '22%', padding: '15px 1px', border: 'none', borderRadius: '4px', color: '#fff', fontWeight: 'bold', cursor: 'pointer' }}
           disabled={completing || !purchase || totalAmount === 0}
           onClick={() => {
             if (totalAmount > 0) {
@@ -333,7 +333,7 @@ const AddPurchaseRebate = () => {
             }
           }}
         >
-          {completing ? 'Processing...' : '↩  Rebate'}
+          {completing ? 'Processing...' : 'Complete Rebate'}
         </button>
       </div>
 

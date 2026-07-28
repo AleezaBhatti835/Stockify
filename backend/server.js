@@ -35,7 +35,7 @@ import Expense from './models/Expense.js';
 import StockBreakage from './models/StockBreakage.js';
 import PurchaseRebate from './models/PurchaseRebate.js';
 import PurchaseRebateDetail from './models/PurchaseRebateDetail.js';
-
+import PurchaseRateDifference from './models/PurchaseRateDifference.js'
 console.log("Checking URI:", process.env.MONGO_URI);
 
 const __filename = fileURLToPath(import.meta.url);
@@ -2743,7 +2743,7 @@ app.post('/api/sale-returns/complete', async (req, res) => {
 
     await CustomerAccount.create([{
       customer: customerId,
-      invoiceNumber: returnNumber,
+      invoiceNumber: `BLIND-${returnNumber}`,
       transactionType: 'Sale Return',
       debit: 0,
       credit: totalAmount, // Refund lowers what they owe us
@@ -3388,6 +3388,154 @@ app.get('/api/purchase-rebates/:id', async (req, res) => {
     res.status(500).json({ success: false, message: 'Server error', error: error.message });
   }
 });
+// ==================== PURCHASE RATE DIFFERENCE ====================
+// ==================== SPECIFIC SEARCH FOR RATE DIFFERENCE ====================
+app.get('/api/purchase-rate-difference/search', async (req, res) => {
+  const { invoiceNumber } = req.query;
+
+  if (!invoiceNumber || !invoiceNumber.trim()) {
+    return res.status(400).json({ success: false, message: 'Invoice number is required.' });
+  }
+
+  try {
+    const purchase = await Purchase.findOne({
+      invoiceNumber: { $regex: new RegExp(`^${invoiceNumber.trim()}$`, 'i') }
+    })
+      .populate('items.product')
+      .populate('supplier');
+
+    if (!purchase) {
+      return res.status(404).json({ success: false, message: 'No purchase found with that invoice number.' });
+    }
+
+    return res.json({
+      success: true,
+      purchase: {
+        _id: purchase._id,
+        purchaseNumber: purchase.purchaseNumber,
+        invoiceNumber: purchase.invoiceNumber,
+        supplier: purchase.supplier,
+        items: purchase.items
+      }
+    });
+  } catch (error) {
+    console.error('Error searching purchase for rate difference:', error);
+    return res.status(500).json({ success: false, message: 'Server error', error: error.message });
+  }
+});
+// 1. Complete Purchase Rate Difference & Hit Supplier Account
+app.post('/api/purchase-rate-difference/complete', async (req, res) => {
+  const { purchaseId, supplierId, invoiceNumber, netDifference, items } = req.body;
+  const session = await mongoose.startSession();
+
+  try {
+    session.startTransaction();
+
+    if (!items || items.length === 0) {
+      throw new Error('At least one item with a rate difference is required.');
+    }
+
+    const purchase = await Purchase.findById(purchaseId).session(session);
+    if (!purchase) {
+      throw new Error('Original purchase not found.');
+    }
+
+    // Generate unique PRD-XXXX difference number
+    const counter = await Counter.findOneAndUpdate(
+      { name: 'rateDifferenceNumber' },
+      { $inc: { seq: 1 } },
+      { new: true, upsert: true, session, returnDocument: 'after' }
+    );
+    const differenceNumber = `PRD-${counter.seq.toString()}`;
+
+    // Create the Rate Difference record
+    const createdRateDiff = await PurchaseRateDifference.create([{
+      differenceNumber,
+      purchaseId,
+      supplierId,
+      invoiceNumber,
+      netDifference,
+      items: items.map(item => ({
+        product: item.product,
+        purchasedQuantity: item.purchasedQuantity,
+        prevRate: item.prevRate,
+        newRate: item.newRate,
+        totalDifference: item.totalDifference
+      }))
+    }], { session });
+    const savedRateDiff = createdRateDiff[0];
+
+    // HIT THE SUPPLIER ACCOUNT (Ledger Math)
+    if (netDifference !== 0) {
+      const priorEntries = await SupplierAccount.find({ supplier: supplierId }).session(session);
+      const previousBalance = priorEntries.reduce((sum, e) => sum + (e.debit - e.credit), 0);
+
+      // netDifference > 0 means rate increased (we owe them more -> Credit)
+      // netDifference < 0 means rate decreased (we owe them less -> Debit)
+      const debitAmount = netDifference < 0 ? Math.abs(netDifference) : 0;
+      const creditAmount = netDifference > 0 ? netDifference : 0;
+
+  await SupplierAccount.create([{
+        supplier: supplierId,
+        invoiceNumber: `DIFF-${invoiceNumber}`,
+        transactionType: 'Purchase Rate Difference', // Using an allowed enum type
+        debit: debitAmount,
+        credit: creditAmount,
+        referenceId: savedRateDiff._id,
+        referenceModel: 'PurchaseRateDifference', // Using an allowed reference model enum
+        date: new Date()
+      }], { session });
+    }
+
+    await session.commitTransaction();
+
+    return res.status(201).json({
+      success: true,
+      message: 'Rate difference recorded and supplier account updated successfully.',
+      rateDifference: savedRateDiff
+    });
+
+  } catch (error) {
+    await session.abortTransaction();
+    console.error('Error completing rate difference:', error);
+    return res.status(400).json({ success: false, message: error.message });
+  } finally {
+    session.endSession();
+  }
+});
+
+// 2. List all Rate Difference records (Main table view)
+app.get('/api/purchase-rate-difference', async (req, res) => {
+  try {
+    const records = await PurchaseRateDifference.find()
+      .populate('supplierId', 'companyName contactPerson')
+      .populate('purchaseId', 'purchaseNumber invoiceNumber')
+      .populate('items.product', 'name')
+      .sort({ createdAt: -1 });
+    res.json(records);
+  } catch (error) {
+    console.error('Error fetching rate differences:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+app.get('/api/purchase-rate-difference/:id', async (req, res) => {
+  try {
+    const record = await PurchaseRateDifference.findById(req.params.id)
+      .populate('supplierId', 'companyName contactPerson')
+      .populate('purchaseId', 'purchaseNumber invoiceNumber')
+      .populate('items.product', 'name');
+
+    if (!record) {
+      return res.status(404).json({ success: false, message: 'Rate difference record not found' });
+    }
+
+    res.json({ success: true, record });
+  } catch (error) {
+    console.error('Error fetching single rate difference:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 
 // ==================== ROOT ROUTE ====================
 app.get('/', (req, res) => {

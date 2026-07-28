@@ -60,15 +60,56 @@ function SupplierAccount() {
 
       const res = await fetch(`${API_BASE_URL}/api/supplier-ledger?${params.toString()}`);
       const data = await res.json();
+      
       if (data.success) {
-        setRows(data.rows || []);
-        setClosingBalance(data.closingBalance || 0);
+        let fetchedRows = data.rows || [];
+        
+        // 1. PERFECT SORTING LOGIC: Date first, then Exact Insertion Time
+        fetchedRows.sort((a, b) => {
+          // Time ko ignore kar ke sirf Date (Day) compare karein
+          const dateA = new Date(a.date).setHours(0, 0, 0, 0);
+          const dateB = new Date(b.date).setHours(0, 0, 0, 0);
+          
+          if (dateA !== dateB) {
+            return dateA - dateB; // Alag din hain toh date wise
+          }
+          
+          // Agar same din hain toh MongoDB _id use karein 
+          // (MongoDB _id mein creation time hota hai, jo pehle add hua wo automatically pehle ayega)
+          if (a._id && b._id) {
+            return a._id.localeCompare(b._id);
+          }
+          
+          return 0;
+        });
+
+        // 2. RECALCULATE RUNNING BALANCE (Taake math theek rahay)
+       let runningBal = 0;
+        fetchedRows = fetchedRows.map((row, index) => {
+          const rowDebit = Number(row.debit) || 0;
+          const rowCredit = Number(row.credit) || 0;
+          const prevBal = runningBal;
+          
+          runningBal = runningBal + rowDebit - rowCredit;
+          
+          return {
+            ...row,
+            srNo: index + 1, 
+            previousBalance: prevBal,
+            net: runningBal
+          };
+        });
+
+        setRows(fetchedRows);
+        setClosingBalance(runningBal);
       } else {
         setRows([]);
+        setClosingBalance(0);
       }
     } catch (err) {
       console.error('Error fetching ledger:', err);
       setRows([]);
+      setClosingBalance(0);
     } finally {
       setLoading(false);
     }
@@ -115,8 +156,7 @@ function SupplierAccount() {
     }
   };
 
-  const getSupplierName = (s) => s?.companyName || s?.contactPerson || 'Supplier';
-
+const getSupplierName = (s) => s?.name || s?.contactPerson || s?.companyName || 'Supplier';
   // ================= FORMAT BALANCE TEXT =================
   const formatBalanceText = (amount) => {
     if (amount > 0) return ` ${amount.toFixed(2)}`;
@@ -294,7 +334,7 @@ function SupplierAccount() {
                 <tr><td colSpan="8" style={styles.emptyCell}>No transactions found for the selected filters.</td></tr>
               ) : (
                 currentRows.map(row => (
-                  <tr key={row._id}>
+                  <tr key={row._id || Math.random()}>
                     <td style={styles.td}>{row.srNo}</td>
                     <td style={styles.td}>{new Date(row.date).toLocaleDateString()}</td>
                     <td style={styles.td}>{row.invoiceNumber || '-'}</td>

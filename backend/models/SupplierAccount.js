@@ -13,7 +13,7 @@ const supplierAccountSchema = new mongoose.Schema({
   transactionType: {
     type: String,
     enum: {
-      values: ['Purchase', 'Payment', 'Refund', 'Purchase Return','Purchase Rebate'],
+      values: ['Purchase', 'Payment', 'Refund', 'Purchase Return','Purchase Rebate','Purchase Rate Difference'],
       message: '{VALUE} is not a valid transaction type'
     },
     required: [true, 'Transaction type is required']
@@ -38,7 +38,7 @@ const supplierAccountSchema = new mongoose.Schema({
   },
   referenceModel: {
     type: String,
-    enum: ['Purchase', 'PurchaseReturn','PurchaseRebate']
+    enum: ['Purchase', 'PurchaseReturn','PurchaseRebate','PurchaseRateDifference']
   },
   date: {
     type: Date,

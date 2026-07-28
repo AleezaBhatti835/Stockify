@@ -37,7 +37,8 @@ import Expense from './expenses/Expense.jsx';
 import StockBreakage from './catalogue/StockBreakage.jsx';
 import AddPurchaseRebate from './purchase/AddPurchaseRebate.jsx';
 import PurchaseRebateList from './purchase/PurchaseRebateList.jsx';
-
+import PurchaseRateDifference from './purchase/PurchaseRateDifference.jsx';
+import PurchaseRateDifferenceList from './purchase/PurchaseRateDifferenceList.jsx';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faBank, faBoxOpen, faCartPlus, faChartBar, faCirclePause, faCoins, faCubes, faDashboard, faGear, faHandHoldingDollar, faMoneyCheckDollar, faReceipt, faScrewdriver, faUser, faUserGroup } from '@fortawesome/free-solid-svg-icons';
 
@@ -329,7 +330,9 @@ function Dashboard({ user, onLogout }) {
       'expense': 'Expense',
       'stock-breakage': 'Stock Breakage',
       'add-purchase-rebate': 'Add Purchase Rebate',
-      'purchase-rebate-list': 'Purchase Rebate List'
+      'purchase-rebate-list': 'Purchase Rebate List',
+      'rate-difference': 'Rate Difference',
+      'rate-difference-list':'Rate Difference List'
     };
     return titles[activeTab] || 'Dashboard';
   };
@@ -355,11 +358,11 @@ function Dashboard({ user, onLogout }) {
         <div className="sidebar-overlay" onClick={toggleSidebar}></div>
       )}
 
-    <aside className={`sidebar ${isSidebarOpen ? 'open' : 'closed'}`}>
+      <aside className={`sidebar ${isSidebarOpen ? 'open' : 'closed'}`}>
         <div className="sidebar-header" >
           {/* Use img tag to display the logo inside the sidebar */}
-          <img src="/logotextt(1).png" alt="Stockify Logo" style={{ width: '150px', height: '75px',marginLeft:'45px'}} />
-          
+          <img src="/logo.png" alt="Stockify Logo" style={{ width: '210px', height: '65px', marginLeft: '10px' ,marginTop:'15px'}} />
+
           {isMobile && (
             <button className="close-sidebar-btn" onClick={toggleSidebar}>×</button>
           )}
@@ -448,6 +451,9 @@ function Dashboard({ user, onLogout }) {
                 <li className={activeTab === 'return-list' ? 'active' : ''} onClick={() => { handleTabChange('return-list'); if (isMobile) setIsSidebarOpen(false); }} style={{ cursor: 'pointer', padding: '10px 0', textAlign: 'left' }}>Purchase Return List</li>
                 <li className={activeTab === 'add-purchase-rebate' ? 'active' : ''} onClick={() => { handleTabChange('add-purchase-rebate'); if (isMobile) setIsSidebarOpen(false); }} style={{ cursor: 'pointer', padding: '10px 0', textAlign: 'left' }}>Purchase Rebate</li>
                 <li className={activeTab === 'purchase-rebate-list' ? 'active' : ''} onClick={() => { handleTabChange('purchase-rebate-list'); if (isMobile) setIsSidebarOpen(false); }} style={{ cursor: 'pointer', padding: '10px 0', textAlign: 'left' }}>Purchase Rebate List</li>
+                <li className={activeTab === 'rate-difference' ? 'active' : ''} onClick={() => { handleTabChange('rate-difference'); if (isMobile) setIsSidebarOpen(false); }} style={{ cursor: 'pointer', padding: '10px 0', textAlign: 'left' }}>Rate Difference</li>
+                <li className={activeTab === 'rate-difference-list' ? 'active' : ''} onClick={() => { handleTabChange('rate-difference-list'); if (isMobile) setIsSidebarOpen(false); }} style={{ cursor: 'pointer', padding: '10px 0', textAlign: 'left' }}>Rate Difference List</li>
+
               </ul>
             )}
 
@@ -716,6 +722,9 @@ function Dashboard({ user, onLogout }) {
           {activeTab === 'stock-breakage' && <StockBreakage />}
         </div>{activeTab === 'add-purchase-rebate' && <AddPurchaseRebate />}
         {activeTab === 'purchase-rebate-list' && <PurchaseRebateList />}
+        {activeTab === 'rate-difference' && <PurchaseRateDifference />}
+        {activeTab === 'rate-difference-list' && <PurchaseRateDifferenceList />}
+
       </main>
 
       {/* Hidden File Input For Direct Uploading */}

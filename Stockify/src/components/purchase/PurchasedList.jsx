@@ -86,25 +86,35 @@ const PurchasedList = () => {
   }, [purchases, filters]);
 
 const fetchPurchases = async () => {
-  try {
-    const response = await fetch('http://localhost:5000/api/purchases', {
-      cache: 'no-store'
-    });
-    const data = await response.json();
-    // Sort purchases by date in ascending order (oldest first, latest last)
-    const sortedData = data.sort((a, b) => {
-      const dateA = new Date(a.purchaseDate);
-      const dateB = new Date(b.purchaseDate);
-      return dateA - dateB; // Ascending order
-    });
-    setPurchases(sortedData);
-    setFilteredPurchases(sortedData);
-    setLoading(false);
-  } catch (error) {
-    console.error("Error fetching purchases:", error);
-    setLoading(false);
-  }
-};
+    try {
+      const response = await fetch('http://localhost:5000/api/purchases', {
+        cache: 'no-store'
+      });
+      const data = await response.json();
+      
+      // Updated Sorting: Primary by Date, Secondary by Invoice Number
+      const sortedData = data.sort((a, b) => {
+        const dateA = new Date(a.purchaseDate).setHours(0, 0, 0, 0);
+        const dateB = new Date(b.purchaseDate).setHours(0, 0, 0, 0);
+        
+        if (dateA !== dateB) {
+          return dateA - dateB; // Ascending order by date
+        }
+        
+        // Agar date same ho toh Invoice Number (numbers extract kar ke) sort karein
+        const numA = parseInt((a.invoiceNumber || '').replace(/[^0-9]/g, ''), 10) || 0;
+        const numB = parseInt((b.invoiceNumber || '').replace(/[^0-9]/g, ''), 10) || 0;
+        return numA - numB; // Ascending order by invoice number
+      });
+      
+      setPurchases(sortedData);
+      setFilteredPurchases(sortedData);
+      setLoading(false);
+    } catch (error) {
+      console.error("Error fetching purchases:", error);
+      setLoading(false);
+    }
+  };
 
   const fetchSuppliers = async () => {
     try {
@@ -127,56 +137,63 @@ const fetchPurchases = async () => {
   };
 
 const applyFilters = () => {
-  let filtered = [...purchases];
+    let filtered = [...purchases];
 
-  if (filters.supplier) {
-    filtered = filtered.filter(purchase =>
-      purchase.supplier?._id === filters.supplier ||
-      purchase.supplier?.contactPerson?.toLowerCase().includes(filters.supplier.toLowerCase()) ||
-      purchase.supplier?.name?.toLowerCase().includes(filters.supplier.toLowerCase())
-    );
-  }
+    if (filters.supplier) {
+      filtered = filtered.filter(purchase =>
+        purchase.supplier?._id === filters.supplier ||
+        purchase.supplier?.contactPerson?.toLowerCase().includes(filters.supplier.toLowerCase()) ||
+        purchase.supplier?.name?.toLowerCase().includes(filters.supplier.toLowerCase())
+      );
+    }
 
-  if (filters.product) {
-    filtered = filtered.filter(purchase =>
-      purchase.items?.some(item =>
-        item.product?._id === filters.product ||
-        item.product?.name?.toLowerCase().includes(filters.product.toLowerCase())
-      )
-    );
-  }
+    if (filters.product) {
+      filtered = filtered.filter(purchase =>
+        purchase.items?.some(item =>
+          item.product?._id === filters.product ||
+          item.product?.name?.toLowerCase().includes(filters.product.toLowerCase())
+        )
+      );
+    }
 
-  if (filters.dateFrom) {
-    const fromDate = new Date(filters.dateFrom);
-    fromDate.setHours(0, 0, 0, 0);
-    filtered = filtered.filter(purchase => {
-      if (!purchase.purchaseDate) return false;
-      const purchaseDate = new Date(purchase.purchaseDate);
-      purchaseDate.setHours(0, 0, 0, 0);
-      return purchaseDate >= fromDate;
+    if (filters.dateFrom) {
+      const fromDate = new Date(filters.dateFrom);
+      fromDate.setHours(0, 0, 0, 0);
+      filtered = filtered.filter(purchase => {
+        if (!purchase.purchaseDate) return false;
+        const purchaseDate = new Date(purchase.purchaseDate);
+        purchaseDate.setHours(0, 0, 0, 0);
+        return purchaseDate >= fromDate;
+      });
+    }
+
+    if (filters.dateTo) {
+      const toDate = new Date(filters.dateTo);
+      toDate.setHours(23, 59, 59, 999);
+      filtered = filtered.filter(purchase => {
+        if (!purchase.purchaseDate) return false;
+        const purchaseDate = new Date(purchase.purchaseDate);
+        purchaseDate.setHours(23, 59, 59, 999);
+        return purchaseDate <= toDate;
+      });
+    }
+
+    // Updated Sorting: Primary by Date, Secondary by Invoice Number
+    filtered = filtered.sort((a, b) => {
+      const dateA = new Date(a.purchaseDate).setHours(0, 0, 0, 0);
+      const dateB = new Date(b.purchaseDate).setHours(0, 0, 0, 0);
+      
+      if (dateA !== dateB) {
+        return dateA - dateB;
+      }
+      
+      const numA = parseInt((a.invoiceNumber || '').replace(/[^0-9]/g, ''), 10) || 0;
+      const numB = parseInt((b.invoiceNumber || '').replace(/[^0-9]/g, ''), 10) || 0;
+      return numA - numB;
     });
-  }
 
-  if (filters.dateTo) {
-    const toDate = new Date(filters.dateTo);
-    toDate.setHours(23, 59, 59, 999);
-    filtered = filtered.filter(purchase => {
-      if (!purchase.purchaseDate) return false;
-      const purchaseDate = new Date(purchase.purchaseDate);
-      purchaseDate.setHours(23, 59, 59, 999);
-      return purchaseDate <= toDate;
-    });
-  }
-
-  // Sort filtered results in ascending order (oldest first)
-  filtered = filtered.sort((a, b) => {
-    const dateA = new Date(a.purchaseDate);
-    const dateB = new Date(b.purchaseDate);
-    return dateA - dateB;
-  });
-
-  setFilteredPurchases(filtered);
-};
+    setFilteredPurchases(filtered);
+  };
 
   const handleFilterChange = (e) => {
     const { name, value } = e.target;
@@ -332,7 +349,7 @@ const applyFilters = () => {
             id="receipt-content"
           >
             <div style={styles.receiptHeaderInfo}>
-              <h4 style={{ textAlign: 'left', margin: '4px 0', color: '#333' }}>PURCHASE INVOICE</h4>
+              <h4 style={{ textAlign: 'center', margin: '4px 0', color: '#333' }}>PURCHASE INVOICE</h4>
               <p style={{ textAlign: 'left', margin: '4px 0', color: '#333' }}>Invoice #: {selectedPurchase.invoiceNumber || 'N/A'}</p>
               <p style={{ textAlign: 'left', margin: '4px 0', color: '#333' }}>Purchase ID: {selectedPurchase.purchaseNumber || 'N/A'}</p>
               <p style={{ textAlign: 'left', margin: '4px 0', color: '#333' }}>Date: {formatDate(selectedPurchase.purchaseDate)}</p>
@@ -677,7 +694,7 @@ const styles = {
   receiptHeaderInfo: { textAlign: 'center', marginBottom: '16px' },
   receiptDivider: { borderTop: '2px dashed #000', margin: '14px 0' },
   receiptTable: { width: '100%', tableLayout: 'fixed', borderCollapse: 'collapse', marginBottom: '12px' },
-  receiptTh: { textAlign: 'left', padding: '6px 8px', backgroundColor: '#394654', borderBottom: '2px solid #000', fontSize: '12px', fontWeight: 600, color: '#ffffff', textTransform: 'uppercase', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
+  receiptTh: { textAlign: 'left', padding: '6px 8px', backgroundColor: '#293746', borderBottom: '2px solid #000', fontSize: '12px', fontWeight: 600, color: '#ffffff', textTransform: 'uppercase', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
   receiptTd: { padding: '6px 8px', borderBottom: '1px solid #ccc', fontSize: '13px', color: '#000' },
   receiptTdName: { padding: '6px 8px', borderBottom: '1px solid #ccc', fontSize: '13px', color: '#000', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textAlign: 'left' },
   receiptTotals: { marginTop: '14px' },

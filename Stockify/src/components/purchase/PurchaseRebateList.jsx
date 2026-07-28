@@ -368,11 +368,11 @@ function PurchaseRebateList() {
 
                         <div id="rebate-receipt-content" style={styles.receiptBody}>
                             <div style={{ textAlign: 'center', marginBottom: '20px' }}>
-                                <h4 style={{ margin: '0 0 8px 0', fontSize: '18px',color:'#24354e' }}>PURCHASE REBATE RECEIPT</h4>
-                                <p style={{ margin: '4px 0', fontSize: '14px' }}>Rebate #: <strong>{viewRebate.rebateNumber}</strong></p>
-                                <p style={{ margin: '4px 0', fontSize: '14px' }}>Date: <strong>{new Date(viewRebate.rebateDate || viewRebate.createdAt).toLocaleDateString()}</strong></p>
-                                <p style={{ margin: '4px 0', fontSize: '14px' }}>Invoice #: <strong>{viewRebate.invoiceNumber || viewRebate.purchase?.invoiceNumber || '—'}</strong></p>
-                                <p style={{ margin: '4px 0', fontSize: '14px' }}>Supplier: <strong>{getSupplierName(viewRebate)}</strong></p>
+                                <h4 style={{ margin: '0 0 8px 0', fontSize: '14px',color:'#333' }}>PURCHASE REBATE RECEIPT</h4>
+                                <p style={{  textAlign: 'left',margin: '4px 0', fontSize: '14px' }}>Rebate #:{viewRebate.rebateNumber}</p>
+                                <p style={{ textAlign: 'left', margin: '4px 0', fontSize: '14px' }}>Date: {new Date(viewRebate.rebateDate || viewRebate.createdAt).toLocaleDateString()}</p>
+                                <p style={{  textAlign: 'left',margin: '4px 0', fontSize: '14px' }}>Invoice #:{viewRebate.invoiceNumber || viewRebate.purchase?.invoiceNumber || '—'}</p>
+                                <p style={{  textAlign: 'left',margin: '4px 0', fontSize: '14px' }}>Supplier:{getSupplierName(viewRebate)}</p>
                             </div>
 
                             <div style={styles.receiptDivider}></div>
@@ -447,6 +447,7 @@ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '0px',width:'9
     // Filter styles
     filterContainer: {
         padding: '16px 30px',
+        
     },
     filterRow: {
         display: 'flex',
@@ -458,7 +459,8 @@ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '0px',width:'9
         display: 'flex',
         flexDirection: 'column',
         flex: '1',
-        minWidth: '160px'
+        minWidth: '160px',
+        marginTop:'30px'
     },
     filterLabel: {
         fontSize: '12px',
@@ -505,7 +507,7 @@ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '0px',width:'9
     receiptBody: { overflowY: 'auto', overflowX: 'hidden', flex: 1, padding: '30px', color: '#000' },
     receiptDivider: { borderTop: '2px dashed #000', margin: '20px 0' },
     receiptTable: { width: '100%', tableLayout: 'fixed', borderCollapse: 'collapse', marginBottom: '12px' },
-    receiptTh: { textAlign: 'left', padding: '12px 10px', backgroundColor: '#1e2d47', borderBottom: '2px solid #000', fontSize: '13px', fontWeight: 600, color: '#ffffff', textTransform: 'uppercase' },
+    receiptTh: { textAlign: 'left', padding: '12px 10px', backgroundColor: '#293746', borderBottom: '2px solid #000', fontSize: '13px', fontWeight: 600, color: '#ffffff', textTransform: 'uppercase' },
     receiptTd: { textAlign: 'left', padding: '12px 10px', borderBottom: '1px solid #ccc', fontSize: '14px', color: '#000' }
 };
 
