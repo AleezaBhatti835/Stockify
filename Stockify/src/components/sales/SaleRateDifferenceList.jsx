@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { usePrintSettings } from '../../context/PrintSettingsContext';
-import './purchase.css';
+import '../purchase/purchase.css'; // reuse same base styling as purchase screens
 import '../roles.css';
 
 // ============== EXACT PAPER CONFIG FROM REFERENCE ==============
@@ -37,11 +37,11 @@ const getPaperConfig = (paperSize) => {
     }
 };
 
-const PurchaseRateDifferenceList = () => {
+const SaleRateDifferenceList = () => {
     const [differences, setDifferences] = useState([]);
     const [filteredDifferences, setFilteredDifferences] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [suppliers, setSuppliers] = useState([]);
+    const [customers, setCustomers] = useState([]);
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage] = useState(10);
 
@@ -65,7 +65,7 @@ const PurchaseRateDifferenceList = () => {
     };
 
     const [filters, setFilters] = useState({
-        supplier: '',
+        customer: '',
         dateFrom: getLastMonthDate(),
         dateTo: getTodayDate()
     });
@@ -75,7 +75,7 @@ const PurchaseRateDifferenceList = () => {
 
     useEffect(() => {
         fetchDifferences();
-        fetchSuppliers();
+        fetchCustomers();
     }, []);
 
     useEffect(() => {
@@ -84,7 +84,7 @@ const PurchaseRateDifferenceList = () => {
 
     const fetchDifferences = async () => {
         try {
-            const response = await fetch('http://localhost:5000/api/purchase-rate-difference', {
+            const response = await fetch('http://localhost:5000/api/sale-rate-difference', {
                 cache: 'no-store'
             });
             const data = await response.json();
@@ -105,24 +105,24 @@ const PurchaseRateDifferenceList = () => {
         }
     };
 
-    const fetchSuppliers = async () => {
+    const fetchCustomers = async () => {
         try {
-            const response = await fetch('http://localhost:5000/api/suppliers');
+            const response = await fetch('http://localhost:5000/api/customers');
             const data = await response.json();
-            setSuppliers(data);
+            setCustomers(data);
         } catch (error) {
-            console.error("Error fetching suppliers:", error);
+            console.error("Error fetching customers:", error);
         }
     };
 
     const applyFilters = () => {
         let filtered = [...differences];
 
-        if (filters.supplier) {
+        if (filters.customer) {
             filtered = filtered.filter(diff =>
-                diff.supplierId?._id === filters.supplier ||
-                diff.supplierId?.contactPerson?.toLowerCase().includes(filters.supplier.toLowerCase()) ||
-                diff.supplierId?.companyName?.toLowerCase().includes(filters.supplier.toLowerCase())
+                diff.customerId?._id === filters.customer ||
+                diff.customerId?.customerName?.toLowerCase().includes(filters.customer.toLowerCase()) ||
+                diff.customerId?.name?.toLowerCase().includes(filters.customer.toLowerCase())
             );
         }
 
@@ -160,7 +160,7 @@ const PurchaseRateDifferenceList = () => {
 
     const clearFilters = () => {
         setFilters({
-            supplier: '',
+            customer: '',
             dateFrom: getLastMonthDate(),
             dateTo: getTodayDate()
         });
@@ -187,20 +187,20 @@ const PurchaseRateDifferenceList = () => {
         setIsModalOpen(false);
     };
 
-    const getUniqueSuppliers = () => {
-        const uniqueSuppliers = new Map();
+    const getUniqueCustomers = () => {
+        const uniqueCustomers = new Map();
         differences.forEach(diff => {
-            if (diff.supplierId) {
-                const id = diff.supplierId._id || diff.supplierId;
-                if (!uniqueSuppliers.has(id)) {
-                    uniqueSuppliers.set(id, {
+            if (diff.customerId) {
+                const id = diff.customerId._id || diff.customerId;
+                if (!uniqueCustomers.has(id)) {
+                    uniqueCustomers.set(id, {
                         _id: id,
-                        name: diff.supplierId.contactPerson || diff.supplierId.companyName || 'Unknown'
+                        name: diff.customerId.customerName || diff.customerId.name || 'Walk-in Customer'
                     });
                 }
             }
         });
-        return Array.from(uniqueSuppliers.values());
+        return Array.from(uniqueCustomers.values());
     };
 
     // Print Logic
@@ -302,12 +302,12 @@ const PurchaseRateDifferenceList = () => {
                         id="receipt-content"
                     >
                         <div style={styles.receiptHeaderInfo}>
-                            <h4 style={{ textAlign: 'center', margin: '4px 0', color: '#333' }}>RATE DIFFERENCE VOUCHER</h4>
+                            <h4 style={{ textAlign: 'center', margin: '4px 0', color: '#333' }}>SALE RATE DIFFERENCE VOUCHER</h4>
                             <p style={{ textAlign: 'left', margin: '4px 0', color: '#333' }}>Voucher #: {selectedDifference.differenceNumber || 'N/A'}</p>
                             <p style={{ textAlign: 'left', margin: '4px 0', color: '#333' }}>Linked Invoice #: {selectedDifference.invoiceNumber || 'N/A'}</p>
                             <p style={{ textAlign: 'left', margin: '4px 0', color: '#333' }}>Date: {formatDate(selectedDifference.createdAt || selectedDifference.date)}</p>
                             <p style={{ textAlign: 'left', margin: '4px 0', color: '#333' }}>
-                                Supplier: {selectedDifference.supplierId?.contactPerson || selectedDifference.supplierId?.companyName || 'Unknown'}
+                                Customer: {selectedDifference.customerId?.customerName || selectedDifference.customerId?.name || 'Walk-in Customer'}
                             </p>
                         </div>
                         <div style={styles.receiptDivider}></div>
@@ -318,11 +318,11 @@ const PurchaseRateDifferenceList = () => {
                                     <div key={idx} style={styles.thermalItemRow}>
                                         <div style={styles.thermalItemLine1}>
                                             <span>{item.product?.name || 'Unknown Product'}</span>
-                                            <span>x{item.purchasedQuantity}</span>
+                                            <span>x{item.soldQuantity}</span>
                                         </div>
                                         <div style={styles.thermalItemLine2}>
                                             <span>{item.prevRate?.toFixed(2)} → {item.newRate?.toFixed(2)}</span>
-                                            <span style={{ fontWeight: 700, color: item.totalDifference > 0 ? 'red' : 'green' }}>
+                                            <span style={{ fontWeight: 700, color: item.totalDifference > 0 ? 'green' : 'red' }}>
                                                 {item.totalDifference > 0 ? '+' : ''}{item.totalDifference?.toFixed(2)}
                                             </span>
                                         </div>
@@ -344,10 +344,10 @@ const PurchaseRateDifferenceList = () => {
                                     {(selectedDifference.items || []).map((item, idx) => (
                                         <tr key={idx}>
                                             <td style={styles.receiptTdName}>{item.product?.name || 'Unknown Product'}</td>
-                                            <td style={{ ...styles.receiptTd, textAlign: 'left' }}>{item.purchasedQuantity}</td>
+                                            <td style={{ ...styles.receiptTd, textAlign: 'left' }}>{item.soldQuantity}</td>
                                             <td style={{ ...styles.receiptTd, textAlign: 'left' }}>{item.prevRate?.toFixed(2)}</td>
                                             <td style={{ ...styles.receiptTd, textAlign: 'left' }}>{item.newRate?.toFixed(2)}</td>
-                                            <td style={{ ...styles.receiptTd, fontWeight: 600, textAlign: 'right', color: item.totalDifference > 0 ? 'red' : 'green' }}>
+                                            <td style={{ ...styles.receiptTd, fontWeight: 600, textAlign: 'right', color: item.totalDifference > 0 ? 'green' : 'red' }}>
                                                 {item.totalDifference > 0 ? '+' : ''}{item.totalDifference?.toFixed(2)}
                                             </td>
                                         </tr>
@@ -360,7 +360,7 @@ const PurchaseRateDifferenceList = () => {
                         <div style={styles.receiptTotals}>
                             <div style={{ ...styles.receiptTotalRow, fontWeight: 700, fontSize: '1.25em', borderTop: '2px solid #000', paddingTop: '10px' }}>
                                 <span>Net Rate Difference</span>
-                                <span style={{ color: selectedDifference.netDifference > 0 ? 'red' : 'green' }}>
+                                <span style={{ color: selectedDifference.netDifference > 0 ? 'green' : 'red' }}>
                                     {selectedDifference.netDifference > 0 ? '+' : ''}
                                     {(selectedDifference.netDifference || 0).toFixed(2)}
                                 </span>
@@ -398,13 +398,13 @@ const PurchaseRateDifferenceList = () => {
                 alignItems: 'flex-end',
                 textAlign: 'left'
             }}>
-                <div style={{ flex: '1', minWidth: '150px' }}>
+              <div style={{ flex: '1', minWidth: '150px' }}>
                     <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#555', marginBottom: '4px' }}>
-                        Supplier
+                        Customer
                     </label>
                     <select
-                        name="supplier"
-                        value={filters.supplier}
+                        name="customer"
+                        value={filters.customer}
                         onChange={handleFilterChange}
                         style={{
                             width: '100%',
@@ -415,10 +415,11 @@ const PurchaseRateDifferenceList = () => {
                             fontSize: '14px'
                         }}
                     >
-                        <option value="">All Suppliers</option>
-                        {suppliers.map(s => (
-                            <option key={s._id} value={s._id}>
-                                {s.contactPerson || s.companyName}
+                        <option value="">All Customers</option>
+                        {/* Yahan hum directly 'customers' array use kar rahe hain */}
+                        {customers.map(c => (
+                            <option key={c._id} value={c._id}>
+                                {c.customerName || c.name}
                             </option>
                         ))}
                     </select>
@@ -505,10 +506,10 @@ const PurchaseRateDifferenceList = () => {
                     <thead>
                         <tr>
                             <th style={{ textAlign: 'center' }}>Sr #</th>
-                            <th style={{ textAlign: 'left' }}>PRD #</th>
+                            <th style={{ textAlign: 'left' }}>SRD #</th>
                             <th style={{ textAlign: 'left' }}>Invoice #</th>
                             <th style={{ textAlign: 'left' }}>Date</th>
-                            <th style={{ textAlign: 'left' }}>Supplier</th>
+                            <th style={{ textAlign: 'left' }}>Customer</th>
                             <th style={{ textAlign: 'left' }}>Net Difference</th>
                             <th style={{ textAlign: 'left' }}>Action</th>
                         </tr>
@@ -530,9 +531,9 @@ const PurchaseRateDifferenceList = () => {
                                             {formatDate(diff.createdAt || diff.date)}
                                         </td>
                                         <td style={{ textAlign: 'left' }}>
-                                            {diff.supplierId?.contactPerson || diff.supplierId?.companyName || 'Unknown'}
+                                            {diff.customerId?.customerName || diff.customerId?.name || 'Walk-in Customer'}
                                         </td>
-                                        <td style={{ fontWeight: 'bold', color: diff.netDifference > 0 ? 'red' : 'green', fontSize: '15px', textAlign: 'left' }}>
+                                        <td style={{ fontWeight: 'bold', color: diff.netDifference > 0 ? 'green' : 'red', fontSize: '15px', textAlign: 'left' }}>
                                             {diff.netDifference > 0 ? '+' : ''}{diff.netDifference || 0}
                                         </td>
                                         <td style={{ textAlign: 'left' }}>
@@ -637,4 +638,4 @@ const styles = {
     thermalItemLine2: { display: 'flex', justifyContent: 'space-between', fontSize: '0.85em', color: '#000', marginTop: '2px' }
 };
 
-export default PurchaseRateDifferenceList;
+export default SaleRateDifferenceList;

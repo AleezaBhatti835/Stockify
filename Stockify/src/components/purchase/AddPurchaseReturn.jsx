@@ -616,7 +616,7 @@ const PurchaseReturnByInvoice = () => {
             </div>
             <button 
               className="btn-submit-order" 
-              style={{ backgroundColor: '#4d9b6b',width:'24%', padding: '15px 1px', border: 'none', borderRadius: '4px', color: '#fff', fontWeight: 'bold', cursor: 'pointer' }} 
+              style={{ backgroundColor: '#4d9b6b',width:'18%', padding: '15px 1px', border: 'none', borderRadius: '4px', color: '#fff', fontWeight: 'bold', cursor: 'pointer' }} 
               disabled={completing || !purchase || withTotalAmount === 0} 
               onClick={() => {
                 if (withTotalAmount > 0) {

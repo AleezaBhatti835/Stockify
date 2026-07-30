@@ -42,17 +42,6 @@ function EmployeeReport() {
     return desig;
   };
 
-  const filtered = useMemo(() => {
-    const term = searchTerm.trim().toLowerCase();
-    if (!term) return employees;
-    return employees.filter(e =>
-      getEmployeeName(e).toLowerCase().includes(term) ||
-      getDesignation(e).toLowerCase().includes(term) ||
-      (e.email || '').toLowerCase().includes(term) ||
-      (e.contact || e.phone || '').toLowerCase().includes(term) ||
-      (e.cnic || '').toLowerCase().includes(term)
-    );
-  }, [employees, searchTerm]);
 
   const columns = ['Sr#', 'Employee Name', 'Designation', 'Email', 'Contact', 'CNIC', 'Address'];
 
@@ -68,7 +57,7 @@ function EmployeeReport() {
 
   // ==================== PRINT ====================
   const handlePrint = () => {
-    const rowsHtml = filtered.map((e, idx) => `
+    const rowsHtml = employees.map((e, idx) => `
       <tr>
         <td style="text-align: center; width: 40px;">${idx + 1}</td>
         <td style="width: 120px;">${getEmployeeName(e)}</td>
@@ -113,7 +102,7 @@ function EmployeeReport() {
               <h2>Employee List Report</h2>
               <p>Generated on ${new Date().toLocaleString()}</p>
             </div>
-            <p><strong>Total:</strong> ${filtered.length} employee(s)</p>
+            <p><strong>Total:</strong> ${employees.length} employee(s)</p>
           </div>
           <table>
             <thead>
@@ -149,12 +138,12 @@ function EmployeeReport() {
     doc.text('Employee List Report', 14, 12);
     doc.setFontSize(9);
     doc.setTextColor(100, 116, 139);
-    doc.text(`Generated on ${new Date().toLocaleString()} — ${filtered.length} employee(s)`, 14, 18);
+    doc.text(`Generated on ${new Date().toLocaleString()} — ${employees.length} employee(s)`, 14, 18);
 
     autoTable(doc, {
       startY: 22,
       head: [columns],
-      body: filtered.map((e, idx) => getRow(e, idx)),
+      body: employees.map((e, idx) => getRow(e, idx)),
       styles: { fontSize: 9, cellPadding: 5, lineColor: [203, 213, 225], lineWidth: 0.1 },
       headStyles: { fillColor: [241, 245, 249], textColor: [51, 65, 85], fontStyle: 'bold', lineWidth: 0.1, lineColor: [148, 163, 184] },
       alternateRowStyles: { fillColor: [248, 250, 252] },
@@ -174,7 +163,7 @@ function EmployeeReport() {
 
   // ==================== EXCEL EXPORT ====================
   const handleExportExcel = () => {
-    const rows = filtered.map((e, idx) => ({
+    const rows = employees.map((e, idx) => ({
       'Sr#': idx + 1,
       'Employee Name': getEmployeeName(e),
       'Designation': getDesignation(e),
@@ -207,17 +196,9 @@ function EmployeeReport() {
         </div>
       </div>
 
-      <div style={styles.toolbar}>
-        <input
-          type="text"
-          placeholder="Search by name, designation, email, phone, or CNIC..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          style={styles.searchInput}
-        />
-        <span style={styles.countLabel}>{filtered.length} of {employees.length} employee(s)</span>
+<div style={{ marginBottom: '10px', textAlign: 'right' }}>
+        <span style={styles.countLabel}>Total: {employees.length} employee(s)</span>
       </div>
-
       <div style={styles.tableWrapper}>
         <table style={styles.table}>
           <thead>
@@ -234,10 +215,10 @@ function EmployeeReport() {
           <tbody>
             {loading ? (
               <tr><td colSpan={columns.length} style={styles.emptyCell}>Loading...</td></tr>
-            ) : filtered.length === 0 ? (
+            ) : employees.length === 0 ? (
               <tr><td colSpan={columns.length} style={styles.emptyCell}>No employees found.</td></tr>
             ) : (
-              filtered.map((e, idx) => (
+              employees.map((e, idx) => (
                 <tr key={e._id} style={idx % 2 === 1 ? styles.altRow : null}>
                   <td style={{ ...styles.td, textAlign: 'center', width: '50px' }}>{idx + 1}</td>
                   <td style={{ ...styles.td, width: '140px', fontWeight: 600 }}>{getEmployeeName(e)}</td>
@@ -259,7 +240,7 @@ function EmployeeReport() {
 }
 
 const styles = {
-  page: { padding: '24px', background: '#f8fafc', minHeight: '100%' },
+  page: { padding: '24px', width:'97%',background: '#f8fafc', minHeight: '100%' },
   headerRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px', flexWrap: 'wrap', gap: '10px' },
   title: { margin: 0, fontSize: '20px', fontWeight: 700, color: '#0f172a' },
   actions: { display: 'flex', gap: '10px' },
@@ -269,7 +250,7 @@ const styles = {
   countLabel: { fontSize: '13px', color: '#64748b', fontWeight: 500 },
   tableWrapper: { background: '#fff', borderRadius: '8px', border: '1px solid #cbd5e1', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' },
   table: { width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' },
-  th: { textAlign: 'left', padding: '10px 14px', background: '#3c4e6b', fontSize: '11px', color: '#ffffff', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', borderBottom: '2px solid #94a3b8', borderRight: '1px solid #cbd5e1', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
+  th: { textAlign: 'left', padding: '10px 14px', background: '#3c4e6b', fontSize: '11px', color: '#ffffff', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', borderBottom: '2px solid #94a3b8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
   td: { padding: '9px 14px', textAlign: 'left', fontSize: '13px', borderBottom: '1px solid #cbd5e1', borderRight: '1px solid #cbd5e1', color: '#334155', overflow: 'hidden' },
   altRow: { backgroundColor: '#f8fafc' },
   emptyCell: { textAlign: 'center', padding: '40px 0', color: '#94a3b8', fontSize: '14px' }

@@ -469,7 +469,9 @@ const SalesReturnByInvoice = () => {
   return (
     <div className="add-purchase-wrapper">
       <MessagePopup message={message.text} type={message.type} onClose={() => setMessage({ text: '', type: '' })} />
-
+ <div style={{ textAlign: 'center', alignItems: 'center',marginTop:'20px' }} className="po-header">
+        <h2>Sales Return Management</h2>
+      </div>
       {/* Mode Toggle Buttons */}
       <div style={{ display: 'flex', gap: '10px', marginBottom: '20px', flexWrap: 'wrap' }}>
         <button
@@ -626,7 +628,7 @@ const SalesReturnByInvoice = () => {
             </div>
             <button
               className="btn-submit-order"
-              style={{ backgroundColor: '#223747', width: '18%', padding: '14px 40px', border: 'none', borderRadius: '4px', color: '#fff', fontWeight: 'bold', cursor: 'pointer' }}
+              style={{ backgroundColor: '#4d9b6b',width:'18%', padding: '15px 1px', border: 'none', borderRadius: '4px', color: '#fff', fontWeight: 'bold', cursor: 'pointer'}}
               disabled={completing || !sale || withTotalAmount === 0}
               onClick={() => {
                 if (withTotalAmount > 0) {
@@ -637,7 +639,7 @@ const SalesReturnByInvoice = () => {
                 }
               }}
             >
-              {completing ? 'Processing...' : '↩  Return'}
+              {completing ? 'Processing...' : 'Complete Return'}
             </button>
           </div>
         </>

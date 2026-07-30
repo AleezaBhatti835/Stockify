@@ -76,16 +76,16 @@ function Customers() {
   const [customerTypes, setCustomerTypes] = useState([]);
   // Pagination states
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(2);
+  const [itemsPerPage] = useState(10);
 
   // Added customerTypeId to initial state
   const initialState = { name: '', email: '', contact: '', address: '', pic: '', cnic: '', status: 'Active', customerTypeId: '' };
 
-  // Note: newCustomer is mostly handled by AddCustomerModal now, but keeping it for reference if needed elsewhere
   const [editCustomerId, setEditCustomerId] = useState(null);
   const [editCustomer, setEditCustomer] = useState(initialState);
   const [viewCustomer, setViewCustomer] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [uploading, setUploading] = useState({ add: false, edit: false });
 
   // Pagination logic
@@ -229,18 +229,32 @@ function Customers() {
 
   const requestDelete = (customer) => {
     setDeleteTarget(customer);
+    setIsDeleteModalOpen(true);
   };
 
   const handleDelete = async () => {
-    if (!deleteTarget) return;
+    if (!deleteTarget) {
+      console.error('No customer selected for deletion');
+      return;
+    }
+    
     try {
-      await fetch(`http://localhost:5000/api/customers/${deleteTarget._id}`, { method: 'DELETE' });
-      showMessage('Customer deleted successfully!', 'success');
-      fetchCustomers();
+      const response = await fetch(`http://localhost:5000/api/customers/${deleteTarget._id}`, {
+        method: 'DELETE',
+      });
+      
+      if (response.ok) {
+        showMessage('Customer deleted successfully!', 'success');
+        fetchCustomers();
+        setDeleteTarget(null);
+        setIsDeleteModalOpen(false);
+      } else {
+        const errorData = await response.json();
+        showMessage(errorData.message || 'Error deleting customer.', 'error');
+      }
     } catch (error) {
-      showMessage('Error deleting customer.', 'error');
-    } finally {
-      setDeleteTarget(null);
+      console.error('Error deleting customer:', error);
+      showMessage('Error deleting customer. Please try again.', 'error');
     }
   };
 
@@ -338,10 +352,7 @@ function Customers() {
                         {/* Delete Button */}
                         <button
                           style={styles.iconBtnDelete}
-                          onClick={() => {
-                            requestDelete(c._id);
-                            setIsDeleteModalOpen(true);
-                          }}
+                          onClick={() => requestDelete(c)}
                           title="Delete"
                         >
                           <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
@@ -559,7 +570,7 @@ function Customers() {
       )}
 
       {/* DELETE CONFIRMATION MODAL */}
-      {deleteTarget && (
+      {isDeleteModalOpen && deleteTarget && (
         <div className="modal-overlay">
           <div className="modal-content" style={{ maxWidth: '380px', textAlign: 'center', position: 'relative' }}>
 
@@ -576,8 +587,21 @@ function Customers() {
             </p>
 
             <div className="modal-actions" style={{ marginTop: '22px', display: 'flex', justifyContent: 'center', gap: '10px' }}>
-              <button onClick={() => setDeleteTarget(null)} style={{ backgroundColor: '#6c757d', color: 'white' }}>Cancel</button>
-              <button onClick={handleDelete} style={{ backgroundColor: '#dc3545', color: 'white' }}>Delete</button>
+              <button 
+                onClick={() => {
+                  setDeleteTarget(null);
+                  setIsDeleteModalOpen(false);
+                }} 
+                style={{ backgroundColor: '#6c757d', color: 'white' }}
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={handleDelete} 
+                style={{ backgroundColor: '#dc3545', color: 'white' }}
+              >
+                Delete
+              </button>
             </div>
           </div>
         </div>

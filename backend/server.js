@@ -36,6 +36,9 @@ import StockBreakage from './models/StockBreakage.js';
 import PurchaseRebate from './models/PurchaseRebate.js';
 import PurchaseRebateDetail from './models/PurchaseRebateDetail.js';
 import PurchaseRateDifference from './models/PurchaseRateDifference.js'
+import SalesRebate from './models/SalesRebate.js';
+import SalesRebateDetail from './models/SalesRebateDetail.js';
+import SaleRateDifference from './models/SaleRateDifference.js';
 console.log("Checking URI:", process.env.MONGO_URI);
 
 const __filename = fileURLToPath(import.meta.url);
@@ -1230,12 +1233,16 @@ app.put('/api/purchase-returns/:id/status', async (req, res) => {
 
     // Side effect: once completed, record the credit/refund
     if (newStatus === 'Completed') {
-      await SupplierAccount.create([{
-        supplier: purchaseReturn.supplier,
-        transactionType: 'Purchase Return',
-        amount: -purchaseReturn.totalAmount,
-        referenceId: purchaseReturn._id
-      }], { session });
+   await SupplierAccount.create([{
+      supplier: supplierId,
+      invoiceNumber: `PR-${invoiceNumber}`, 
+      transactionType: 'Purchase Return',
+      debit: 0,
+      credit: totalAmount,
+      referenceId: savedReturn._id,
+      referenceModel: 'PurchaseReturn',
+      date: new Date()
+    }], { session });
     }
     const activeRegister = await CashRegister.findOne({ closingDate: null }).session(session);
     if (activeRegister) {
@@ -3325,9 +3332,9 @@ app.post('/api/purchase-rebates/complete', async (req, res) => {
     const priorEntries = await SupplierAccount.find({ supplier: supplierId }).session(session);
     const previousBalance = priorEntries.reduce((sum, e) => sum + (e.debit - e.credit), 0);
 
-    await SupplierAccount.create([{
+  await SupplierAccount.create([{
       supplier: supplierId,
-      invoiceNumber,
+      invoiceNumber: `PRB-${invoiceNumber}`, 
       transactionType: 'Purchase Rebate',
       debit: 0,
       credit: totalAmount,
@@ -3535,7 +3542,367 @@ app.get('/api/purchase-rate-difference/:id', async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 });
+// ==================== SALES REBATE ====================
 
+// Get a sale's items with remaining rebatable quantity (mirrors purchase's rebatable-items)
+app.get('/api/sales/:id/rebatable-items', async (req, res) => {
+  try {
+    const sale = await Sale.findById(req.params.id).populate('customer');
+    if (!sale) {
+      return res.status(404).json({ success: false, message: 'Sale not found' });
+    }
+
+    const saleDetails = await SaleDetail.find({ sale: sale._id }).populate('product');
+    if (!saleDetails || saleDetails.length === 0) {
+      return res.status(404).json({ success: false, message: 'No items found for this sale.' });
+    }
+
+    // Subtract quantities already rebated (across all prior sales rebates on this sale)
+    const existingRebates = await SalesRebate.find({ sale: sale._id });
+    const rebateIds = existingRebates.map(r => r._id);
+    const existingDetails = await SalesRebateDetail.find({ rebate: { $in: rebateIds } });
+
+    const alreadyRebatedMap = {};
+    existingDetails.forEach(detail => {
+      const key = detail.product.toString();
+      alreadyRebatedMap[key] = (alreadyRebatedMap[key] || 0) + detail.quantity;
+    });
+
+    const items = saleDetails.map(detail => {
+      const key = detail.product._id.toString();
+      const alreadyRebated = alreadyRebatedMap[key] || 0;
+      const saleQty = detail.quantity;
+      return {
+        product: detail.product,
+        saleQty,
+        alreadyRebated,
+        maxRebatable: saleQty - alreadyRebated,
+        unitPrice: detail.unitPrice
+      };
+    });
+
+    return res.json({
+      success: true,
+      sale: {
+        _id: sale._id,
+        saleNumber: sale.saleNumber,
+        invoiceNumber: sale.saleNumber,
+        customer: sale.customer,
+        saleDate: sale.saleDate,
+        createdAt: sale.createdAt
+      },
+      items
+    });
+  } catch (error) {
+    console.error('Error fetching rebatable items:', error);
+    res.status(500).json({ success: false, message: 'Server error', error: error.message });
+  }
+});
+
+// Complete a sales rebate — one-step, customer ledger only, NO stock/StockMovement effect
+app.post('/api/sales-rebates/complete', async (req, res) => {
+  const { saleId, customerId, invoiceNumber, items } = req.body;
+  const session = await mongoose.startSession();
+
+  try {
+    session.startTransaction();
+
+    if (!items || items.length === 0) {
+      throw new Error('At least one item with a rebate quantity is required.');
+    }
+
+    const sale = await Sale.findById(saleId).session(session);
+    if (!sale) {
+      throw new Error('Original sale not found.');
+    }
+
+    const saleDetails = await SaleDetail.find({ sale: saleId }).session(session);
+
+    // Re-validate quantities against already-rebated amounts
+    const existingRebates = await SalesRebate.find({ sale: saleId }).session(session);
+    const rebateIds = existingRebates.map(r => r._id);
+    const existingDetails = await SalesRebateDetail.find({ rebate: { $in: rebateIds } }).session(session);
+
+    const alreadyRebatedMap = {};
+    existingDetails.forEach(detail => {
+      const key = detail.product.toString();
+      alreadyRebatedMap[key] = (alreadyRebatedMap[key] || 0) + detail.quantity;
+    });
+
+    for (const reqItem of items) {
+      const originalItem = saleDetails.find(sd => sd.product.toString() === reqItem.product);
+      if (!originalItem) {
+        throw new Error(`Product ${reqItem.product} was not part of this sale.`);
+      }
+      if (!reqItem.quantity || reqItem.quantity <= 0) {
+        throw new Error('Rebate quantity must be greater than zero.');
+      }
+      const alreadyRebated = alreadyRebatedMap[reqItem.product] || 0;
+      const maxRebatable = originalItem.quantity - alreadyRebated;
+      if (reqItem.quantity > maxRebatable) {
+        throw new Error(`Cannot rebate ${reqItem.quantity} units — only ${maxRebatable} remain rebatable for this product.`);
+      }
+    }
+
+    const totalAmount = items.reduce((sum, i) => sum + (i.quantity * i.unitPrice), 0);
+
+    // Generate SRB-XXXX rebate number
+    const counter = await Counter.findOneAndUpdate(
+      { name: 'salesRebateNumber' },
+      { $inc: { seq: 1 } },
+      { new: true, upsert: true, session, returnDocument: 'after' }
+    );
+    const rebateNumber = `SRB-${counter.seq.toString()}`;
+
+    const createdRebate = await SalesRebate.create([{
+      rebateNumber,
+      sale: saleId,
+      customer: customerId,
+      invoiceNumber,
+      totalAmount
+    }], { session });
+    const savedRebate = createdRebate[0];
+
+    // Line items — NO stock/product/StockMovement changes here
+    for (const item of items) {
+      await SalesRebateDetail.create([{
+        rebate: savedRebate._id,
+        product: item.product,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        totalPrice: item.quantity * item.unitPrice
+      }], { session });
+    }
+
+    // LEDGER — credit the customer (reduces what they owe us), NO cash/register movement
+    const priorEntries = await CustomerAccount.find({ customer: customerId }).session(session);
+    const previousBalance = priorEntries.reduce((sum, e) => sum + (e.debit - e.credit), 0);
+
+    await CustomerAccount.create([{
+      customer: customerId,
+      invoiceNumber:`SRB-${invoiceNumber}`,
+      transactionType: 'Sales Rebate',
+      debit: 0,
+      credit: totalAmount,
+      referenceId: savedRebate._id,
+      referenceModel: 'SalesRebate',
+      date: new Date()
+    }], { session });
+
+    const newBalance = previousBalance - totalAmount;
+
+    await session.commitTransaction();
+
+    return res.status(201).json({
+      success: true,
+      message: 'Rebate recorded successfully',
+      salesRebate: savedRebate,
+      previousBalance,
+      rebateAmount: totalAmount,
+      newBalance
+    });
+
+  } catch (error) {
+    await session.abortTransaction();
+    console.error('Error completing sales rebate:', error);
+    return res.status(400).json({ success: false, message: error.message });
+  } finally {
+    session.endSession();
+  }
+});
+
+// List all sales rebates (main table)
+app.get('/api/sales-rebates', async (req, res) => {
+  try {
+    const rebates = await SalesRebate.find()
+      .populate('customer')
+      .populate('sale', 'saleNumber')
+      .sort({ createdAt: -1 });
+    res.json(rebates);
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server error', error: error.message });
+  }
+});
+
+// Get a single rebate with its line items (for the View modal)
+app.get('/api/sales-rebates/:id', async (req, res) => {
+  try {
+    const rebate = await SalesRebate.findById(req.params.id)
+      .populate('customer')
+      .populate('sale', 'saleNumber');
+    if (!rebate) {
+      return res.status(404).json({ success: false, message: 'Sales rebate not found' });
+    }
+
+    const details = await SalesRebateDetail.find({ rebate: rebate._id }).populate('product', 'name');
+
+    res.json({ success: true, rebate, details });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server error', error: error.message });
+  }
+});
+
+// ==================== SALE RATE DIFFERENCE ====================
+// 1. SEARCH SALE FOR RATE DIFFERENCE
+app.get('/api/sale-rate-difference/search', async (req, res) => {
+  const { invoiceNumber } = req.query;
+
+  if (!invoiceNumber || !invoiceNumber.trim()) {
+    return res.status(400).json({ success: false, message: 'Invoice number is required.' });
+  }
+
+  try {
+    const sale = await Sale.findOne({
+      saleNumber: { $regex: new RegExp(`^${invoiceNumber.trim()}$`, 'i') },
+      status: { $nin: ['Hold', 'Cancelled'] } // Cannot do rate diff on held or cancelled sales
+    }).populate('customer');
+
+    if (!sale) {
+      return res.status(404).json({ success: false, message: 'No completed sale found with that invoice number.' });
+    }
+
+    const saleDetails = await SaleDetail.find({ sale: sale._id }).populate('product');
+
+    if (!saleDetails || saleDetails.length === 0) {
+      return res.status(404).json({ success: false, message: 'No items found for this sale.' });
+    }
+
+    const items = saleDetails.map(detail => ({
+      product: detail.product,
+      saleQty: detail.quantity,
+      unitPrice: detail.unitPrice
+    }));
+
+    return res.json({
+      success: true,
+      sale: {
+        _id: sale._id,
+        saleNumber: sale.saleNumber,
+        invoiceNumber: sale.saleNumber,
+        customer: sale.customer
+      },
+      items
+    });
+  } catch (error) {
+    console.error('Error searching sale for rate difference:', error);
+    return res.status(500).json({ success: false, message: 'Server error', error: error.message });
+  }
+});
+
+// 3. GET ALL SALE RATE DIFFERENCES (List ke liye)
+app.get('/api/sale-rate-difference', async (req, res) => {
+  try {
+    const records = await SaleRateDifference.find()
+      .populate('customerId', 'name customerName')
+      .populate('saleId', 'saleNumber invoiceNumber')
+      .populate('items.product', 'name')
+      .sort({ createdAt: -1 }); // Latest sab se upar aayegi list mein
+      
+    res.json(records);
+  } catch (error) {
+    console.error('Error fetching sale rate differences:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// 4. GET SINGLE SALE RATE DIFFERENCE (Modal/View ke liye)
+app.get('/api/sale-rate-difference/:id', async (req, res) => {
+  try {
+    const record = await SaleRateDifference.findById(req.params.id)
+      .populate('customerId', 'name customerName')
+      .populate('saleId', 'saleNumber invoiceNumber')
+      .populate('items.product', 'name');
+
+    if (!record) {
+      return res.status(404).json({ success: false, message: 'Sale rate difference record not found' });
+    }
+
+    res.json({ success: true, record });
+  } catch (error) {
+    console.error('Error fetching single sale rate difference:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// 2. COMPLETE SALE RATE DIFFERENCE & UPDATE LEDGER
+app.post('/api/sale-rate-difference/complete', async (req, res) => {
+  const { saleId, customerId, invoiceNumber, netDifference, items } = req.body;
+  const session = await mongoose.startSession();
+
+  try {
+    session.startTransaction();
+
+    if (!items || items.length === 0) {
+      throw new Error('At least one item with a rate difference is required.');
+    }
+
+    const sale = await Sale.findById(saleId).session(session);
+    if (!sale) {
+      throw new Error('Original sale not found.');
+    }
+
+    // Generate unique SRD-XXXX difference number
+    const counter = await Counter.findOneAndUpdate(
+      { name: 'saleRateDifferenceNumber' },
+      { $inc: { seq: 1 } },
+      { new: true, upsert: true, session, returnDocument: 'after' }
+    );
+    const differenceNumber = `SRD-${counter.seq.toString()}`;
+
+    // Create the Rate Difference record
+    const createdRateDiff = await SaleRateDifference.create([{
+      differenceNumber,
+      saleId,
+      customerId: customerId || undefined,
+      invoiceNumber,
+      netDifference,
+      items: items.map(item => ({
+        product: item.product,
+        soldQuantity: item.soldQuantity,
+        prevRate: item.prevRate,
+        newRate: item.newRate,
+        totalDifference: item.totalDifference
+      }))
+    }], { session });
+    const savedRateDiff = createdRateDiff[0];
+
+    // HIT THE CUSTOMER ACCOUNT (Ledger Math)
+    // Only hit ledger if it's NOT a walk-in customer (i.e., customerId exists)
+    if (netDifference !== 0 && customerId) {
+      
+      // netDifference > 0 means rate increased (customer owes us MORE -> Debit)
+      // netDifference < 0 means rate decreased (customer owes us LESS / we owe them -> Credit)
+      const debitAmount = netDifference > 0 ? netDifference : 0;
+      const creditAmount = netDifference < 0 ? Math.abs(netDifference) : 0;
+
+      await CustomerAccount.create([{
+        customer: customerId,
+        invoiceNumber: `DIFF-${invoiceNumber}`,
+        transactionType: 'Sale Rate Difference', 
+        debit: debitAmount,
+        credit: creditAmount,
+        referenceId: savedRateDiff._id,
+        referenceModel: 'SaleRateDifference', 
+        date: new Date()
+      }], { session });
+    }
+
+    await session.commitTransaction();
+
+    return res.status(201).json({
+      success: true,
+      message: 'Sale rate difference recorded and customer account updated successfully.',
+      rateDifference: savedRateDiff
+    });
+
+  } catch (error) {
+    await session.abortTransaction();
+    console.error('Error completing sale rate difference:', error);
+    return res.status(400).json({ success: false, message: error.message });
+  } finally {
+    session.endSession();
+  }
+});
 
 // ==================== ROOT ROUTE ====================
 app.get('/', (req, res) => {

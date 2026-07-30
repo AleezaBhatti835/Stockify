@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import './purchase.css';
+import '../purchase/purchase.css';
 
 function MessagePopup({ message, type, onClose }) {
     if (!message) return null;
@@ -19,7 +19,7 @@ function MessagePopup({ message, type, onClose }) {
     );
 }
 
-const PurchaseRateDifference = () => {
+const SaleRateDifference = () => {
     const [message, setMessage] = useState({ text: '', type: '' });
     const [completing, setCompleting] = useState(false);
 
@@ -27,7 +27,7 @@ const PurchaseRateDifference = () => {
 
     const [searchInvoiceNumber, setSearchInvoiceNumber] = useState('');
     const [searching, setSearching] = useState(false);
-    const [purchase, setPurchase] = useState(null);
+    const [sale, setSale] = useState(null);
     const [lineItems, setLineItems] = useState([]);
     const [availableInvoiceNumbers, setAvailableInvoiceNumbers] = useState([]);
     const [filteredSuggestions, setFilteredSuggestions] = useState([]);
@@ -39,10 +39,10 @@ const PurchaseRateDifference = () => {
     useEffect(() => {
         const fetchInvoices = async () => {
             try {
-                const res = await fetch('http://localhost:5000/api/purchases', { cache: 'no-store' });
+                const res = await fetch('http://localhost:5000/api/sales', { cache: 'no-store' });
                 const data = await res.json();
                 const numbers = Array.isArray(data)
-                    ? data.map(p => p.invoiceNumber).filter(num => num && num.startsWith('PU-'))
+                    ? data.map(s => s.saleNumber || s.invoiceNumber).filter(num => num && num.startsWith('SL-'))
                         .sort((a, b) => parseInt(a.split('-')[1]) - parseInt(b.split('-')[1]))
                     : [];
                 setAvailableInvoiceNumbers(numbers);
@@ -122,21 +122,21 @@ const PurchaseRateDifference = () => {
         if (!queryNumber || !queryNumber.trim()) return showMessage('Enter an invoice number.', 'error');
 
         setSearching(true);
-        setPurchase(null);
+        setSale(null);
         setLineItems([]);
         setShowSuggestions(false);
 
         try {
-            const res = await fetch(`http://localhost:5000/api/purchase-rate-difference/search?invoiceNumber=${encodeURIComponent(queryNumber.trim())}`, { cache: 'no-store' });
+            const res = await fetch(`http://localhost:5000/api/sale-rate-difference/search?invoiceNumber=${encodeURIComponent(queryNumber.trim())}`, { cache: 'no-store' });
             const data = await res.json();
 
-            if (data.success && data.purchase) {
-                setPurchase(data.purchase);
+            if (data.success && data.sale) {
+                setSale(data.sale);
                 setLineItems(
-                    data.purchase.items.map(item => ({
+                    data.items.map(item => ({
                         productId: item.product._id,
                         productName: item.product.name,
-                        purchasedQuantity: item.quantity,
+                        soldQuantity: item.saleQty,
                         prevRate: item.unitPrice,
                         newRate: item.unitPrice
                     }))
@@ -163,10 +163,10 @@ const PurchaseRateDifference = () => {
 
         const itemsToUpdate = lineItems.filter(row => row.newRate !== row.prevRate).map(row => ({
             product: row.productId,
-            purchasedQuantity: row.purchasedQuantity,
+            soldQuantity: row.soldQuantity,
             prevRate: row.prevRate,
             newRate: Number(row.newRate),
-            totalDifference: (Number(row.newRate) - row.prevRate) * row.purchasedQuantity
+            totalDifference: (Number(row.newRate) - row.prevRate) * row.soldQuantity
         }));
 
         if (itemsToUpdate.length === 0) {
@@ -176,13 +176,13 @@ const PurchaseRateDifference = () => {
 
         setCompleting(true);
         try {
-            const res = await fetch('http://localhost:5000/api/purchase-rate-difference/complete', {
+            const res = await fetch('http://localhost:5000/api/sale-rate-difference/complete', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    purchaseId: purchase._id,
-                    supplierId: purchase.supplier?._id,
-                    invoiceNumber: purchase.invoiceNumber,
+                    saleId: sale._id,
+                    customerId: sale.customer?._id,
+                    invoiceNumber: sale.invoiceNumber || sale.saleNumber,
                     netDifference: totalAmount,
                     items: itemsToUpdate
                 })
@@ -190,7 +190,7 @@ const PurchaseRateDifference = () => {
             const result = await res.json();
             if (result.success) {
                 showMessage(`Rate difference recorded successfully.`, 'success');
-                setPurchase(null);
+                setSale(null);
                 setLineItems([]);
                 setSearchInvoiceNumber('');
             } else {
@@ -204,16 +204,16 @@ const PurchaseRateDifference = () => {
     };
 
     const totalAmount = lineItems.reduce((sum, row) => {
-        const diff = (Number(row.newRate) - row.prevRate) * row.purchasedQuantity;
+        const diff = (Number(row.newRate) - row.prevRate) * row.soldQuantity;
         return sum + diff;
     }, 0);
 
     return (
-        <div className="add-purchase-wrapper" style={{ width: '95%',marginBottom:'90px' }}>
+        <div className="add-purchase-wrapper" style={{ width: '95%', marginBottom: '90px' }}>
             <MessagePopup message={message.text} type={message.type} onClose={() => setMessage({ text: '', type: '' })} />
 
             <div style={{ textAlign: 'center', alignItems: 'center' }} className="po-header">
-                <h2>Purchase Rate Difference</h2>
+                <h2>Sale Rate Difference</h2>
             </div>
 
             <div className="card" style={{ position: 'relative' }}>
@@ -222,7 +222,7 @@ const PurchaseRateDifference = () => {
                         <input
                             type="text"
                             autoComplete="off"
-                            placeholder="Search Invoice Number... (e.g. PU-1)"
+                            placeholder="Search Sale Invoice Number... (e.g. SL-1)"
                             value={searchInvoiceNumber}
                             onChange={(e) => { setSearchInvoiceNumber(e.target.value.toUpperCase()); setShowSuggestions(e.target.value.trim() !== ''); }}
                             onFocus={() => { if (searchInvoiceNumber.trim()) setShowSuggestions(true); }}
@@ -246,10 +246,10 @@ const PurchaseRateDifference = () => {
                     </div>
                 </div>
 
-                {purchase && (
+                {sale && (
                     <div style={{ marginTop: '15px', display: 'flex', gap: '30px', fontSize: '13px', color: '#444', flexWrap: 'wrap', backgroundColor: '#f1f5f9', padding: '12px', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
-                        <span><strong>Invoice #:</strong> {purchase.invoiceNumber}</span>
-                        <span><strong>Supplier:</strong> {purchase.supplier?.contactPerson || purchase.supplier?.companyName || 'Unknown'}</span>
+                        <span><strong>Invoice #:</strong> {sale.invoiceNumber || sale.saleNumber}</span>
+                        <span><strong>Customer:</strong> {sale.customer?.name || sale.customer?.customerName || 'Walk-in Customer'}</span>
                     </div>
                 )}
             </div>
@@ -274,8 +274,8 @@ const PurchaseRateDifference = () => {
                         ) : (
                             lineItems.map((row, index) => {
                                 const numericNewRate = Number(row.newRate) || 0;
-                                const prevTotal = row.prevRate * row.purchasedQuantity;
-                                const newTotal = numericNewRate * row.purchasedQuantity;
+                                const prevTotal = row.prevRate * row.soldQuantity;
+                                const newTotal = numericNewRate * row.soldQuantity;
                                 const rowDiff = newTotal - prevTotal;
 
                                 return (
@@ -296,10 +296,10 @@ const PurchaseRateDifference = () => {
                                                 style={{ width: '90%', padding: '6px', border: '1px solid #ccc', borderRadius: '4px' }}
                                             />
                                         </td>
-                                        <td>{row.purchasedQuantity}</td>
+                                        <td>{row.soldQuantity}</td>
                                         <td>{prevTotal.toFixed(2)}</td>
                                         <td>{newTotal.toFixed(2)}</td>
-                                        <td style={{ fontWeight: 'bold', color: rowDiff > 0 ? 'red' : (rowDiff < 0 ? 'green' : 'inherit') }}>
+                                        <td style={{ fontWeight: 'bold', color: rowDiff > 0 ? 'green' : (rowDiff < 0 ? 'red' : 'inherit') }}>
                                             {rowDiff > 0 ? '+' : ''}{rowDiff.toFixed(2)}
                                         </td>
                                         <td className="text-center">
@@ -322,16 +322,16 @@ const PurchaseRateDifference = () => {
             </div>
 
             <div style={{ textAlign: 'center', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '20px', flexWrap: 'wrap', gap: '15px' }}>
-                <div style={{ border: '1px solid #1f6b3a', width: '30%', borderRadius: '8px', padding: '14px 24px', backgroundColor: '#f8f9fa' }}>
+                <div style={{ border: '1px solid #1b6f21', width: '30%', borderRadius: '8px', padding: '14px 24px', backgroundColor: '#f8f9fa' }}>
                     <label style={{ fontSize: '13px', fontWeight: 700, color: '#1f6b3a', display: 'block' }}>NET RATE DIFFERENCE</label>
-                    <div style={{ fontSize: '28px', fontWeight: 700, color: totalAmount > 0 ? 'red' : (totalAmount < 0 ? 'green' : 'inherit') }}>
+                    <div style={{ fontSize: '28px', fontWeight: 700, color: totalAmount > 0 ? 'green' : (totalAmount < 0 ? 'red' : 'inherit') }}>
                         {totalAmount > 0 ? '+' : ''}{totalAmount.toFixed(2)}
                     </div>
                 </div>
                 <button
                     className="btn-submit-order"
-                    style={{ backgroundColor: '#4d9b6b', width: '23%', padding: '15px 1px', border: 'none', borderRadius: '4px', color: '#fff', fontWeight: 'bold', cursor: 'pointer' }}
-                    disabled={completing || !purchase || totalAmount === 0}
+                    style={{ backgroundColor: '#4d9b6b', width: '18%', padding: '15px 1px', border: 'none', borderRadius: '4px', color: '#fff', fontWeight: 'bold', cursor: 'pointer' }}
+                    disabled={completing || !sale || totalAmount === 0}
                     onClick={() => {
                         if (totalAmount !== 0) {
                             openConfirmDialog(`Submit net rate difference of Rs ${totalAmount.toFixed(2)}?`, handleCompleteDifference);
@@ -348,14 +348,14 @@ const PurchaseRateDifference = () => {
                     style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(51, 69, 86, 0.9)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999, backdropFilter: 'blur(4px)' }}
                     onClick={(e) => { if (e.target === e.currentTarget) closeConfirmDialog(); }}
                 >
-                    <div style={{ backgroundColor: '#fff', borderRadius: '12px', padding: '28px', maxWidth: '420px', width: '90%', boxShadow: '0 20px 60px rgba(0,0,0,0.3)', borderTop: '6px solid #1f6b3a' }}>
-                        <h3 style={{ marginTop: 0, color: '#1f6b3a', fontSize: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <div style={{ backgroundColor: '#fff', borderRadius: '12px', padding: '28px', maxWidth: '420px', width: '90%', boxShadow: '0 20px 60px rgba(0,0,0,0.3)', borderTop: '6px solid #3e9c54' }}>
+                        <h3 style={{ marginTop: 0, color: '#2e6329', fontSize: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
                             <span style={{ fontSize: '24px' }}>⚠️</span> Confirm Submission
                         </h3>
                         <p style={{ color: '#555', fontSize: '15px', lineHeight: '1.6', margin: '16px 0 24px 0' }}>{confirmDialog.message}</p>
                         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
                             <button onClick={closeConfirmDialog} style={{ padding: '10px 24px', backgroundColor: '#f1f1f1', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: '600', color: '#333' }}>Cancel</button>
-                            <button onClick={() => confirmDialog.onConfirm && confirmDialog.onConfirm()} style={{ padding: '10px 24px', backgroundColor: '#1f6b3a', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: '600' }}>Yes, Submit</button>
+                            <button onClick={() => confirmDialog.onConfirm && confirmDialog.onConfirm()} style={{ padding: '10px 24px', backgroundColor: '#3b7a4a', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: '600' }}>Yes, Submit</button>
                         </div>
                     </div>
                 </div>
@@ -364,4 +364,4 @@ const PurchaseRateDifference = () => {
     );
 };
 
-export default PurchaseRateDifference;
+export default SaleRateDifference;

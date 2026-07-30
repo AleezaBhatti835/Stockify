@@ -33,16 +33,7 @@ function SupplierReport() {
   const getSupplierName = (s) => s.companyName || s.name || s.supplierName || '—';
   const getContactPerson = (s) => s.contactPerson || s.contactName || '—';
 
-  const filtered = useMemo(() => {
-    const term = searchTerm.trim().toLowerCase();
-    if (!term) return suppliers;
-    return suppliers.filter(s =>
-      getSupplierName(s).toLowerCase().includes(term) ||
-      getContactPerson(s).toLowerCase().includes(term) ||
-      (s.email || '').toLowerCase().includes(term) ||
-      (s.contact || s.phone || '').toLowerCase().includes(term)
-    );
-  }, [suppliers, searchTerm]);
+
 
   const columns = ['Sr#', 'Company Name', 'Name', 'Email', 'Contact', 'Address'];
 
@@ -57,7 +48,7 @@ function SupplierReport() {
 
   // ==================== PRINT ====================
   const handlePrint = () => {
-    const rowsHtml = filtered.map((s, idx) => `
+    const rowsHtml = suppliers.map((s, idx) => `
       <tr>
         <td style="text-align: center; width: 40px;">${idx + 1}</td>
         <td style="width: 120px;">${getSupplierName(s)}</td>
@@ -101,7 +92,7 @@ function SupplierReport() {
               <h2>Supplier Report</h2>
               <p>Generated on ${new Date().toLocaleString()}</p>
             </div>
-            <p><strong>Total:</strong> ${filtered.length} supplier(s)</p>
+            <p><strong>Total:</strong> ${suppliers.length} supplier(s)</p>
           </div>
           <table>
             <thead>
@@ -136,12 +127,12 @@ function SupplierReport() {
     doc.text('Supplier Report', 14, 12);
     doc.setFontSize(9);
     doc.setTextColor(100, 116, 139);
-    doc.text(`Generated on ${new Date().toLocaleString()} — ${filtered.length} supplier(s)`, 14, 18);
+    doc.text(`Generated on ${new Date().toLocaleString()} — ${suppliers.length} supplier(s)`, 14, 18);
 
     autoTable(doc, {
       startY: 22,
       head: [columns],
-      body: filtered.map((s, idx) => getRow(s, idx)),
+      body: suppliers.map((s, idx) => getRow(s, idx)),
       styles: { fontSize: 9, cellPadding: 5, lineColor: [203, 213, 225], lineWidth: 0.1 },
       headStyles: { fillColor: [241, 245, 249], textColor: [51, 65, 85], fontStyle: 'bold', lineWidth: 0.1, lineColor: [148, 163, 184] },
       alternateRowStyles: { fillColor: [248, 250, 252] },
@@ -161,7 +152,7 @@ function SupplierReport() {
 
   // ==================== EXCEL EXPORT ====================
   const handleExportExcel = () => {
-    const rows = filtered.map((s, idx) => ({
+    const rows = suppliers.map((s, idx) => ({
       'Sr#': idx + 1,
       'Company Name': getSupplierName(s),
       'Name': getContactPerson(s),
@@ -187,15 +178,8 @@ function SupplierReport() {
         </div>
       </div>
 
-      <div style={styles.toolbar}>
-        <input
-          type="text"
-          placeholder="Search by company,Name, email, or phone..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          style={styles.searchInput}
-        />
-        <span style={styles.countLabel}>{filtered.length} of {suppliers.length} supplier(s)</span>
+     <div style={{ marginBottom: '10px', textAlign: 'right' }}>
+        <span style={styles.countLabel}>Total: {suppliers.length} supplier(s)</span>
       </div>
 
       <div style={styles.tableWrapper}>
@@ -213,10 +197,10 @@ function SupplierReport() {
           <tbody>
             {loading ? (
               <tr><td colSpan={columns.length} style={styles.emptyCell}>Loading...</td></tr>
-            ) : filtered.length === 0 ? (
+            ) : suppliers.length === 0 ? (
               <tr><td colSpan={columns.length} style={styles.emptyCell}>No suppliers found.</td></tr>
             ) : (
-              filtered.map((s, idx) => (
+              suppliers.map((s, idx) => (
                 <tr key={s._id} style={idx % 2 === 1 ? styles.altRow : null}>
                   <td style={{ ...styles.td, textAlign: 'center', width: '50px' }}>{idx + 1}</td>
                   <td style={{ ...styles.td, width: '150px', fontWeight: 600 }}>{getSupplierName(s)}</td>
@@ -243,12 +227,12 @@ const styles = {
   title: { margin: 0, fontSize: '20px', fontWeight: 700, color: '#0f172a' },
   actions: { display: 'flex', gap: '10px' },
   actionBtn: { background: '#3c4e6b', color: '#ffffff', border: '1px solid #3c4e6b', padding: '9px 16px', borderRadius: '6px', cursor: 'pointer', fontWeight: 600, fontSize: '13px' },
-  toolbar: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '10px' },
+  toolbar: { display: 'flex', justifyContent: 'space-between', alignItems: 'right', marginBottom: '14px', flexWrap: 'wrap', gap: '10px' },
   searchInput: { flex: '1', maxWidth: '360px', padding: '10px 14px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '14px', outline: 'none', backgroundColor: '#fff' },
-  countLabel: { fontSize: '13px', color: '#64748b', fontWeight: 500 },
+  countLabel: { fontSize: '13px', color: '#64748b', fontWeight: 500 ,textAlign:'right'},
   tableWrapper: { background: '#fff', borderRadius: '8px', border: '1px solid #cbd5e1', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' },
   table: { width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' },
-  th: { textAlign: 'left', padding: '10px 14px', background: '#3c4e6b', fontSize: '11px', color: '#ffffff', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', borderBottom: '2px solid #94a3b8', borderRight: '1px solid #cbd5e1', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
+  th: { textAlign: 'left', padding: '10px 14px', background: '#3c4e6b', fontSize: '11px', color: '#ffffff', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', borderBottom: '2px solid #94a3b8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
   td: { padding: '9px 14px', textAlign: 'left', fontSize: '13px', borderBottom: '1px solid #cbd5e1', borderRight: '1px solid #cbd5e1', color: '#334155', overflow: 'hidden' },
   altRow: { backgroundColor: '#f8fafc' },
   emptyCell: { textAlign: 'center', padding: '40px 0', color: '#94a3b8', fontSize: '14px' }

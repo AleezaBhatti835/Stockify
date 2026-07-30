@@ -26,6 +26,8 @@ import CustomerReport from './reports/Customerreport.jsx';
 import SupplierReport from './reports/Supplierreport.jsx';
 import ProductReport from './reports/Productreport.jsx';
 import EmployeeReport from './reports/Employeereport.jsx';
+import CategoryReport from './reports/CategoryReport.jsx';
+import UOMReport from './reports/UOMReport.jsx';
 import CustomerType from './CustomerType.jsx';
 import SaleReturn from './sales/AddSaleReturn.jsx';
 import SalesReturnList from './sales/SalesReturnList.jsx';
@@ -39,8 +41,12 @@ import AddPurchaseRebate from './purchase/AddPurchaseRebate.jsx';
 import PurchaseRebateList from './purchase/PurchaseRebateList.jsx';
 import PurchaseRateDifference from './purchase/PurchaseRateDifference.jsx';
 import PurchaseRateDifferenceList from './purchase/PurchaseRateDifferenceList.jsx';
+import AddSalesRebate from './sales/AddSalesRebate.jsx';
+import SalesRebateList from './sales/SalesRebateList.jsx';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faBank, faBoxOpen, faCartPlus, faChartBar, faCirclePause, faCoins, faCubes, faDashboard, faGear, faHandHoldingDollar, faMoneyCheckDollar, faReceipt, faScrewdriver, faUser, faUserGroup } from '@fortawesome/free-solid-svg-icons';
+import SaleRateDifference from './sales/SaleRateDifference.jsx';
+import SaleRateDifferenceList from './sales/SaleRateDifferenceList.jsx';
 
 // Base URL for API and Images
 const API_BASE_URL = 'http://localhost:5000';
@@ -63,7 +69,9 @@ function Dashboard({ user, onLogout }) {
     const savedTab = localStorage.getItem('activeTab');
     return savedTab ? savedTab : 'overview';
   });
+  
   const [openDropdown, setOpenDropdown] = useState(null);
+  const [openNestedDropdown, setOpenNestedDropdown] = useState(null); // Added state for nested dropdowns
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
@@ -150,9 +158,19 @@ function Dashboard({ user, onLogout }) {
   const toggleDropdown = (dropdownName) => {
     if (openDropdown === dropdownName) {
       setOpenDropdown(null);
+      setOpenNestedDropdown(null); // Close nested dropdowns when closing main
     } else {
       setOpenDropdown(dropdownName);
+      setOpenNestedDropdown(null); // Close nested dropdowns when opening a new main
     }
+  };
+
+  const toggleNestedDropdown = (dropdownName) => {
+      if (openNestedDropdown === dropdownName) {
+          setOpenNestedDropdown(null);
+      } else {
+          setOpenNestedDropdown(dropdownName);
+      }
   };
 
   const toggleProfile = () => {
@@ -315,10 +333,12 @@ function Dashboard({ user, onLogout }) {
       'settings': 'Settings',
       'print-settings': 'Print Settings',
       'client-details': 'Client Details',
-      'customer-report': 'Customer Report',
-      'supplier-report': 'Supplier Report',
+      'Customerreport': 'Customer Report',
+      'Supplierreport': 'Supplier Report',
       'product-report': 'Product Report',
-      'employee-report': 'Employee Report',
+      'Employeereport': 'Employee Report',
+      'CategoryReport': 'Category Report',
+      'UOMReport': 'UOM Report',
       'customer-types': 'Customer Types',
       'sales-return': 'Sales Return',
       'cash-register': 'Cash Register',
@@ -332,7 +352,11 @@ function Dashboard({ user, onLogout }) {
       'add-purchase-rebate': 'Add Purchase Rebate',
       'purchase-rebate-list': 'Purchase Rebate List',
       'rate-difference': 'Rate Difference',
-      'rate-difference-list':'Rate Difference List'
+      'rate-difference-list': 'Rate Difference List',
+      'add-sales-rebate': 'Add Sales Rebate',
+      'sales-rebate-list': 'Sales Rebate List',
+      'Sales-Rate-Difference': 'Sales Rate Difference',
+      'Sales-Rate-Difference-List': 'Sales Rate Difference List'
     };
     return titles[activeTab] || 'Dashboard';
   };
@@ -361,7 +385,7 @@ function Dashboard({ user, onLogout }) {
       <aside className={`sidebar ${isSidebarOpen ? 'open' : 'closed'}`}>
         <div className="sidebar-header" >
           {/* Use img tag to display the logo inside the sidebar */}
-          <img src="/logo.png" alt="Stockify Logo" style={{ width: '210px', height: '65px', marginLeft: '10px' ,marginTop:'15px'}} />
+          <img src="/logo.png" alt="Stockify Logo" style={{ width: '210px', height: '65px', marginLeft: '10px', marginTop: '15px' }} />
 
           {isMobile && (
             <button className="close-sidebar-btn" onClick={toggleSidebar}>×</button>
@@ -410,7 +434,6 @@ function Dashboard({ user, onLogout }) {
                 <li className={activeTab === 'category' ? 'active' : ''} onClick={() => { handleTabChange('category'); if (isMobile) setIsSidebarOpen(false); }} style={{ cursor: 'pointer', padding: '10px 0', textAlign: 'left' }}>Categories</li>
                 <li className={activeTab === 'product' ? 'active' : ''} onClick={() => { handleTabChange('product'); if (isMobile) setIsSidebarOpen(false); }} style={{ cursor: 'pointer', padding: '10px 0', textAlign: 'left' }}>Products</li>
                 <li className={activeTab === 'deleted-products' ? 'active' : ''} onClick={() => { handleTabChange('deleted-products'); if (isMobile) setIsSidebarOpen(false); }} style={{ cursor: 'pointer', padding: '10px 0', textAlign: 'left' }}>Deleted Products</li>
-                <li className={activeTab === 'product-report' ? 'active' : ''} onClick={() => { handleTabChange('product-report'); if (isMobile) setIsSidebarOpen(false); }} style={{ cursor: 'pointer', padding: '10px 0', textAlign: 'left' }}>Products List</li>
               </ul>
             )}
 
@@ -453,7 +476,6 @@ function Dashboard({ user, onLogout }) {
                 <li className={activeTab === 'purchase-rebate-list' ? 'active' : ''} onClick={() => { handleTabChange('purchase-rebate-list'); if (isMobile) setIsSidebarOpen(false); }} style={{ cursor: 'pointer', padding: '10px 0', textAlign: 'left' }}>Purchase Rebate List</li>
                 <li className={activeTab === 'rate-difference' ? 'active' : ''} onClick={() => { handleTabChange('rate-difference'); if (isMobile) setIsSidebarOpen(false); }} style={{ cursor: 'pointer', padding: '10px 0', textAlign: 'left' }}>Rate Difference</li>
                 <li className={activeTab === 'rate-difference-list' ? 'active' : ''} onClick={() => { handleTabChange('rate-difference-list'); if (isMobile) setIsSidebarOpen(false); }} style={{ cursor: 'pointer', padding: '10px 0', textAlign: 'left' }}>Rate Difference List</li>
-
               </ul>
             )}
 
@@ -472,14 +494,17 @@ function Dashboard({ user, onLogout }) {
                 <li className={activeTab === 'invoice-list' ? 'active' : ''} onClick={() => { handleTabChange('invoice-list'); if (isMobile) setIsSidebarOpen(false); }} style={{ cursor: 'pointer', padding: '10px 0', textAlign: 'left' }}>Invoice List</li>
                 <li className={activeTab === 'sales-return' ? 'active' : ''} onClick={() => { handleTabChange('sales-return'); if (isMobile) setIsSidebarOpen(false); }} style={{ cursor: 'pointer', padding: '10px 0', textAlign: 'left' }}>Sales Return</li>
                 <li className={activeTab === 'sale-return-list' ? 'active' : ''} onClick={() => { handleTabChange('sale-return-list'); if (isMobile) setIsSidebarOpen(false); }} style={{ cursor: 'pointer', padding: '10px 0', textAlign: 'left' }}>Sale Return List</li>
-
                 <li
                   className={activeTab === 'cash-register' ? 'active' : ''}
                   onClick={() => { handleTabChange('cash-register'); if (isMobile) setIsSidebarOpen(false); }}
-                  style={{ cursor: 'pointer', textAlign: 'left', padding: '10px 0', display: 'flex', alignItems: 'center', gap: '8px' }}
+                  style={{ cursor: 'pointer', textAlign: 'left', padding: '1px 0', display: 'flex', alignItems: 'center', gap: '8px',marginTop:'7px' }}
                 >
                   Cash Register
                 </li>
+                <li className={activeTab === 'add-sales-rebate' ? 'active' : ''} onClick={() => { handleTabChange('add-sales-rebate'); if (isMobile) setIsSidebarOpen(false); }} style={{ cursor: 'pointer', padding: '10px 0', textAlign: 'left' }}>Sales Rebate</li>
+                <li className={activeTab === 'sales-rebate-list' ? 'active' : ''} onClick={() => { handleTabChange('sales-rebate-list'); if (isMobile) setIsSidebarOpen(false); }} style={{ cursor: 'pointer', padding: '10px 0', textAlign: 'left' }}>Sales Rebate List</li>
+                <li className={activeTab === 'Sales-Rate-Difference' ? 'active' : ''} onClick={() => { handleTabChange('Sales-Rate-Difference'); if (isMobile) setIsSidebarOpen(false); }} style={{ cursor: 'pointer', padding: '10px 0', textAlign: 'left' }}>Sales Rate Difference</li>
+                <li className={activeTab === 'Sales-Rate-Difference-List' ? 'active' : ''} onClick={() => { handleTabChange('Sales-Rate-Difference-List'); if (isMobile) setIsSidebarOpen(false); }} style={{ cursor: 'pointer', padding: '10px 0', textAlign: 'left' }}>Sales Rate Difference List</li>
               </ul>
             )}
 
@@ -499,6 +524,7 @@ function Dashboard({ user, onLogout }) {
                 <li className={activeTab === 'employee-account' ? 'active' : ''} onClick={() => { handleTabChange('employee-account'); if (isMobile) setIsSidebarOpen(false); }} style={{ cursor: 'pointer', padding: '10px 0', textAlign: 'left' }}>Employee Account</li>
               </ul>
             )}
+            
             {/* PARENT MODULE: Expenses */}
             <li
               className="parent-menu-item"
@@ -514,7 +540,8 @@ function Dashboard({ user, onLogout }) {
                 <li className={activeTab === 'expense' ? 'active' : ''} onClick={() => { handleTabChange('expense'); if (isMobile) setIsSidebarOpen(false); }} style={{ cursor: 'pointer', padding: '10px 0', textAlign: 'left' }}>Expense</li>
               </ul>
             )}
-            {/* PARENT MODULE: Reports */}
+
+        {/* PARENT MODULE: Reports */}
             <li
               className="parent-menu-item"
               onClick={() => toggleDropdown('reports')}
@@ -523,14 +550,52 @@ function Dashboard({ user, onLogout }) {
               <span><span className="nav-icon"><FontAwesomeIcon icon={faReceipt} /></span> Reports</span>
               <span className='drop'>{openDropdown === 'reports' ? '<' : '>'}</span>
             </li>
+            
+            {/* Reports Dropdown */}
             {openDropdown === 'reports' && (
-              <ul className="submenu" style={{ paddingLeft: '40px', listStyleType: 'none', margin: 0 }}>
-                <li className={activeTab === 'customer-report' ? 'active' : ''} onClick={() => { handleTabChange('customer-report'); if (isMobile) setIsSidebarOpen(false); }} style={{ cursor: 'pointer', padding: '10px 0', textAlign: 'left' }}>Customer Report</li>
-                <li className={activeTab === 'supplier-report' ? 'active' : ''} onClick={() => { handleTabChange('supplier-report'); if (isMobile) setIsSidebarOpen(false); }} style={{ cursor: 'pointer', padding: '10px 0', textAlign: 'left' }}>Supplier Report</li>
-                <li className={activeTab === 'employee-report' ? 'active' : ''} onClick={() => { handleTabChange('employee-report'); if (isMobile) setIsSidebarOpen(false); }} style={{ cursor: 'pointer', padding: '10px 0', textAlign: 'left' }}>Employee Report</li>
+              <ul style={{ paddingLeft: '0', listStyleType: 'none', margin: 0, width: '100%', boxSizing: 'border-box' }}>
+                
+                {/* People Reports Menu Item */}
+                <li 
+                  onClick={() => toggleNestedDropdown('peopleReports')}
+                  style={{ fontSize:'13px',cursor: 'pointer', padding: '10px 20px 10px 40px', textAlign: 'left', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                >
+                  <span>People Reports</span>
+                  <span style={{fontSize:'20px',marginRight:'30px'}}>{openNestedDropdown === 'peopleReports' ? '‹' : '›'}</span>
+                </li>
+                
+                {/* People Reports Submenu (Sibling) */}
+                {openNestedDropdown === 'peopleReports' && (
+                  <li style={{ padding: 0, margin: 0 }}>
+                    <ul style={{ paddingLeft: '50px', paddingRight: '15px', listStyleType: 'none', margin: 0, display: 'block', boxSizing: 'border-box',fontSize:'10px' }}>
+                      <li className={activeTab === 'Customerreport' ? 'active' : ''} onClick={() => { handleTabChange('Customerreport'); if (isMobile) setIsSidebarOpen(false); }} style={{color:'#b5d9fa',fontSize:'12px', cursor: 'pointer', padding: '10px 0', textAlign: 'left', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Customer Report</li>
+                      <li className={activeTab === 'Supplierreport' ? 'active' : ''} onClick={() => { handleTabChange('Supplierreport'); if (isMobile) setIsSidebarOpen(false); }} style={{color:'#b5d9fa',fontSize:'12px', cursor: 'pointer', padding: '10px 0', textAlign: 'left', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Supplier Report</li>
+                      <li className={activeTab === 'Employeereport' ? 'active' : ''} onClick={() => { handleTabChange('Employeereport'); if (isMobile) setIsSidebarOpen(false); }} style={{color:'#b5d9fa',fontSize:'12px', cursor: 'pointer', padding: '10px 0', textAlign: 'left', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Employees Report</li>
+                    </ul>
+                  </li>
+                )}
+
+                {/* Product Reports Menu Item */}
+                <li 
+                  onClick={() => toggleNestedDropdown('productReports')}
+                  style={{ fontSize:'13px',cursor: 'pointer', padding: '10px 20px 10px 40px', textAlign: 'left', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                >
+                  <span>Product Reports</span>
+                  <span style={{fontSize:'20px',marginRight:'30px'}}>{openNestedDropdown === 'productReports' ?'‹' : '›'}</span>
+                </li>
+                
+                {/* Product Reports Submenu (Sibling) */}
+                {openNestedDropdown === 'productReports' && (
+                  <li style={{ padding: 0, margin: 0 }}>
+                    <ul style={{ paddingLeft: '50px', paddingRight: '15px', listStyleType: 'none', margin: 0, display: 'block', boxSizing: 'border-box',fontSize:'12px' }}>
+                      <li className={activeTab === 'product-report' ? 'active' : ''} onClick={() => { handleTabChange('product-report'); if (isMobile) setIsSidebarOpen(false); }} style={{ color:'#b5d9fa',fontSize:'12px',cursor: 'pointer', padding: '10px 0', textAlign: 'left', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Products List</li>
+                      <li className={activeTab === 'CategoryReport' ? 'active' : ''} onClick={() => { handleTabChange('CategoryReport'); if (isMobile) setIsSidebarOpen(false); }} style={{ color:'#b5d9fa',fontSize:'12px',cursor: 'pointer', padding: '10px 0', textAlign: 'left', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Category Report</li>
+                      <li className={activeTab === 'UOMReport' ? 'active' : ''} onClick={() => { handleTabChange('UOMReport'); if (isMobile) setIsSidebarOpen(false); }} style={{color:'#b5d9fa', fontSize:'12px',cursor: 'pointer', padding: '10px 0', textAlign: 'left', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>UOM Report</li>
+                    </ul>
+                  </li>
+                )}
               </ul>
             )}
-
             {/* PARENT MODULE: System Users */}
             <li
               className="parent-menu-item"
@@ -705,10 +770,12 @@ function Dashboard({ user, onLogout }) {
           {activeTab === 'print-settings' && <PrintSettingsPage />}
           {activeTab === 'settings' && <Settings />}
           {activeTab === 'client-details' && <ClientDetails />}
-          {activeTab === 'customer-report' && <CustomerReport />}
-          {activeTab === 'supplier-report' && <SupplierReport />}
+          {activeTab === 'Customerreport' && <CustomerReport />}
+          {activeTab === 'Supplierreport' && <SupplierReport />}
           {activeTab === 'product-report' && <ProductReport />}
-          {activeTab === 'employee-report' && <EmployeeReport />}
+          {activeTab === 'Employeereport' && <EmployeeReport />}
+          {activeTab === 'CategoryReport' && <CategoryReport />}
+          {activeTab === 'UOMReport' && <UOMReport />}
           {activeTab === 'customer-types' && <CustomerType />}
           {activeTab === 'sales-return' && <SaleReturn />}
           {activeTab === 'sale-return-list' && <SalesReturnList />}
@@ -720,10 +787,16 @@ function Dashboard({ user, onLogout }) {
           {activeTab === 'expense-category' && <ExpenseCategory />}
           {activeTab === 'expense' && <Expense />}
           {activeTab === 'stock-breakage' && <StockBreakage />}
-        </div>{activeTab === 'add-purchase-rebate' && <AddPurchaseRebate />}
-        {activeTab === 'purchase-rebate-list' && <PurchaseRebateList />}
-        {activeTab === 'rate-difference' && <PurchaseRateDifference />}
-        {activeTab === 'rate-difference-list' && <PurchaseRateDifferenceList />}
+          {activeTab === 'add-purchase-rebate' && <AddPurchaseRebate />}
+          {activeTab === 'purchase-rebate-list' && <PurchaseRebateList />}
+          {activeTab === 'rate-difference' && <PurchaseRateDifference />}
+          {activeTab === 'rate-difference-list' && <PurchaseRateDifferenceList />}
+          {activeTab === 'add-sales-rebate' && <AddSalesRebate />}
+          {activeTab === 'sales-rebate-list' && <SalesRebateList />}
+          {activeTab === 'Sales-Rate-Difference' && <SaleRateDifference />}
+          {activeTab === 'Sales-Rate-Difference-List' && <SaleRateDifferenceList />}
+
+        </div>
 
       </main>
 

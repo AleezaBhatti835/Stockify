@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import './purchase.css';
+import '../purchase/purchase.css'; // reuse same base styling as purchase screens
 
 function MessagePopup({ message, type, onClose }) {
   if (!message) return null;
@@ -19,7 +19,7 @@ function MessagePopup({ message, type, onClose }) {
   );
 }
 
-const AddPurchaseRebate = () => {
+const AddSalesRebate = () => {
   const [message, setMessage] = useState({ text: '', type: '' });
   const [completing, setCompleting] = useState(false);
 
@@ -27,7 +27,7 @@ const AddPurchaseRebate = () => {
 
   const [searchInvoiceNumber, setSearchInvoiceNumber] = useState('');
   const [searching, setSearching] = useState(false);
-  const [purchase, setPurchase] = useState(null);
+  const [sale, setSale] = useState(null);
   const [lineItems, setLineItems] = useState([]);
   const [availableInvoiceNumbers, setAvailableInvoiceNumbers] = useState([]);
   const [filteredSuggestions, setFilteredSuggestions] = useState([]);
@@ -39,12 +39,13 @@ const AddPurchaseRebate = () => {
   useEffect(() => {
     const fetchInvoices = async () => {
       try {
-        const res = await fetch('http://localhost:5000/api/purchases', { cache: 'no-store' });
+        const res = await fetch('http://localhost:5000/api/sales', { cache: 'no-store' });
         const data = await res.json();
-        const numbers = Array.isArray(data)
-          ? data.map(p => p.invoiceNumber).filter(num => num && num.startsWith('PU-'))
-              .sort((a, b) => parseInt(a.split('-')[1]) - parseInt(b.split('-')[1]))
-          : [];
+        const list = Array.isArray(data) ? data : (data.sales || []);
+        const numbers = list
+          .map(s => s.saleNumber)
+          .filter(num => num && num.startsWith('SL-'))
+          .sort((a, b) => parseInt(a.split('-')[1]) - parseInt(b.split('-')[1]));
         setAvailableInvoiceNumbers(numbers);
       } catch (error) {
         console.error('Error fetching invoices:', error);
@@ -122,17 +123,17 @@ const AddPurchaseRebate = () => {
     if (!queryNumber || !queryNumber.trim()) return showMessage('Enter an invoice number.', 'error');
 
     setSearching(true);
-    setPurchase(null);
+    setSale(null);
     setLineItems([]);
     setShowSuggestions(false);
 
     try {
-      const res = await fetch(`http://localhost:5000/api/purchases/search?invoiceNumber=${encodeURIComponent(queryNumber.trim())}`, { cache: 'no-store' });
+      const res = await fetch(`http://localhost:5000/api/sales/search?invoiceNumber=${encodeURIComponent(queryNumber.trim())}`, { cache: 'no-store' });
       const data = await res.json();
 
       if (data.success) {
-        // data.purchase._id is the purchase id — fetch rebatable items
-        const rebRes = await fetch(`http://localhost:5000/api/purchases/${data.purchase._id}/rebatable-items`, { cache: 'no-store' });
+        // data.sale._id is the sale id — fetch rebatable items
+        const rebRes = await fetch(`http://localhost:5000/api/sales/${data.sale._id}/rebatable-items`, { cache: 'no-store' });
         const rebData = await rebRes.json();
 
         if (!rebData.success || !rebData.items || rebData.items.length === 0) {
@@ -141,12 +142,12 @@ const AddPurchaseRebate = () => {
           return;
         }
 
-        setPurchase(rebData.purchase);
+        setSale(rebData.sale);
         setLineItems(
           rebData.items.map(item => ({
             productId: item.product._id,
             productName: item.product.name,
-            purchasedQuantity: item.purchasedQuantity,
+            saleQty: item.saleQty,
             alreadyRebated: item.alreadyRebated,
             maxRebatable: item.maxRebatable,
             unitPrice: item.unitPrice,
@@ -186,20 +187,20 @@ const AddPurchaseRebate = () => {
 
     setCompleting(true);
     try {
-      const res = await fetch('http://localhost:5000/api/purchase-rebates/complete', {
+      const res = await fetch('http://localhost:5000/api/sales-rebates/complete', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          purchaseId: purchase._id,
-          supplierId: purchase.supplier?._id,
-          invoiceNumber: purchase.invoiceNumber,
+          saleId: sale._id,
+          customerId: sale.customer?._id,
+          invoiceNumber: sale.saleNumber,
           items: itemsToRebate
         })
       });
       const result = await res.json();
       if (result.success) {
-        showMessage(`Rebate recorded successfully (${result.purchaseRebate.rebateNumber}).`, 'success');
-        setPurchase(null);
+        showMessage(`Rebate recorded successfully (${result.salesRebate.rebateNumber}).`, 'success');
+        setSale(null);
         setLineItems([]);
         setSearchInvoiceNumber('');
       } else {
@@ -215,13 +216,12 @@ const AddPurchaseRebate = () => {
   const totalAmount = lineItems.reduce((sum, row) => sum + ((row.transactionQty || 0) * row.unitPrice), 0);
 
   return (
-    <div className="add-purchase-wrapper" style={{width:'95%',marginBottom:'90px'}}>
+    <div style={{width:"95%",marginBottom:'50px'}} className="add-purchase-wrapper">
       <MessagePopup message={message.text} type={message.type} onClose={() => setMessage({ text: '', type: '' })} />
 
-        <div style={{ textAlign: 'center', alignItems: 'center' }} className="po-header">
-        <h2>Purchase Rebate Management</h2>
+      <div style={{ textAlign: 'center' }} className="po-header">
+        <h2>Sales Rebate Management</h2>
       </div>
-
 
       <div className="card" style={{ position: 'relative' }}>
         <div style={{ display: 'flex', gap: '10px', position: 'relative' }}>
@@ -229,7 +229,7 @@ const AddPurchaseRebate = () => {
             <input
               type="text"
               autoComplete="off"
-              placeholder="Search Invoice Number... (e.g. PU-1)"
+              placeholder="Search Invoice Number... (e.g. SL-1)"
               value={searchInvoiceNumber}
               onChange={(e) => { setSearchInvoiceNumber(e.target.value.toUpperCase()); setShowSuggestions(e.target.value.trim() !== ''); }}
               onFocus={() => { if (searchInvoiceNumber.trim()) setShowSuggestions(true); }}
@@ -253,10 +253,10 @@ const AddPurchaseRebate = () => {
           </div>
         </div>
 
-        {purchase && (
+        {sale && (
           <div style={{ marginTop: '15px', display: 'flex', gap: '30px', fontSize: '13px', color: '#444', flexWrap: 'wrap', backgroundColor: '#f1f5f9', padding: '12px', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
-            <span><strong>Invoice #:</strong> {purchase.invoiceNumber}</span>
-            <span><strong>Supplier:</strong> {purchase.supplier?.contactPerson || purchase.supplier?.companyName || 'Unknown'}</span>
+            <span><strong>Invoice #:</strong> {sale.saleNumber}</span>
+            <span><strong>Customer:</strong> {sale.customer?.name || sale.customer?.customerName || 'Walk-in Customer'}</span>
           </div>
         )}
       </div>
@@ -266,7 +266,7 @@ const AddPurchaseRebate = () => {
           <thead>
             <tr>
               <th style={{ width: '18%' }}>Product Name</th>
-              <th style={{ width: '16%' }}>Purchased Qty</th>
+              <th style={{ width: '16%' }}>Sold Qty</th>
               <th style={{ width: '18%' }}>Already Rebated</th>
               <th style={{ width: '16%' }}>Rebate Qty</th>
               <th style={{ width: '12%' }}>Price</th>
@@ -281,7 +281,7 @@ const AddPurchaseRebate = () => {
               lineItems.map((row, index) => (
                 <tr key={row.productId}>
                   <td>{row.productName}</td>
-                  <td>{row.purchasedQuantity}</td>
+                  <td>{row.saleQty}</td>
                   <td>{row.alreadyRebated}</td>
                   <td>
                     <input
@@ -326,7 +326,7 @@ const AddPurchaseRebate = () => {
         <button
           className="btn-submit-order"
           style={{ backgroundColor: '#4d9b6b', width: '18%', padding: '15px 1px', border: 'none', borderRadius: '4px', color: '#fff', fontWeight: 'bold', cursor: 'pointer' }}
-          disabled={completing || !purchase || totalAmount === 0}
+          disabled={completing || !sale || totalAmount === 0}
           onClick={() => {
             if (totalAmount > 0) {
               openConfirmDialog(`Record rebate of Rs ${totalAmount.toFixed(2)}?`, handleCompleteRebate);
@@ -359,4 +359,4 @@ const AddPurchaseRebate = () => {
   );
 };
 
-export default AddPurchaseRebate;
+export default AddSalesRebate;
