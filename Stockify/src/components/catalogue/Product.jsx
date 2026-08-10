@@ -4,33 +4,10 @@ import './catalogue.css';
 import '../roles.css';
 import '../customer.css';
 
-// Message Popup Component
-function MessagePopup({ message, onClose }) {
-  if (!message.text) return null;
-
-  return (
-    <div className="message-popup-overlay" onClick={onClose}>
-      <div className={`message-popup ${message.type}`} onClick={(e) => e.stopPropagation()}>
-        <button className="message-popup-close" onClick={onClose}>×</button>
-        <div className="message-popup-content">
-          <span className="message-popup-icon">
-            {message.type === 'error' ? '⚠️' : '✅'}
-          </span>
-          <div className="message-popup-text">
-            <strong>{message.type === 'error' ? 'Error!' : 'Success!'}</strong>
-            {message.text}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function Product() {
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
   const [uoms, setUoms] = useState([]);
-  const [message, setMessage] = useState({ text: '', type: '' });
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -40,11 +17,19 @@ function Product() {
 
   // Pagination states
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(3);
+  const [itemsPerPage] = useState(10);
 
   // Filter state
   const [filterCategory, setFilterCategory] = useState('');
   const [filterUom, setFilterUom] = useState('');
+
+  // Inline message states for each modal
+  const [addMessage, setAddMessage] = useState({ text: '', type: '' });
+  const [editMessage, setEditMessage] = useState({ text: '', type: '' });
+  const [deleteMessage, setDeleteMessage] = useState({ text: '', type: '' });
+
+  // Loading states to prevent double submission
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const initialState = {
     name: '',
@@ -72,15 +57,74 @@ function Product() {
     fetchUOMs();
   }, []);
 
-  const showMessage = (text, type) => {
-    setMessage({ text, type });
+  // Keyboard shortcut handler
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        if (isAddModalOpen) {
+          e.preventDefault();
+          setIsAddModalOpen(false);
+          setNewProduct(initialState);
+          setAddMessage({ text: '', type: '' });
+          setIsSubmitting(false);
+        }
+        if (isEditModalOpen) {
+          e.preventDefault();
+          setIsEditModalOpen(false);
+          setEditProduct({ id: '', ...initialState });
+          setEditMessage({ text: '', type: '' });
+          setIsSubmitting(false);
+        }
+        if (isViewModalOpen) {
+          e.preventDefault();
+          setIsViewModalOpen(false);
+          setViewProduct(null);
+        }
+        if (isDeleteModalOpen) {
+          e.preventDefault();
+          setIsDeleteModalOpen(false);
+          setDeleteTargetId(null);
+          setDeleteMessage({ text: '', type: '' });
+        }
+      }
+
+      if (e.key === 'Enter') {
+        if (isAddModalOpen && !isSubmitting) {
+          e.preventDefault();
+          handleAddProduct();
+        } else if (isEditModalOpen && !isSubmitting) {
+          e.preventDefault();
+          handleUpdateProduct();
+        } else if (isDeleteModalOpen) {
+          e.preventDefault();
+          handleDelete();
+        }
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isAddModalOpen, isEditModalOpen, isViewModalOpen, isDeleteModalOpen, newProduct, editProduct, deleteTargetId, isSubmitting]);
+
+  const showAddMessage = (text, type) => {
+    setAddMessage({ text, type });
     setTimeout(() => {
-      setMessage({ text: '', type: '' });
-    }, 6000);
+      setAddMessage({ text: '', type: '' });
+    }, 3000);
   };
 
-  const clearMessage = () => {
-    setMessage({ text: '', type: '' });
+  const showEditMessage = (text, type) => {
+    setEditMessage({ text, type });
+    setTimeout(() => {
+      setEditMessage({ text: '', type: '' });
+    }, 3000);
+  };
+
+  const showDeleteMessage = (text, type) => {
+    setDeleteMessage({ text, type });
+    setTimeout(() => {
+      setDeleteMessage({ text: '', type: '' });
+    }, 3000);
   };
 
   const fetchProducts = async () => {
@@ -88,7 +132,9 @@ function Product() {
       const res = await fetch('http://localhost:5000/api/products');
       if (res.ok) {
         const data = await res.json();
-        setProducts(Array.isArray(data) ? data : []);
+        // Sort ascending by createdAt (oldest first)
+        const sortedData = Array.isArray(data) ? [...data].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt)) : [];
+        setProducts(sortedData);
       } else {
         setProducts([]);
       }
@@ -128,18 +174,23 @@ function Product() {
     }
   };
 
+  // Handle Enter key on input fields
+  const handleInputKeyDown = (e, action) => {
+    if (e.key === 'Enter' && !isSubmitting) {
+      e.preventDefault();
+      action();
+    }
+  };
+
   const validateProduct = (product) => {
     if (!product.name.trim()) {
-      showMessage('Product name is required!', 'error');
-      return false;
+      return 'Product name is required!';
     }
     if (!product.categoryId) {
-      showMessage('Please select a category!', 'error');
-      return false;
+      return 'Please select a category!';
     }
     if (!product.uomId) {
-      showMessage('Please select a UOM!', 'error');
-      return false;
+      return 'Please select a UOM!';
     }
 
     const costPrice = product.costPrice === '' || product.costPrice === null || product.costPrice === undefined ? 0 : parseFloat(product.costPrice);
@@ -148,26 +199,27 @@ function Product() {
     const reorderQuantity = product.reorderQuantity === '' || product.reorderQuantity === null || product.reorderQuantity === undefined ? 0 : parseInt(product.reorderQuantity);
 
     if (isNaN(costPrice) || costPrice < 0) {
-      showMessage('Cost price must be a valid number!', 'error');
-      return false;
+      return 'Cost price must be a valid number!';
     }
     if (isNaN(retailPrice) || retailPrice < 0) {
-      showMessage('Retail price must be a valid number!', 'error');
-      return false;
+      return 'Retail price must be a valid number!';
     }
     if (isNaN(quantity) || quantity < 0) {
-      showMessage('Quantity must be a valid number!', 'error');
-      return false;
+      return 'Quantity must be a valid number!';
     }
     if (isNaN(reorderQuantity) || reorderQuantity < 0) {
-      showMessage('Reorder quantity must be a valid number!', 'error');
-      return false;
+      return 'Reorder quantity must be a valid number!';
     }
 
-    return true;
+    return null;
   };
 
   const handleAddProduct = async () => {
+    // Prevent double submission
+    if (isSubmitting) return;
+
+    setIsSubmitting(true);
+
     const productToSave = {
       ...newProduct,
       costPrice: newProduct.costPrice === '' || newProduct.costPrice === null || newProduct.costPrice === undefined ? 0 : parseFloat(newProduct.costPrice),
@@ -177,7 +229,12 @@ function Product() {
       status: 'active'
     };
 
-    if (!validateProduct(productToSave)) return;
+    const validationError = validateProduct(productToSave);
+    if (validationError) {
+      showAddMessage(validationError, 'error');
+      setIsSubmitting(false);
+      return;
+    }
 
     try {
       const res = await fetch('http://localhost:5000/api/products', {
@@ -187,21 +244,32 @@ function Product() {
       });
 
       if (res.ok) {
-        showMessage('Product added successfully!', 'success');
-        setNewProduct(initialState);
-        setIsAddModalOpen(false);
-        fetchProducts();
+        showAddMessage('Product added successfully!', 'success');
+        await fetchProducts();
+        setTimeout(() => {
+          setNewProduct(initialState);
+          setIsAddModalOpen(false);
+          setAddMessage({ text: '', type: '' });
+          setIsSubmitting(false);
+        }, 300);
       } else {
         const errorData = await res.json();
-        showMessage(errorData.message || 'Error saving product.', 'error');
+        if (errorData.message && errorData.message.includes('duplicate key error')) {
+          showAddMessage(`Product "${productToSave.name}" already exists!`, 'error');
+        } else {
+          showAddMessage(errorData.message || 'Error saving product.', 'error');
+        }
+        setIsSubmitting(false);
       }
     } catch (error) {
-      showMessage('Server error while saving product.', 'error');
+      showAddMessage('Server error while saving product.', 'error');
+      setIsSubmitting(false);
     }
   };
 
   const startEdit = (product) => {
-    clearMessage();
+    setEditMessage({ text: '', type: '' });
+    setIsSubmitting(false);
     setEditProduct({
       id: product._id,
       name: product.name,
@@ -218,6 +286,11 @@ function Product() {
   };
 
   const handleUpdateProduct = async () => {
+    // Prevent double submission
+    if (isSubmitting) return;
+
+    setIsSubmitting(true);
+
     const productToSave = {
       ...editProduct,
       costPrice: editProduct.costPrice === '' || editProduct.costPrice === null || editProduct.costPrice === undefined ? 0 : parseFloat(editProduct.costPrice),
@@ -226,7 +299,32 @@ function Product() {
       reorderQuantity: editProduct.reorderQuantity === '' || editProduct.reorderQuantity === null || editProduct.reorderQuantity === undefined ? 0 : parseInt(editProduct.reorderQuantity)
     };
 
-    if (!validateProduct(productToSave)) return;
+    // Check if nothing changed
+    const originalProduct = products.find(p => p._id === editProduct.id);
+    if (originalProduct) {
+      const isSame =
+        originalProduct.name === productToSave.name &&
+        (originalProduct.categoryId?._id || originalProduct.categoryId) === productToSave.categoryId &&
+        (originalProduct.uomId?._id || originalProduct.uomId) === productToSave.uomId &&
+        parseFloat(originalProduct.costPrice || 0) === productToSave.costPrice &&
+        parseFloat(originalProduct.retailPrice || 0) === productToSave.retailPrice &&
+        parseInt(originalProduct.quantity || 0) === productToSave.quantity &&
+        parseInt(originalProduct.reorderQuantity || 0) === productToSave.reorderQuantity &&
+        (originalProduct.expiryDate ? new Date(originalProduct.expiryDate).toISOString().split('T')[0] : '') === productToSave.expiryDate;
+
+      if (isSame) {
+        showEditMessage('Nothing to update!', 'info');
+        setIsSubmitting(false);
+        return;
+      }
+    }
+
+    const validationError = validateProduct(productToSave);
+    if (validationError) {
+      showEditMessage(validationError, 'error');
+      setIsSubmitting(false);
+      return;
+    }
 
     try {
       const res = await fetch(`http://localhost:5000/api/products/${editProduct.id}`, {
@@ -236,20 +334,31 @@ function Product() {
       });
 
       if (res.ok) {
-        showMessage('Product updated successfully!', 'success');
-        setIsEditModalOpen(false);
-        setEditProduct({ id: '', ...initialState });
-        fetchProducts();
+        showEditMessage('Product updated successfully!', 'success');
+        await fetchProducts();
+        setTimeout(() => {
+          setIsEditModalOpen(false);
+          setEditProduct({ id: '', ...initialState });
+          setEditMessage({ text: '', type: '' });
+          setIsSubmitting(false);
+        }, 300);
       } else {
         const errorData = await res.json();
-        showMessage(errorData.message || 'Error updating product.', 'error');
+        if (errorData.message && errorData.message.includes('duplicate key error')) {
+          showEditMessage(`Product "${productToSave.name}" already exists!`, 'error');
+        } else {
+          showEditMessage(errorData.message || 'Error updating product.', 'error');
+        }
+        setIsSubmitting(false);
       }
     } catch (error) {
-      showMessage('Server error while updating product.', 'error');
+      showEditMessage('Server error while updating product.', 'error');
+      setIsSubmitting(false);
     }
   };
 
   const confirmDelete = (id) => {
+    setDeleteMessage({ text: '', type: '' });
     setDeleteTargetId(id);
     setIsDeleteModalOpen(true);
   };
@@ -263,29 +372,25 @@ function Product() {
       });
 
       if (res.ok) {
-        showMessage('Product deleted successfully!', 'success');
-        setIsDeleteModalOpen(false);
-        setDeleteTargetId(null);
-        fetchProducts();
+        showDeleteMessage('Product deleted successfully!', 'success');
+        await fetchProducts();
+        setTimeout(() => {
+          setIsDeleteModalOpen(false);
+          setDeleteTargetId(null);
+          setDeleteMessage({ text: '', type: '' });
+        }, 300);
       } else {
         const errorData = await res.json();
-        showMessage(errorData.message || 'Error deleting product.', 'error');
+        showDeleteMessage(errorData.message || 'Error deleting product.', 'error');
       }
     } catch (error) {
-      showMessage('Server error while deleting product.', 'error');
+      showDeleteMessage('Server error while deleting product.', 'error');
     }
   };
 
   const openView = (product) => {
     setViewProduct(product);
     setIsViewModalOpen(true);
-  };
-
-  const getStatusBadge = (status) => {
-    if (status === 'active') {
-      return { backgroundColor: '#d4edda', color: '#155724' };
-    }
-    return { backgroundColor: '#f8d7da', color: '#721c24' };
   };
 
   const clearFilters = () => {
@@ -314,42 +419,50 @@ function Product() {
   const currentItems = filteredProducts.slice(indexOfFirstItem, indexOfLastItem);
   const totalPages = Math.ceil(filteredProducts.length / itemsPerPage);
 
+  // Inline Message Component
+  const InlineMessage = ({ message, type }) => {
+    if (!message) return null;
+
+    const colors = {
+      success: { bg: '#d4edda', text: '#155724', border: '#c3e6cb', icon: '✅' },
+      error: { bg: '#fdecea', text: '#dc3545', border: '#f5c6cb', icon: '⚠️' },
+      info: { bg: '#e7f3ff', text: '#0056b3', border: '#b8d4f0', icon: 'ℹ️' }
+    };
+
+    const style = colors[type] || colors.info;
+
+    return (
+      <div style={{
+        padding: '10px 14px',
+        marginBottom: '15px',
+        borderRadius: '6px',
+        backgroundColor: style.bg,
+        color: style.text,
+        border: `1px solid ${style.border}`,
+        fontSize: '14px',
+        fontWeight: 500
+      }}>
+        {style.icon} {message}
+      </div>
+    );
+  };
+
   return (
     <div className="roles-container">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', width: '100%' }}>
-        <h2>Products</h2>
-        <button style={{ width: '16%', padding: '10px 20px', color: 'white', backgroundColor: '#5aa7ef', whiteSpace: 'nowrap', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 600 }} onClick={() => { clearMessage(); setIsAddModalOpen(true); }}>
-          + Add Product
-        </button>
-      </div>
-
-      {/* RESULTS COUNT */}
-      <div style={{
-        marginBottom: '15px',
-        fontSize: '14px',
-        color: '#555',
-        display: 'flex',
-        justifyContent: 'space-between'
-      }}>
-        <span>Showing {currentItems.length} of {filteredProducts.length} products</span>
-      </div>
-
-      {/* FILTER BAR */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center',  width: '100%' }}>
+         {/* FILTER BAR */}
       <div style={{
         display: 'flex',
         flexWrap: 'wrap',
         gap: '15px',
         alignItems: 'flex-end',
-        marginBottom: '20px',
-        padding: '16px',
-        backgroundColor: '#f8f9fa',
-        border: '1px solid #e9ecef',
+
         borderRadius: '6px'
       }}>
         <div style={{ minWidth: '180px' }}>
-          <label style={{ fontSize: '0.75rem', fontWeight: 600, color: '#495057', display: 'block', marginBottom: '4px' }}>Category</label>
+          <label style={{ textAlign:'left',fontSize: '0.65rem', fontWeight: 600, color: '#495057', display: 'block'}}>Category</label>
           <select
-            style={{ fontSize: '0.85rem', width: '100%', padding: '9px 10px', border: '1px solid #ced4da', borderRadius: '4px', backgroundColor: 'white' }}
+            style={{ fontSize: '0.7rem', width: '100%', padding: '7px 10px', border: '1px solid #ced4da', borderRadius: '4px', backgroundColor: 'white' }}
             value={filterCategory}
             onChange={(e) => setFilterCategory(e.target.value)}
           >
@@ -361,9 +474,9 @@ function Product() {
         </div>
 
         <div style={{ minWidth: '180px' }}>
-          <label style={{ fontSize: '0.75rem', fontWeight: 600, color: '#495057', display: 'block', marginBottom: '4px' }}>UOM</label>
+          <label style={{ textAlign:'left',fontSize: '0.65rem', fontWeight: 600, color: '#495057', display: 'block'}}>UOM</label>
           <select
-            style={{ fontSize: '0.85rem', width: '100%', padding: '9px 10px', border: '1px solid #ced4da', borderRadius: '4px', backgroundColor: 'white' }}
+            style={{ fontSize: '0.7rem', width: '100%', padding: '7px 10px', border: '1px solid #ced4da', borderRadius: '4px', backgroundColor: 'white' }}
             value={filterUom}
             onChange={(e) => setFilterUom(e.target.value)}
           >
@@ -378,7 +491,7 @@ function Product() {
           <button
             onClick={clearFilters}
             style={{
-              padding: '9px 16px',
+              padding: '6px 10px',
               backgroundColor: '#6c757d',
               color: 'white',
               border: 'none',
@@ -392,9 +505,32 @@ function Product() {
             Clear Filters
           </button>
         )}
+
+      </div>
+        <button
+          style={{ width: '16%', padding: '10px 20px', color: 'white', backgroundColor: '#5aa7ef', whiteSpace: 'nowrap', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 600 }}
+          onClick={() => { setAddMessage({ text: '', type: '' }); setIsSubmitting(false); setIsAddModalOpen(true); }}
+        >
+          + Add Product
+        </button>
       </div>
 
-      {/* TABLE - Only essential columns */}
+
+
+     
+      {/* RESULTS COUNT */}
+      <div style={{
+        marginBottom: '10px',
+        fontSize: '13px',
+        color: '#555',
+        display: 'flex',
+        justifyContent: 'space-between',
+        marginLeft: '81%',
+      }}>
+        <span>Showing {currentItems.length} of {filteredProducts.length} products</span>
+      </div>
+
+      {/* TABLE */}
       <div className="table-scroll-wrapper" style={{ overflowX: 'auto', width: '100%' }}>
         <table className="roles-table" style={{ width: '100%', tableLayout: 'fixed' }}>
           <thead>
@@ -425,7 +561,7 @@ function Product() {
                     <td style={{ textAlign: 'left' }}>{parseFloat(p.costPrice).toFixed(2)}</td>
                     <td style={{ textAlign: 'left' }}>{parseFloat(p.retailPrice).toFixed(2)}</td>
                     <td className="actions-cell" style={{ textAlign: 'center' }}>
-                       <div style={styles.actionGroup}>
+                      <div style={styles.actionGroup}>
                         {/* View Button */}
                         <button style={styles.iconBtnView} onClick={() => openView(p)} title="View">
                           <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
@@ -445,10 +581,7 @@ function Product() {
                         {/* Delete Button */}
                         <button
                           style={styles.iconBtnDelete}
-                          onClick={() => {
-                            confirmDelete(p._id);
-                            setIsDeleteModalOpen(true);
-                          }}
+                          onClick={() => confirmDelete(p._id)}
                           title="Delete"
                         >
                           <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
@@ -476,18 +609,18 @@ function Product() {
 
       {/* PAGINATION */}
       {filteredProducts.length > itemsPerPage && (
-        <div style={{ 
-          marginTop: '20px', 
-          display: 'flex', 
-          gap: '15px', 
-          justifyContent: 'center', 
+        <div style={{
+          marginTop: '20px',
+          display: 'flex',
+          gap: '15px',
+          justifyContent: 'center',
           alignItems: 'center',
           padding: '10px 0'
         }}>
-          <button 
-            disabled={currentPage === 1} 
+          <button
+            disabled={currentPage === 1}
             onClick={() => setCurrentPage(prev => prev - 1)}
-            style={{ 
+            style={{
               padding: '8px 16px',
               backgroundColor: currentPage === 1 ? '#e9ecef' : '#5aa7ef',
               color: currentPage === 1 ? '#6c757d' : 'white',
@@ -497,17 +630,17 @@ function Product() {
               fontWeight: '600'
             }}
           >
-            ← 
+            ←
           </button>
-          
-          <span style={{ fontSize: '12px', fontWeight: '400',color:'#868484' }}>
+
+          <span style={{ fontSize: '12px', fontWeight: '400', color: '#868484' }}>
             Page {currentPage} of {totalPages || 1}
           </span>
-          
-          <button 
-            disabled={currentPage >= totalPages} 
+
+          <button
+            disabled={currentPage >= totalPages}
             onClick={() => setCurrentPage(prev => prev + 1)}
-            style={{ 
+            style={{
               padding: '8px 16px',
               backgroundColor: currentPage >= totalPages ? '#e9ecef' : '#5aa7ef',
               color: currentPage >= totalPages ? '#6c757d' : 'white',
@@ -517,7 +650,7 @@ function Product() {
               fontWeight: '600'
             }}
           >
-             →
+            →
           </button>
         </div>
       )}
@@ -528,7 +661,7 @@ function Product() {
           <div className="modal-content" style={{ maxWidth: '750px', position: 'relative' }}>
             <h3>Add New Product</h3>
 
-            <MessagePopup message={message} onClose={clearMessage} />
+            <InlineMessage message={addMessage.text} type={addMessage.type} />
 
             <div className="user-form" style={{ fontSize: '0.85rem', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
 
@@ -538,6 +671,7 @@ function Product() {
                   style={{ fontSize: '0.85rem', width: '100%', padding: '10px 12px', border: '1px solid #ced4da', borderRadius: '4px', backgroundColor: '#f8f9fa' }}
                   value={newProduct.categoryId}
                   onChange={(e) => setNewProduct({ ...newProduct, categoryId: e.target.value })}
+                  onKeyDown={(e) => handleInputKeyDown(e, handleAddProduct)}
                 >
                   <option value="">Select Category</option>
                   {categories.map(c => (
@@ -551,6 +685,7 @@ function Product() {
                   style={{ fontSize: '0.85rem', width: '100%', padding: '10px 12px', border: '1px solid #ced4da', borderRadius: '4px', backgroundColor: '#f8f9fa' }}
                   value={newProduct.uomId}
                   onChange={(e) => setNewProduct({ ...newProduct, uomId: e.target.value })}
+                  onKeyDown={(e) => handleInputKeyDown(e, handleAddProduct)}
                 >
                   <option value="">Select UOM</option>
                   {uoms.map(u => (
@@ -561,10 +696,13 @@ function Product() {
               <div style={{ gridColumn: 'span 2' }}>
                 <label style={{ fontSize: '0.8rem' }}>Product Name *</label>
                 <input
-                  style={{ fontSize: '0.85rem', width: '100%' }}
+                  style={{ fontSize: '0.85rem', width: '100%', padding: '8px', boxSizing: 'border-box' }}
                   value={newProduct.name}
                   onChange={(e) => setNewProduct({ ...newProduct, name: e.target.value })}
+                  onKeyDown={(e) => handleInputKeyDown(e, handleAddProduct)}
+                  autoFocus
                   placeholder="Enter product name"
+                  disabled={isSubmitting}
                 />
               </div>
               <div>
@@ -574,9 +712,11 @@ function Product() {
                   step="10"
                   min="0"
                   placeholder="0"
-                  style={{ fontSize: '0.85rem', width: '100%' }}
+                  style={{ fontSize: '0.85rem', width: '100%', padding: '8px', boxSizing: 'border-box' }}
                   value={newProduct.costPrice}
                   onChange={(e) => setNewProduct({ ...newProduct, costPrice: e.target.value })}
+                  onKeyDown={(e) => handleInputKeyDown(e, handleAddProduct)}
+                  disabled={isSubmitting}
                 />
               </div>
               <div>
@@ -586,9 +726,11 @@ function Product() {
                   step="10"
                   min="0"
                   placeholder="0"
-                  style={{ fontSize: '0.85rem', width: '100%' }}
+                  style={{ fontSize: '0.85rem', width: '100%', padding: '8px', boxSizing: 'border-box' }}
                   value={newProduct.retailPrice}
                   onChange={(e) => setNewProduct({ ...newProduct, retailPrice: e.target.value })}
+                  onKeyDown={(e) => handleInputKeyDown(e, handleAddProduct)}
+                  disabled={isSubmitting}
                 />
               </div>
               <div>
@@ -597,9 +739,11 @@ function Product() {
                   type="number"
                   min="0"
                   placeholder="0"
-                  style={{ fontSize: '0.85rem', width: '100%' }}
+                  style={{ fontSize: '0.85rem', width: '100%', padding: '8px', boxSizing: 'border-box' }}
                   value={newProduct.quantity}
                   onChange={(e) => setNewProduct({ ...newProduct, quantity: e.target.value })}
+                  onKeyDown={(e) => handleInputKeyDown(e, handleAddProduct)}
+                  disabled={isSubmitting}
                 />
               </div>
               <div>
@@ -608,25 +752,50 @@ function Product() {
                   type="number"
                   min="0"
                   placeholder="0"
-                  style={{ fontSize: '0.85rem', width: '100%' }}
+                  style={{ fontSize: '0.85rem', width: '100%', padding: '8px', boxSizing: 'border-box' }}
                   value={newProduct.reorderQuantity}
                   onChange={(e) => setNewProduct({ ...newProduct, reorderQuantity: e.target.value })}
+                  onKeyDown={(e) => handleInputKeyDown(e, handleAddProduct)}
+                  disabled={isSubmitting}
                 />
               </div>
               <div style={{ gridColumn: 'span 2' }}>
                 <label style={{ fontSize: '0.8rem' }}>Expiry Date</label>
                 <input
                   type="date"
-                  style={{ fontSize: '0.85rem', width: '100%' }}
+                  style={{ fontSize: '0.85rem', width: '100%', padding: '8px', boxSizing: 'border-box' }}
                   value={newProduct.expiryDate}
                   onChange={(e) => setNewProduct({ ...newProduct, expiryDate: e.target.value })}
+                  onKeyDown={(e) => handleInputKeyDown(e, handleAddProduct)}
+                  disabled={isSubmitting}
                 />
               </div>
             </div>
 
             <div className="modal-actions" style={{ marginTop: '25px', display: 'flex', gap: '10px', alignItems: 'right', justifyContent: 'flex-end' }}>
-              <button className="btn btn-primary" onClick={handleAddProduct}>Save Product</button>
-              <button className="btn btn-cancel" onClick={() => { setIsAddModalOpen(false); setNewProduct(initialState); clearMessage(); }}>Cancel</button>
+              <button
+                className="btn btn-primary"
+                onClick={handleAddProduct}
+                disabled={isSubmitting}
+                style={{
+                  padding: '10px 20px',
+                  backgroundColor: isSubmitting ? '#6c757d' : '#5aa7ef',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '4px',
+                  cursor: isSubmitting ? 'not-allowed' : 'pointer',
+                  fontWeight: 600
+                }}
+              >
+                {isSubmitting ? 'Saving...' : 'Save Product'}
+              </button>
+              <button
+                className="btn btn-cancel"
+                onClick={() => { setIsAddModalOpen(false); setNewProduct(initialState); setAddMessage({ text: '', type: '' }); setIsSubmitting(false); }}
+                disabled={isSubmitting}
+              >
+                Cancel
+              </button>
             </div>
           </div>
         </div>
@@ -638,7 +807,7 @@ function Product() {
           <div className="modal-content" style={{ maxWidth: '750px', position: 'relative' }}>
             <h3>Edit Product</h3>
 
-            <MessagePopup message={message} onClose={clearMessage} />
+            <InlineMessage message={editMessage.text} type={editMessage.type} />
 
             <div className="user-form" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', fontSize: '0.85rem' }}>
 
@@ -648,6 +817,8 @@ function Product() {
                   style={{ fontSize: '0.85rem', width: '100%', padding: '10px 12px', border: '1px solid #ced4da', borderRadius: '4px', backgroundColor: '#f8f9fa' }}
                   value={editProduct.categoryId}
                   onChange={(e) => setEditProduct({ ...editProduct, categoryId: e.target.value })}
+                  onKeyDown={(e) => handleInputKeyDown(e, handleUpdateProduct)}
+                  disabled={isSubmitting}
                 >
                   <option value="">Select Category</option>
                   {categories.map(c => (
@@ -662,6 +833,8 @@ function Product() {
                   style={{ fontSize: '0.85rem', width: '100%', padding: '10px 12px', border: '1px solid #ced4da', borderRadius: '4px', backgroundColor: '#f8f9fa' }}
                   value={editProduct.uomId}
                   onChange={(e) => setEditProduct({ ...editProduct, uomId: e.target.value })}
+                  onKeyDown={(e) => handleInputKeyDown(e, handleUpdateProduct)}
+                  disabled={isSubmitting}
                 >
                   <option value="">Select UOM</option>
                   {uoms.map(u => (
@@ -672,10 +845,13 @@ function Product() {
               <div style={{ gridColumn: 'span 2' }}>
                 <label style={{ fontSize: '0.8rem' }}>Product Name *</label>
                 <input
-                  style={{ fontSize: '0.85rem', width: '100%' }}
+                  style={{ fontSize: '0.85rem', width: '100%', padding: '8px', boxSizing: 'border-box' }}
                   value={editProduct.name}
                   onChange={(e) => setEditProduct({ ...editProduct, name: e.target.value })}
+                  onKeyDown={(e) => handleInputKeyDown(e, handleUpdateProduct)}
+                  autoFocus
                   placeholder="Enter product name"
+                  disabled={isSubmitting}
                 />
               </div>
               <div>
@@ -685,9 +861,11 @@ function Product() {
                   step="10"
                   min="0"
                   placeholder="0"
-                  style={{ fontSize: '0.85rem', width: '100%' }}
+                  style={{ fontSize: '0.85rem', width: '100%', padding: '8px', boxSizing: 'border-box' }}
                   value={editProduct.costPrice}
                   onChange={(e) => setEditProduct({ ...editProduct, costPrice: e.target.value })}
+                  onKeyDown={(e) => handleInputKeyDown(e, handleUpdateProduct)}
+                  disabled={isSubmitting}
                 />
               </div>
               <div>
@@ -697,9 +875,11 @@ function Product() {
                   step="10"
                   min="0"
                   placeholder="0"
-                  style={{ fontSize: '0.85rem', width: '100%' }}
+                  style={{ fontSize: '0.85rem', width: '100%', padding: '8px', boxSizing: 'border-box' }}
                   value={editProduct.retailPrice}
                   onChange={(e) => setEditProduct({ ...editProduct, retailPrice: e.target.value })}
+                  onKeyDown={(e) => handleInputKeyDown(e, handleUpdateProduct)}
+                  disabled={isSubmitting}
                 />
               </div>
               <div>
@@ -708,9 +888,11 @@ function Product() {
                   type="number"
                   min="0"
                   placeholder="0"
-                  style={{ fontSize: '0.85rem', width: '100%' }}
+                  style={{ fontSize: '0.85rem', width: '100%', padding: '8px', boxSizing: 'border-box' }}
                   value={editProduct.quantity}
                   onChange={(e) => setEditProduct({ ...editProduct, quantity: e.target.value })}
+                  onKeyDown={(e) => handleInputKeyDown(e, handleUpdateProduct)}
+                  disabled={isSubmitting}
                 />
               </div>
               <div>
@@ -719,31 +901,56 @@ function Product() {
                   type="number"
                   min="0"
                   placeholder="0"
-                  style={{ fontSize: '0.85rem', width: '100%' }}
+                  style={{ fontSize: '0.85rem', width: '100%', padding: '8px', boxSizing: 'border-box' }}
                   value={editProduct.reorderQuantity}
                   onChange={(e) => setEditProduct({ ...editProduct, reorderQuantity: e.target.value })}
+                  onKeyDown={(e) => handleInputKeyDown(e, handleUpdateProduct)}
+                  disabled={isSubmitting}
                 />
               </div>
               <div style={{ gridColumn: 'span 2' }}>
                 <label style={{ fontSize: '0.8rem' }}>Expiry Date</label>
                 <input
                   type="date"
-                  style={{ fontSize: '0.85rem', width: '100%' }}
+                  style={{ fontSize: '0.85rem', width: '100%', padding: '8px', boxSizing: 'border-box' }}
                   value={editProduct.expiryDate}
                   onChange={(e) => setEditProduct({ ...editProduct, expiryDate: e.target.value })}
+                  onKeyDown={(e) => handleInputKeyDown(e, handleUpdateProduct)}
+                  disabled={isSubmitting}
                 />
               </div>
             </div>
 
             <div className="modal-actions" style={{ marginTop: '25px', display: 'flex', gap: '10px', alignItems: 'right', justifyContent: 'flex-end' }}>
-              <button className="btn btn-primary" onClick={handleUpdateProduct}>Save Changes</button>
-              <button className="btn btn-cancel" onClick={() => { setIsEditModalOpen(false); setEditProduct({ id: '', ...initialState }); clearMessage(); }}>Cancel</button>
+              <button
+                className="btn btn-primary"
+                onClick={handleUpdateProduct}
+                disabled={isSubmitting}
+                style={{
+                  padding: '10px 20px',
+                  backgroundColor: isSubmitting ? '#6c757d' : '#5aa7ef',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '4px',
+                  cursor: isSubmitting ? 'not-allowed' : 'pointer',
+                  fontWeight: 600
+                }}
+              >
+                {isSubmitting ? 'Saving...' : 'Save Changes'}
+              </button>
+              <button
+                className="btn btn-cancel"
+                onClick={() => { setIsEditModalOpen(false); setEditProduct({ id: '', ...initialState }); setEditMessage({ text: '', type: '' }); setIsSubmitting(false); }}
+                disabled={isSubmitting}
+              >
+                Cancel
+              </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* VIEW MODAL - Shows ALL details */}
+      {/* VIEW MODAL */}
       {isViewModalOpen && viewProduct && (
         <div className="modal-overlay">
           <div className="modal-content" style={{ height: 'auto', maxWidth: '550px', padding: 0, position: 'relative' }}>
@@ -797,11 +1004,10 @@ function Product() {
                   <label style={{ fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.04em', color: '#6c757d', fontWeight: 600 }}>Reorder Quantity</label>
                   <p style={{ fontSize: '0.95rem', margin: '4px 0 0', color: '#212529' }}>{viewProduct.reorderQuantity}</p>
                 </div>
-                <div>
-                  <label style={{ alignItems: 'center', textAlign: 'center', fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.04em', color: '#6c757d', fontWeight: 600 }}>Expiry Date</label>
+                <div style={{ gridColumn: 'span 2' }}>
+                  <label style={{ fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.04em', color: '#6c757d', fontWeight: 600 }}>Expiry Date</label>
                   <p style={{ fontSize: '0.95rem', margin: '4px 0 0', color: '#212529' }}>{viewProduct.expiryDate ? new Date(viewProduct.expiryDate).toLocaleDateString() : 'N/A'}</p>
                 </div>
-
               </div>
             </div>
 
@@ -817,7 +1023,7 @@ function Product() {
         <div className="modal-overlay">
           <div className="modal-content" style={{ maxWidth: '380px', textAlign: 'center', position: 'relative' }}>
 
-            <MessagePopup message={message} onClose={clearMessage} />
+            <InlineMessage message={deleteMessage.text} type={deleteMessage.type} />
 
             <div style={{
               width: '52px', height: '52px', borderRadius: '50%', backgroundColor: '#fdecea',
@@ -832,7 +1038,7 @@ function Product() {
             </p>
 
             <div className="modal-actions" style={{ marginTop: '22px', display: 'flex', justifyContent: 'center', gap: '10px' }}>
-              <button onClick={() => { setIsDeleteModalOpen(false); setDeleteTargetId(null); clearMessage(); }} style={{ backgroundColor: '#6c757d', color: 'white', border: 'none', padding: '10px 24px', borderRadius: '4px', cursor: 'pointer', fontWeight: 600 }}>Cancel</button>
+              <button onClick={() => { setIsDeleteModalOpen(false); setDeleteTargetId(null); setDeleteMessage({ text: '', type: '' }); }} style={{ backgroundColor: '#6c757d', color: 'white', border: 'none', padding: '10px 24px', borderRadius: '4px', cursor: 'pointer', fontWeight: 600 }}>Cancel</button>
               <button onClick={handleDelete} style={{ backgroundColor: '#dc3545', color: 'white', border: 'none', padding: '10px 24px', borderRadius: '4px', cursor: 'pointer', fontWeight: 600 }}>Delete</button>
             </div>
           </div>
@@ -841,46 +1047,47 @@ function Product() {
     </div>
   );
 }
+
 const styles = {
-    actionGroup: {
-        display: 'flex',
-        justifyContent: 'center',
-        gap: '12px',
-    },
-    iconBtnView: {
-        background: '#f0fdf4',
-        color: '#59956f',
-        border: 'none',
-        padding: '8px',
-        borderRadius: '6px',
-        cursor: 'pointer',
-        display: 'flex',
-        alignItems: 'center',
-        transition: 'all 0.2s',
-        backgroundColor:'#e9f2e9'
-    },
-    iconBtnEdit: {
-        background: '#eff6ff',
-        color: '#3b82f6',
-        border: 'none',
-        padding: '8px',
-        borderRadius: '6px',
-        cursor: 'pointer',
-        display: 'flex',
-        alignItems: 'center',
-        transition: 'all 0.2s',
-    },
-    iconBtnDelete: {
-        background: '#fef2f2',
-        color: '#ef4444',
-        border: 'none',
-        padding: '8px',
-        borderRadius: '6px',
-        cursor: 'pointer',
-        display: 'flex',
-        alignItems: 'center',
-        transition: 'all 0.2s',
-    },
+  actionGroup: {
+    display: 'flex',
+    justifyContent: 'center',
+    gap: '12px',
+  },
+  iconBtnView: {
+    background: '#f0fdf4',
+    color: '#59956f',
+    border: 'none',
+    padding: '8px',
+    borderRadius: '6px',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    transition: 'all 0.2s',
+    backgroundColor: '#e9f2e9'
+  },
+  iconBtnEdit: {
+    background: '#eff6ff',
+    color: '#3b82f6',
+    border: 'none',
+    padding: '8px',
+    borderRadius: '6px',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    transition: 'all 0.2s',
+  },
+  iconBtnDelete: {
+    background: '#fef2f2',
+    color: '#ef4444',
+    border: 'none',
+    padding: '8px',
+    borderRadius: '6px',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    transition: 'all 0.2s',
+  },
 }
 
 export default Product;

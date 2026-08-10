@@ -212,13 +212,13 @@ function PurchaseRebateList() {
     return (
         <div style={{ ...styles.wrapper, marginBottom: '50%' }}>
             <div style={{ ...styles.card, padding: 0, overflow: 'hidden' }}>
-               
+
 
                 {/* ==================== FILTERS ==================== */}
                 <div style={styles.filterContainer}>
-                    
+
                     <div style={styles.filterRow}>
-                          <div style={styles.filterGroup}>
+                        <div style={styles.filterGroup}>
                             <label style={styles.filterLabel}>Supplier</label>
                             <select
                                 style={styles.filterInput}
@@ -253,7 +253,7 @@ function PurchaseRebateList() {
                             />
                         </div>
 
-                      
+
 
                         <button style={styles.clearFilterBtn} onClick={clearFilters}>
                             Clear Filters
@@ -265,17 +265,17 @@ function PurchaseRebateList() {
                     </div>
                 </div>
 
-                <div style={{ overflowX: 'auto' }}>
-                    <table className='roles-table' style={{width:'80%',marginLeft:'30px'}}>
+                <div style={{ overflowX: 'auto', borderRadius: '6px', width: '95%', marginLeft: '20px' }}>
+                    <table className='po-table' style={{ width: '100%' }}>
                         <thead>
                             <tr>
-                                <th style={{ ...styles.th, textAlign: 'left',width:'10%' }}>Sr#</th>
-                                <th style={{ ...styles.th, textAlign: 'left',width:'15%' }}>Date</th>
-                                <th style={styles.th}>Rebate #</th>
-                                <th style={styles.th}>Invoice #</th>
-                                <th style={styles.th}>Supplier</th>
-                                <th style={{ ...styles.th, textAlign: 'left' ,width:'17%'}}>Amount</th>
-                                <th style={{ ...styles.th, textAlign: 'center',width:'17%' }}>Action</th>
+                                <th style={{ ...styles.th, textAlign: 'left', width: '7%' }}>Sr#</th>
+                                <th style={{ ...styles.th, textAlign: 'left', width: '10%' }}>Date</th>
+                                <th style={{ ...styles.th, textAlign: 'left', width: '10%' }}>Rebate #</th>
+                                <th style={{ ...styles.th, textAlign: 'left', width: '10%' }}>Invoice #</th>
+                                <th style={{ ...styles.th, textAlign: 'left', width: '10%' }}>Supplier</th>
+                                <th style={{ ...styles.th, textAlign: 'left', width: '10%' }}>Amount</th>
+                                <th style={{ ...styles.th, textAlign: 'center', width: '13%' }}>Action</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -290,13 +290,13 @@ function PurchaseRebateList() {
                                         <tr key={r._id}>
                                             <td style={styles.td}>{serialNumber}</td>
                                             <td style={styles.td}>{new Date(r.rebateDate || r.createdAt).toLocaleDateString()}</td>
-                                            <td style={{ ...styles.td, fontWeight: 700, color: '#0f172a' }}>{r.rebateNumber}</td>
+                                            <td style={{ ...styles.td }}>{r.rebateNumber}</td>
                                             <td style={styles.td}>{r.invoiceNumber || r.purchase?.invoiceNumber || '—'}</td>
                                             <td style={styles.td}>{getSupplierName(r)}</td>
-                                            <td style={{ ...styles.td, textAlign: 'left', fontWeight: 600, color: '#10b981' }}>
+                                            <td style={{ ...styles.td, textAlign: 'left', fontWeight: 'bold', color: '#377661' }}>
                                                 Rs. {r.totalAmount.toFixed(2)}
                                             </td>
-                                            <td style={{ padding: '15px', textAlign: 'left', marginLeft: '10%' }}>
+                                            <td style={{ padding: '7px', textAlign: 'left', marginLeft: '10%' }}>
                                                 <button
                                                     onClick={() => openView(r)}
                                                     style={styles.iconBtnView}
@@ -368,11 +368,11 @@ function PurchaseRebateList() {
 
                         <div id="rebate-receipt-content" style={styles.receiptBody}>
                             <div style={{ textAlign: 'center', marginBottom: '20px' }}>
-                                <h4 style={{ margin: '0 0 8px 0', fontSize: '14px',color:'#333' }}>PURCHASE REBATE RECEIPT</h4>
-                                <p style={{  textAlign: 'left',margin: '4px 0', fontSize: '14px' }}>Rebate #:{viewRebate.rebateNumber}</p>
+                                <h4 style={{ margin: '0 0 8px 0', fontSize: '14px', color: '#333' }}>PURCHASE REBATE RECEIPT</h4>
+                                <p style={{ textAlign: 'left', margin: '4px 0', fontSize: '14px' }}>Rebate #:{viewRebate.rebateNumber}</p>
                                 <p style={{ textAlign: 'left', margin: '4px 0', fontSize: '14px' }}>Date: {new Date(viewRebate.rebateDate || viewRebate.createdAt).toLocaleDateString()}</p>
-                                <p style={{  textAlign: 'left',margin: '4px 0', fontSize: '14px' }}>Invoice #:{viewRebate.invoiceNumber || viewRebate.purchase?.invoiceNumber || '—'}</p>
-                                <p style={{  textAlign: 'left',margin: '4px 0', fontSize: '14px' }}>Supplier:{getSupplierName(viewRebate)}</p>
+                                <p style={{ textAlign: 'left', margin: '4px 0', fontSize: '14px' }}>Invoice #:{viewRebate.invoiceNumber || viewRebate.purchase?.invoiceNumber || '—'}</p>
+                                <p style={{ textAlign: 'left', margin: '4px 0', fontSize: '14px' }}>Supplier:{getSupplierName(viewRebate)}</p>
                             </div>
 
                             <div style={styles.receiptDivider}></div>
@@ -423,12 +423,14 @@ function PurchaseRebateList() {
 }
 
 const styles = {
-    wrapper: { background: '#fff', borderBottom: '1px solid #e2e8f0',borderRadius:'20px',
-display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '0px',width:'95%',marginLeft:'20px' },
-    card: { background: '#fff', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' },
-    table: { width: '100%',borderRadius:'20%', borderCollapse: 'collapse' },
+    wrapper: {
+        background: '#fff', borderBottom: '1px solid #e2e8f0', borderRadius: '20px',
+        display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '0px', width: '100%'
+    },
+    card: { background: '#fff', padding: '15px 25px', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' },
+    table: { width: '100%', borderRadius: '20%', borderCollapse: 'collapse' },
     th: { textAlign: 'left', padding: '12px 16px', background: ' #26384a', fontSize: '12px', color: '#fff', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' },
-    td: { padding: '10px 16px', textAlign: 'left', fontSize: '14px', borderBottom: '1px solid #f1f5f9', color: '#334155' },
+    td: { textAlign: 'left', fontSize: '14px', padding: '4px 18px', borderBottom: '1px solid #f1f5f9', color: '#334155' },
     emptyCell: { padding: '30px 0', textAlign: 'center', color: '#94a3b8', fontSize: '14px' },
     iconBtnView: {
         background: '#f0fdf4',
@@ -446,8 +448,8 @@ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '0px',width:'9
 
     // Filter styles
     filterContainer: {
-        padding: '16px 30px',
-        
+        padding: '0px 30px',
+
     },
     filterRow: {
         display: 'flex',
@@ -460,13 +462,12 @@ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '0px',width:'9
         flexDirection: 'column',
         flex: '1',
         minWidth: '160px',
-        marginTop:'30px'
+        marginTop: '15px'
     },
     filterLabel: {
         fontSize: '12px',
-        fontWeight: 700,
+        fontWeight: 600,
         color: '#475569',
-        marginBottom: '4px',
         textAlign: 'left'
     },
     filterInput: {
@@ -491,10 +492,12 @@ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '0px',width:'9
         whiteSpace: 'nowrap'
     },
     filterStats: {
+        marginBottom: '10px',
         marginTop: '10px',
         fontSize: '12px',
         color: '#555',
-        textAlign: 'right'
+        textAlign: 'right',
+        marginRight: '20px'
     },
 
     // Receipt Modal Styles

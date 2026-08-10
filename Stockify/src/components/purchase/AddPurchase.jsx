@@ -1,29 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import './purchase.css';
 
-function MessagePopup({ message, type, onClose }) {
-  if (!message) return null;
-  return (
-    <div className="message-popup-overlay" onClick={onClose} style={{ zIndex: 10000 }}>
-      <div className={`message-popup ${type}`} onClick={(e) => e.stopPropagation()}>
-        <button className="message-popup-close" onClick={onClose}>×</button>
-        <div className="message-popup-content">
-          <span className="message-popup-icon">{type === 'error' ? '⚠️' : '✅'}</span>
-          <div className="message-popup-text">
-            <strong>{type === 'error' ? 'Error: ' : 'Success: '}</strong>
-            {message}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-const AddPurchase = () => {
+function AddPurchase() {
   // --- Data States ---
   const [suppliers, setSuppliers] = useState([]);
   const [products, setProducts] = useState([]);
-  const [message, setMessage] = useState({ text: '', type: '' });
   const [nextInvoiceNumber, setNextInvoiceNumber] = useState('');
 
   // --- Form States ---
@@ -60,8 +41,12 @@ const AddPurchase = () => {
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const searchRef = useRef(null);
   
-  // --- NAYA: Quantity Input Focus Ref ---
+  // --- Quantity Input Focus Ref ---
   const qtyInputRef = useRef(null);
+
+  // --- Inline Message State & Top Scroll Ref ---
+  const [message, setMessage] = useState({ text: '', type: '' });
+  const topRef = useRef(null); // Ref to strictly scroll to top
 
   // --- Initialization ---
   useEffect(() => {
@@ -80,7 +65,6 @@ const AddPurchase = () => {
         setSuppliers(supplierData);
         setProducts(productData);
         
-        // Generate next invoice number
         generateNextInvoiceNumber(purchaseData.lastInvoiceNumber);
       } catch (error) {
         showMessage('Failed to load database records. Please refresh.', 'error');
@@ -88,6 +72,34 @@ const AddPurchase = () => {
     };
     fetchData();
   }, []);
+
+  // Keyboard shortcut handler for modals
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        if (isEditModalOpen) {
+          e.preventDefault();
+          closeEditModal();
+        }
+      }
+      if (e.key === 'Enter' && isEditModalOpen) {
+        e.preventDefault();
+        saveEditedItem();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isEditModalOpen, editFormData]);
+
+  // Guaranteed Scroll to Top whenever a message appears
+  useEffect(() => {
+    if (message.text && topRef.current) {
+      setTimeout(() => {
+        topRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 100);
+    }
+  }, [message]);
 
   // Function to generate next invoice number
   const generateNextInvoiceNumber = (lastInvoiceNumber) => {
@@ -98,7 +110,6 @@ const AddPurchase = () => {
       return;
     }
 
-    // Extract the number from the invoice number (e.g., "PU-5" -> 5)
     const match = lastInvoiceNumber.match(/PU-(\d+)/);
     if (match) {
       const nextNumber = parseInt(match[1]) + 1;
@@ -106,7 +117,6 @@ const AddPurchase = () => {
       setNextInvoiceNumber(newInvoiceNumber);
       setPurchaseInfo(prev => ({ ...prev, invoiceNumber: newInvoiceNumber }));
     } else {
-      // If format doesn't match, start from PU-1
       const newNumber = 'PU-1';
       setNextInvoiceNumber(newNumber);
       setPurchaseInfo(prev => ({ ...prev, invoiceNumber: newNumber }));
@@ -115,7 +125,8 @@ const AddPurchase = () => {
 
   const showMessage = (text, type) => {
     setMessage({ text, type });
-    setTimeout(() => setMessage({ text: '', type: '' }), 5000);
+    // Increased timeout to 5 seconds so user has time to see it
+    setTimeout(() => setMessage({ text: '', type: '' }), 5000); 
   };
 
   const handleInfoChange = (e) => {
@@ -143,10 +154,28 @@ const AddPurchase = () => {
     if (!isSearchOpen) return;
     if (e.key === 'ArrowDown') {
       e.preventDefault();
-      setHighlightedIndex(prev => (prev < filteredProducts.length - 1 ? prev + 1 : prev));
+      setHighlightedIndex(prev => {
+        const newIndex = prev < filteredProducts.length - 1 ? prev + 1 : prev;
+        setTimeout(() => {
+          const element = document.querySelector(`[data-main-index="${newIndex}"]`);
+          if (element) {
+            element.scrollIntoView({ block: 'nearest' });
+          }
+        }, 50);
+        return newIndex;
+      });
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
-      setHighlightedIndex(prev => (prev > 0 ? prev - 1 : 0));
+      setHighlightedIndex(prev => {
+        const newIndex = prev > 0 ? prev - 1 : 0;
+        setTimeout(() => {
+          const element = document.querySelector(`[data-main-index="${newIndex}"]`);
+          if (element) {
+            element.scrollIntoView({ block: 'nearest' });
+          }
+        }, 50);
+        return newIndex;
+      });
     } else if (e.key === 'Enter') {
       e.preventDefault();
       if (highlightedIndex >= 0 && filteredProducts[highlightedIndex]) {
@@ -154,6 +183,7 @@ const AddPurchase = () => {
       }
     } else if (e.key === 'Escape') {
       setIsSearchOpen(false);
+      setHighlightedIndex(-1);
     }
   };
 
@@ -163,17 +193,16 @@ const AddPurchase = () => {
       product: product._id,
       productName: product.name,
       unitPrice: product.retailPrice || 0,
-      quantity: 1 // Reset quantity back to 1 when a new product is selected
+      quantity: 1
     });
     setSearchTerm(product.name);
     setIsSearchOpen(false);
     setHighlightedIndex(-1);
 
-    // Focus on the quantity field automatically
     setTimeout(() => {
       if (qtyInputRef.current) {
         qtyInputRef.current.focus();
-        qtyInputRef.current.select(); // Automatically highlights the text so you can easily type over it
+        qtyInputRef.current.select();
       }
     }, 10);
   };
@@ -187,10 +216,28 @@ const AddPurchase = () => {
     if (!isModalSearchOpen) return;
     if (e.key === 'ArrowDown') {
       e.preventDefault();
-      setModalHighlightedIndex(prev => (prev < filteredModalProducts.length - 1 ? prev + 1 : prev));
+      setModalHighlightedIndex(prev => {
+        const newIndex = prev < filteredModalProducts.length - 1 ? prev + 1 : prev;
+        setTimeout(() => {
+          const element = document.querySelector(`[data-modal-index="${newIndex}"]`);
+          if (element) {
+            element.scrollIntoView({ block: 'nearest' });
+          }
+        }, 50);
+        return newIndex;
+      });
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
-      setModalHighlightedIndex(prev => (prev > 0 ? prev - 1 : 0));
+      setModalHighlightedIndex(prev => {
+        const newIndex = prev > 0 ? prev - 1 : 0;
+        setTimeout(() => {
+          const element = document.querySelector(`[data-modal-index="${newIndex}"]`);
+          if (element) {
+            element.scrollIntoView({ block: 'nearest' });
+          }
+        }, 50);
+        return newIndex;
+      });
     } else if (e.key === 'Enter') {
       e.preventDefault();
       if (modalHighlightedIndex >= 0 && filteredModalProducts[modalHighlightedIndex]) {
@@ -198,6 +245,7 @@ const AddPurchase = () => {
       }
     } else if (e.key === 'Escape') {
       setIsModalSearchOpen(false);
+      setModalHighlightedIndex(-1);
     }
   };
 
@@ -218,9 +266,11 @@ const AddPurchase = () => {
     const handleClickOutside = (event) => {
       if (searchRef.current && !searchRef.current.contains(event.target)) {
         setIsSearchOpen(false);
+        setHighlightedIndex(-1);
       }
       if (modalSearchRef.current && !modalSearchRef.current.contains(event.target)) {
         setIsModalSearchOpen(false);
+        setModalHighlightedIndex(-1);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -229,7 +279,7 @@ const AddPurchase = () => {
 
   // --- Cart / Table Logic ---
   const handleAddDraftToTable = (e) => {
-    if (e) e.preventDefault(); // Sirf tab event prevent kare agar enter press hua ho
+    if (e) e.preventDefault();
     if (!draftItem.product) return showMessage('Please select a valid product.', 'error');
     if (draftItem.quantity <= 0) return showMessage('Quantity must be greater than 0.', 'error');
     if (draftItem.unitPrice < 0) return showMessage('Unit price cannot be negative.', 'error');
@@ -258,6 +308,8 @@ const AddPurchase = () => {
 
     setDraftItem({ product: '', productName: '', quantity: 1, unitPrice: 0, expiryDate: '' });
     setSearchTerm('');
+    // Ensure we don't clear an ongoing success message with a blank one here
+    if(message.type === 'error') setMessage({ text: '', type: '' });
   };
 
   const removeItemRow = (index) => {
@@ -282,6 +334,7 @@ const AddPurchase = () => {
   const closeEditModal = () => {
     setIsEditModalOpen(false);
     setEditingIndex(null);
+    setModalSearchTerm('');
   };
 
   const saveEditedItem = () => {
@@ -301,7 +354,10 @@ const AddPurchase = () => {
     };
 
     setItems(updatedItems);
-    closeEditModal();
+    showMessage('Item updated successfully!', 'success');
+    setTimeout(() => {
+      closeEditModal();
+    }, 300);
   };
 
   // --- Calculations ---
@@ -314,10 +370,8 @@ const AddPurchase = () => {
     if (!purchaseInfo.supplierId) return showMessage('Supplier details are required.', 'error');
     if (items.length === 0) return showMessage('Please add at least one item.', 'error');
 
-    // Use the generated invoice number if not manually entered
     const invoiceNumber = purchaseInfo.invoiceNumber || nextInvoiceNumber;
 
-    // Validate PU- format
     if (!invoiceNumber.match(/^PU-\d+$/)) {
       showMessage('Invoice number must be in format PU-1, PU-2, etc.', 'error');
       return;
@@ -349,7 +403,6 @@ const AddPurchase = () => {
       if (result.success) {
         showMessage(`Purchase order ${invoiceNumber} created successfully!`, 'success');
         
-        // Generate next invoice number for the next purchase
         const match = invoiceNumber.match(/PU-(\d+)/);
         if (match) {
           const nextNumber = parseInt(match[1]) + 1;
@@ -375,9 +428,38 @@ const AddPurchase = () => {
     }
   };
 
+  // Inline Message Component
+  const InlineMessage = ({ message, type }) => {
+    if (!message) return null;
+    
+    const colors = {
+      success: { bg: '#d4edda', text: '#155724', border: '#c3e6cb', icon: '✅' },
+      error: { bg: '#fdecea', text: '#dc3545', border: '#f5c6cb', icon: '⚠️' }
+    };
+
+    const style = colors[type] || colors.error;
+
+    return (
+      <div style={{
+        padding: '14px 20px',
+        marginBottom: '15px',
+        borderRadius: '6px',
+        backgroundColor: style.bg,
+        color: style.text,
+        border: `1px solid ${style.border}`,
+        fontSize: '15px',
+        fontWeight: 600,
+        boxShadow: '0 4px 6px rgba(0,0,0,0.1)' // Box shadow makes it pop more
+      }}>
+        {style.icon} {message}
+      </div>
+    );
+  };
+
   return (
-    <div className="add-purchase-wrapper">
-      <MessagePopup message={message.text} type={message.type} onClose={() => setMessage({ text: '', type: '' })} />
+    <div className="add-purchase-wrapper" ref={topRef} style={{ scrollMarginTop: '20px' }}>
+      {/* Inline Message exactly at the top container */}
+      {message.text && <InlineMessage message={message.text} type={message.type} />}
 
       {/* --- EDIT MODAL --- */}
       {isEditModalOpen && (
@@ -388,26 +470,41 @@ const AddPurchase = () => {
               <button className="close-modal-btn" onClick={closeEditModal}>×</button>
             </div>
             <div className="modal-body">
+              {message.text && <InlineMessage message={message.text} type={message.type} />}
 
               <div className="form-group search-group mb-3" ref={modalSearchRef}>
                 <label>Search Product *</label>
                 <input
                   type="text" placeholder="Search product..."
                   value={modalSearchTerm}
-                  onChange={(e) => { setModalSearchTerm(e.target.value); setIsModalSearchOpen(true); }}
+                  onChange={(e) => { setModalSearchTerm(e.target.value); setIsModalSearchOpen(true); setModalHighlightedIndex(-1); }}
                   onKeyDown={handleModalSearchKeyDown}
                   onClick={() => setIsModalSearchOpen(true)}
+                  autoFocus
                 />
                 {isModalSearchOpen && filteredModalProducts.length > 0 && (
-                  <ul className="search-dropdown">
+                  <ul className="search-dropdown" style={{ maxHeight: '200px', overflowY: 'auto' }}>
                     {filteredModalProducts.map((product, index) => (
                       <li
                         key={product._id}
+                        data-modal-index={index}
                         className={index === modalHighlightedIndex ? 'active' : ''}
                         onClick={() => selectModalProduct(product)}
                         onMouseEnter={() => setModalHighlightedIndex(index)}
+                        style={{
+                          padding: '10px 14px',
+                          borderBottom: '1px solid #f0f0f0',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          backgroundColor: index === modalHighlightedIndex ? '#e3f2fd' : 'transparent'
+                        }}
                       >
-                        {product.name} - {product.retailPrice}
+                        <span>{product.name}</span>
+                        <span style={{ fontSize: '12px', color: '#666' }}>
+                          Stock: {product.quantity || 0} | Price: {product.retailPrice || 0}
+                        </span>
                       </li>
                     ))}
                   </ul>
@@ -421,9 +518,10 @@ const AddPurchase = () => {
                   step="10"
                   value={editFormData.unitPrice === 0 || editFormData.unitPrice === '' ? '' : editFormData.unitPrice}
                   onChange={e => {
-                    const val = e.target.value.replace(/^0+/, ''); // Remove leading zeros
+                    const val = e.target.value.replace(/^0+/, '');
                     setEditFormData({ ...editFormData, unitPrice: val === '' ? 0 : Number(val) });
                   }}
+                  onKeyDown={(e) => { if (e.key === 'Enter') saveEditedItem(); }}
                 />
               </div>
               <div className="form-group mb-3">
@@ -433,9 +531,10 @@ const AddPurchase = () => {
                   min="1"
                   value={editFormData.quantity === 0 || editFormData.quantity === '' ? '' : editFormData.quantity}
                   onChange={e => {
-                    const val = e.target.value.replace(/^0+/, ''); // Remove leading zeros
+                    const val = e.target.value.replace(/^0+/, '');
                     setEditFormData({ ...editFormData, quantity: val === '' ? 0 : Number(val) });
                   }}
+                  onKeyDown={(e) => { if (e.key === 'Enter') saveEditedItem(); }}
                 />
               </div>
               <div className="form-group mb-3">
@@ -452,13 +551,11 @@ const AddPurchase = () => {
       )}
 
       <div style={{ textAlign: 'center', alignItems: 'center' }} className="po-header">
-        <h2>Create Purchase Order</h2>
+        <h2 style={{ fontSize: '22px',fontWeight:'400px', color: '#3e576c', fontFamily: 'times new roman' }}>Create Purchase Order</h2>
       </div>
 
       <form onSubmit={handleSubmit} className="po-layout">
-
         <div className="top-split">
-
           <section className="card product-entry-section">
             <h3 style={{ textAlign: 'center' }}>Add Products</h3>
             <div className="form-group search-group mb-3" ref={searchRef}>
@@ -466,20 +563,33 @@ const AddPurchase = () => {
               <input
                 type="text" placeholder="Type to search..."
                 value={searchTerm}
-                onChange={(e) => { setSearchTerm(e.target.value); setIsSearchOpen(true); }}
+                onChange={(e) => { setSearchTerm(e.target.value); setIsSearchOpen(true); setHighlightedIndex(-1); }}
                 onKeyDown={handleSearchKeyDown}
                 onClick={() => setIsSearchOpen(true)}
               />
               {isSearchOpen && filteredProducts.length > 0 && (
-                <ul className="search-dropdown">
+                <ul className="search-dropdown" style={{ maxHeight: '200px', overflowY: 'auto' }}>
                   {filteredProducts.map((product, index) => (
                     <li
                       key={product._id}
+                      data-main-index={index}
                       className={index === highlightedIndex ? 'active' : ''}
                       onClick={() => selectProduct(product)}
                       onMouseEnter={() => setHighlightedIndex(index)}
+                      style={{
+                        padding: '5px 14px',
+                        borderBottom: '1px solid #f0f0f0',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        backgroundColor: index === highlightedIndex ? '#e3f2fd' : 'transparent'
+                      }}
                     >
-                      {product.name} - {product.retailPrice}
+                      <span>{product.name}</span>
+                      <span style={{ fontSize: '12px', color: '#666' }}>
+                        Stock: {product.quantity || 0} | Price: {product.retailPrice || 0}
+                      </span>
                     </li>
                   ))}
                 </ul>
@@ -496,7 +606,7 @@ const AddPurchase = () => {
                   className="editable-input"
                   placeholder="Enter price"
                   onChange={(e) => {
-                    const val = e.target.value.replace(/^0+/, ''); // Remove leading zeros
+                    const val = e.target.value.replace(/^0+/, '');
                     setDraftItem({ ...draftItem, unitPrice: val === '' ? 0 : Number(val) });
                   }}
                 />
@@ -504,17 +614,17 @@ const AddPurchase = () => {
               <div className="form-group w-50">
                 <label>Quantity *</label>
                 <input
-                  ref={qtyInputRef} // <-- Reference for autofocus
+                  ref={qtyInputRef}
                   type="number"
                   min="1"
                   value={draftItem.quantity === 0 || draftItem.quantity === '' ? '' : draftItem.quantity}
                   onChange={(e) => {
-                    const val = e.target.value.replace(/^0+/, ''); // Remove leading zeros
+                    const val = e.target.value.replace(/^0+/, '');
                     setDraftItem({ ...draftItem, quantity: val === '' ? 0 : Number(val) });
                   }}
-                  onKeyDown={(e) => { // <-- Add to Cart on Enter
+                  onKeyDown={(e) => {
                     if (e.key === 'Enter') {
-                      e.preventDefault(); // Stop form submission
+                      e.preventDefault();
                       handleAddDraftToTable(e);
                     }
                   }}
@@ -554,11 +664,10 @@ const AddPurchase = () => {
               </div>
             </div>
 
-          
-              <div style={{width:'100%',marginTop:'20px'}} className="form-group w-50">
-                <label>Purchase Date *</label>
-                <input type="date" name="purchaseDate" value={purchaseInfo.purchaseDate} onChange={handleInfoChange} required />
-              </div>
+            <div style={{width:'100%',marginTop:'20px'}} className="form-group w-50">
+              <label>Purchase Date *</label>
+              <input type="date" name="purchaseDate" value={purchaseInfo.purchaseDate} onChange={handleInfoChange} required />
+            </div>
           </section>
 
         </div>
@@ -618,7 +727,7 @@ const AddPurchase = () => {
                     step="10"
                     value={paidAmount === 0 || paidAmount === '' ? '' : paidAmount}
                     onChange={(e) => {
-                      const val = e.target.value.replace(/^0+/, ''); // Remove leading zeros
+                      const val = e.target.value.replace(/^0+/, '');
                       setPaidAmount(val === '' ? 0 : Number(val));
                     }}
                     className="editable-input text-center"

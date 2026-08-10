@@ -527,17 +527,17 @@ function CustomerAccount() {
 
 const styles = {
     wrapper: { display: 'flex', flexDirection: 'column', gap: '20px' },
-    card: { background: '#fff', borderRadius: '10px', padding: '20px', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' },
+    card: { background: '#fff', borderRadius: '1px', padding: '15px', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' },
     nocard: { background: '#fff', borderRadius: '0px', padding: '20px', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' },
 
     filterRow: { display: 'flex', gap: '16px', alignItems: 'flex-end', flexWrap: 'wrap' },
     filterField: { display: 'flex', flexDirection: 'column', minWidth: '187px' },
-    label: { textAlign: 'left', fontSize: '12px', fontWeight: 700, color: '#475569', marginBottom: '6px' },
-    input: { padding: '10px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '14px', backgroundColor: '#f8fafc', outline: 'none', width: '100%', boxSizing: 'border-box' },
+    label: { textAlign: 'left', fontSize: '12px', fontWeight: 600, color: '#475569'},
+    input: { padding: '8px 12px', borderRadius: '4px', border: '1px solid #cbd5e1', fontSize: '14px', backgroundColor: '#f8fafc', outline: 'none', width: '100%', boxSizing: 'border-box' },
     addBtn: { width: 'auto', padding: '10px 20px', color: 'white', backgroundColor: '#5aa7ef', whiteSpace: 'nowrap', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 600 },
     table: { width: '100%', borderCollapse: 'collapse' },
     th: { textAlign: 'left', padding: '12px 16px', background: ' #26384a', fontSize: '14px', color: '#fff', fontWeight: 600, letterSpacing: '0.5px' },
-    td: { padding: '10px 16px', textAlign: 'left', fontSize: '13px', borderBottom: '1px solid #f1f5f9', color: '#334155' },
+    td: { padding: '5px 16px', textAlign: 'left', fontSize: '13px', borderBottom: '1px solid #f1f5f9', color: '#334155' },
     emptyCell: { padding: '40px 0', textAlign: 'center', color: '#94a3b8', fontSize: '14px' },
 
     modalOverlay: { position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999999 },

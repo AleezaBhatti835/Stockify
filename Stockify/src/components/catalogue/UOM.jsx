@@ -4,43 +4,28 @@ import './catalogue.css';
 import '../roles.css';
 import '../customer.css';
 
-// Message Popup Component
-function MessagePopup({ message, onClose }) {
-  if (!message.text) return null;
-
-  return (
-    <div className="message-popup-overlay" onClick={onClose}>
-      <div className={`message-popup ${message.type}`} onClick={(e) => e.stopPropagation()}>
-        <button className="message-popup-close" onClick={onClose}>×</button>
-        <div className="message-popup-content">
-          <span className="message-popup-icon">
-            {message.type === 'error' ? '⚠️' : '✅'}
-          </span>
-          <div className="message-popup-text">
-            <strong>{message.type === 'error' ? 'Error!' : 'Success!'}</strong>
-            {message.text}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function UOM() {
   const [uoms, setUoms] = useState([]);
   const [products, setProducts] = useState([]);
-  const [message, setMessage] = useState({ text: '', type: '' });
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [deleteTargetId, setDeleteTargetId] = useState(null);
 
+  // Loading / Submitting lock to prevent double entries
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   // Pagination states
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(3);
+  const [itemsPerPage] = useState(10);
 
   const [newUOM, setNewUOM] = useState({ code: '', name: '' });
   const [editUOM, setEditUOM] = useState({ id: '', code: '', name: '' });
+
+  // Inline message states for each modal
+  const [addMessage, setAddMessage] = useState({ text: '', type: '' });
+  const [editMessage, setEditMessage] = useState({ text: '', type: '' });
+  const [deleteMessage, setDeleteMessage] = useState({ text: '', type: '' });
 
   // Pagination logic
   const indexOfLastItem = currentPage * itemsPerPage;
@@ -58,15 +43,54 @@ function UOM() {
     fetchProducts();
   }, []);
 
-  const showMessage = (text, type) => {
-    setMessage({ text, type });
+  // Keyboard shortcut handler (Safely scoped to prevent duplicate triggers)
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        if (isAddModalOpen) {
+          e.preventDefault();
+          setIsAddModalOpen(false);
+          setNewUOM({ code: '', name: '' });
+          setAddMessage({ text: '', type: '' });
+        }
+        if (isEditModalOpen) {
+          e.preventDefault();
+          setIsEditModalOpen(false);
+          setEditUOM({ id: '', code: '', name: '' });
+          setEditMessage({ text: '', type: '' });
+        }
+        if (isDeleteModalOpen) {
+          e.preventDefault();
+          setIsDeleteModalOpen(false);
+          setDeleteTargetId(null);
+          setDeleteMessage({ text: '', type: '' });
+        }
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isAddModalOpen, isEditModalOpen, isDeleteModalOpen]);
+
+  const showAddMessage = (text, type) => {
+    setAddMessage({ text, type });
     setTimeout(() => {
-      setMessage({ text: '', type: '' });
-    }, 6000);
+      setAddMessage({ text: '', type: '' });
+    }, 3000);
   };
 
-  const clearMessage = () => {
-    setMessage({ text: '', type: '' });
+  const showEditMessage = (text, type) => {
+    setEditMessage({ text, type });
+    setTimeout(() => {
+      setEditMessage({ text: '', type: '' });
+    }, 3000);
+  };
+
+  const showDeleteMessage = (text, type) => {
+    setDeleteMessage({ text, type });
+    setTimeout(() => {
+      setDeleteMessage({ text: '', type: '' });
+    }, 3000);
   };
 
   const fetchUOMs = async () => {
@@ -100,55 +124,72 @@ function UOM() {
   };
 
   const handleAddUOM = async () => {
+    if (isSubmitting) return; // Prevent multiple requests
+
     if (!newUOM.code.trim() || !newUOM.name.trim()) {
-      showMessage('Code and Name are required!', 'error');
+      showAddMessage('Code and Name are required!', 'error');
       return;
     }
 
+    const codeToCheck = newUOM.code.trim().toUpperCase();
+    const nameToCheck = newUOM.name.trim();
+
     // Check for duplicate code (case insensitive)
     const duplicateCode = uoms.find(
-      u => u.code.toLowerCase() === newUOM.code.trim().toLowerCase()
+      u => u.code.toUpperCase() === codeToCheck
     );
     if (duplicateCode) {
-      showMessage('This UOM code already exists!', 'error');
+      showAddMessage(`UOM code "${codeToCheck}" already exists!`, 'error');
       return;
     }
 
     // Check for duplicate name (case insensitive)
     const duplicateName = uoms.find(
-      u => u.name.toLowerCase() === newUOM.name.trim().toLowerCase()
+      u => u.name.toLowerCase() === nameToCheck.toLowerCase()
     );
     if (duplicateName) {
-      showMessage('This UOM name already exists!', 'error');
+      showAddMessage(`UOM name "${nameToCheck}" already exists!`, 'error');
       return;
     }
+
+    setIsSubmitting(true);
 
     try {
       const res = await fetch('http://localhost:5000/api/uoms', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          code: newUOM.code.trim().toUpperCase(),
-          name: newUOM.name.trim(),
+          code: codeToCheck,
+          name: nameToCheck,
         })
       });
 
       if (res.ok) {
-        showMessage('UOM added successfully!', 'success');
-        setNewUOM({ code: '', name: '' });
-        setIsAddModalOpen(false);
-        fetchUOMs();
+        showAddMessage('UOM added successfully!', 'success');
+        await fetchUOMs();
+        setTimeout(() => {
+          setNewUOM({ code: '', name: '' });
+          setIsAddModalOpen(false);
+          setAddMessage({ text: '', type: '' });
+          setIsSubmitting(false);
+        }, 300);
       } else {
         const errorData = await res.json();
-        showMessage(errorData.message || 'Error saving UOM.', 'error');
+        if (errorData.message && errorData.message.includes('duplicate key error')) {
+          showAddMessage(`UOM code "${codeToCheck}" already exists in database!`, 'error');
+        } else {
+          showAddMessage(errorData.message || 'Error saving UOM.', 'error');
+        }
+        setIsSubmitting(false);
       }
     } catch (error) {
-      showMessage('Server error while saving UOM.', 'error');
+      showAddMessage('Server error while saving UOM.', 'error');
+      setIsSubmitting(false);
     }
   };
 
   const startEdit = (uom) => {
-    clearMessage();
+    setEditMessage({ text: '', type: '' });
     setEditUOM({
       id: uom._id,
       code: uom.code,
@@ -158,65 +199,83 @@ function UOM() {
   };
 
   const handleUpdateUOM = async () => {
+    if (isSubmitting) return;
+
+    const originalUOM = uoms.find(u => u._id === editUOM.id);
+    const codeToCheck = editUOM.code.trim().toUpperCase();
+    const nameToCheck = editUOM.name.trim();
+
     if (!editUOM.code.trim() || !editUOM.name.trim()) {
-      showMessage('Code and Name are required!', 'error');
+      showEditMessage('Code and Name are required!', 'error');
       return;
     }
 
-    // Check for duplicate code (case insensitive) excluding current
+    if (originalUOM && originalUOM.code === codeToCheck && originalUOM.name === nameToCheck) {
+      showEditMessage('Nothing to update!', 'info');
+      return;
+    }
+
     const duplicateCode = uoms.find(
-      u => u.code.toLowerCase() === editUOM.code.trim().toLowerCase() &&
-           u._id !== editUOM.id
+      u => u.code.toUpperCase() === codeToCheck && u._id !== editUOM.id
     );
     if (duplicateCode) {
-      showMessage('This UOM code already exists!', 'error');
+      showEditMessage(`UOM code "${codeToCheck}" already exists!`, 'error');
       return;
     }
 
-    // Check for duplicate name (case insensitive) excluding current
     const duplicateName = uoms.find(
-      u => u.name.toLowerCase() === editUOM.name.trim().toLowerCase() &&
-           u._id !== editUOM.id
+      u => u.name.toLowerCase() === nameToCheck.toLowerCase() && u._id !== editUOM.id
     );
     if (duplicateName) {
-      showMessage('This UOM name already exists!', 'error');
+      showEditMessage(`UOM name "${nameToCheck}" already exists!`, 'error');
       return;
     }
+
+    setIsSubmitting(true);
 
     try {
       const res = await fetch(`http://localhost:5000/api/uoms/${editUOM.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          code: editUOM.code.trim().toUpperCase(),
-          name: editUOM.name.trim(),
+          code: codeToCheck,
+          name: nameToCheck,
         })
       });
 
       if (res.ok) {
-        showMessage('UOM updated successfully!', 'success');
-        setIsEditModalOpen(false);
-        setEditUOM({ id: '', code: '', name: '' });
-        fetchUOMs();
+        showEditMessage('UOM updated successfully!', 'success');
+        await fetchUOMs();
+        setTimeout(() => {
+          setIsEditModalOpen(false);
+          setEditUOM({ id: '', code: '', name: '' });
+          setEditMessage({ text: '', type: '' });
+          setIsSubmitting(false);
+        }, 300);
       } else {
         const errorData = await res.json();
-        showMessage(errorData.message || 'Error updating UOM.', 'error');
+        if (errorData.message && errorData.message.includes('duplicate key error')) {
+          showEditMessage(`UOM code "${codeToCheck}" already exists in database!`, 'error');
+        } else {
+          showEditMessage(errorData.message || 'Error updating UOM.', 'error');
+        }
+        setIsSubmitting(false);
       }
     } catch (error) {
-      showMessage('Server error while updating UOM.', 'error');
+      showEditMessage('Server error while updating UOM.', 'error');
+      setIsSubmitting(false);
     }
   };
 
-  // Checks whether any product currently references this UOM
   const isUOMInUse = (uomId) => {
     return products.some(p => (p.uomId?._id || p.uomId) === uomId);
   };
 
   const confirmDelete = (id) => {
-    clearMessage();
+    setDeleteMessage({ text: '', type: '' });
 
     if (isUOMInUse(id)) {
-      showMessage('This UOM is assigned to one or more products and cannot be deleted.', 'error');
+      showDeleteMessage('This UOM is assigned to one or more products and cannot be deleted.', 'error');
       return;
     }
 
@@ -225,15 +284,14 @@ function UOM() {
   };
 
   const handleDelete = async () => {
-    if (!deleteTargetId) return;
+    if (!deleteTargetId || isSubmitting) return;
 
-    // Re-check right before deleting in case product data changed since the modal opened
     if (isUOMInUse(deleteTargetId)) {
-      showMessage('This UOM is assigned to one or more products and cannot be deleted.', 'error');
-      setIsDeleteModalOpen(false);
-      setDeleteTargetId(null);
+      showDeleteMessage('This UOM is assigned to one or more products and cannot be deleted.', 'error');
       return;
     }
+
+    setIsSubmitting(true);
 
     try {
       const res = await fetch(`http://localhost:5000/api/uoms/${deleteTargetId}`, {
@@ -241,50 +299,73 @@ function UOM() {
       });
 
       if (res.ok) {
-        showMessage('UOM deleted successfully!', 'success');
-        setIsDeleteModalOpen(false);
-        setDeleteTargetId(null);
-        fetchUOMs();
+        showDeleteMessage('UOM deleted successfully!', 'success');
+        await fetchUOMs();
+        setTimeout(() => {
+          setIsDeleteModalOpen(false);
+          setDeleteTargetId(null);
+          setDeleteMessage({ text: '', type: '' });
+          setIsSubmitting(false);
+        }, 300);
       } else {
         const errorData = await res.json();
-        showMessage(errorData.message || 'Error deleting UOM.', 'error');
+        showDeleteMessage(errorData.message || 'Error deleting UOM.', 'error');
+        setIsSubmitting(false);
       }
     } catch (error) {
-      showMessage('Server error while deleting UOM.', 'error');
+      showDeleteMessage('Server error while deleting UOM.', 'error');
+      setIsSubmitting(false);
     }
+  };
+
+  const InlineMessage = ({ message, type }) => {
+    if (!message) return null;
+
+    const colors = {
+      success: { bg: '#d4edda', text: '#155724', border: '#c3e6cb', icon: '✅' },
+      error: { bg: '#fdecea', text: '#dc3545', border: '#f5c6cb', icon: '⚠️' },
+      info: { bg: '#e7f3ff', text: '#0056b3', border: '#b8d4f0', icon: 'ℹ️' }
+    };
+
+    const style = colors[type] || colors.info;
+
+    return (
+      <div style={{
+        padding: '10px 14px',
+        marginBottom: '15px',
+        borderRadius: '6px',
+        backgroundColor: style.bg,
+        color: style.text,
+        border: `1px solid ${style.border}`,
+        fontSize: '14px',
+        fontWeight: 500
+      }}>
+        {style.icon} {message}
+      </div>
+    );
   };
 
   return (
     <div className="roles-container">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', width: '100%' }}>
-        <h2>Units of Measure</h2>
-        <button style={{ width: '16%', padding: '10px 20px', color: 'white', backgroundColor: '#5aa7ef', whiteSpace: 'nowrap', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 600 }} onClick={() => { clearMessage(); setIsAddModalOpen(true); }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', width: '100%' }}>
+        <h4>Units of Measure</h4>
+        <button style={{ width: '16%', padding: '10px 20px', color: 'white', backgroundColor: '#5aa7ef', whiteSpace: 'nowrap', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 600 }} onClick={() => { setAddMessage({ text: '', type: '' }); setIsAddModalOpen(true); }}>
           + Add UOM
         </button>
       </div>
 
-      <MessagePopup message={message} onClose={clearMessage} />
-
-      {/* RESULTS COUNT */}
-      <div style={{
-        marginBottom: '15px',
-        fontSize: '14px',
-        color: '#555',
-        display: 'flex',
-        justifyContent: 'space-between'
-      }}>
+      <div style={{  fontSize: '13px', color: '#555', display: 'flex', justifyContent: 'space-between',textAlign: 'right',marginLeft:'82%' }}>
         <span>Showing {currentItems.length} of {uoms.length} UOMs</span>
       </div>
 
-      {/* TABLE WRAPPED IN SCROLLABLE DIV */}
       <div className="table-scroll-wrapper" style={{ overflowX: 'auto', width: '100%' }}>
         <table className="roles-table" style={{ width: '100%', tableLayout: 'fixed' }}>
           <thead>
-            <tr>
-              <th style={{ width: '15%', textAlign: 'left' }}>Sr#</th>
-              <th style={{ width: '25%', textAlign: 'left' }}>Code</th>
-              <th style={{ width: '40%', textAlign: 'left' }}>Name</th>
-              <th style={{ width: '18%', textAlign: 'center' }}>Actions</th>
+            <tr style={{ padding: '30px 0' }}>
+              <th style={{ width: '7%', textAlign: 'left' }}>Sr#</th>
+              <th style={{ width: '10%', textAlign: 'left' }}>Name</th>
+              <th style={{ width: '20%', textAlign: 'left' }}>Code</th>
+              <th style={{ width: '9%', textAlign: 'center' }}>Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -294,44 +375,20 @@ function UOM() {
                 return (
                   <tr key={u._id}>
                     <td style={{ textAlign: 'left', color: '#424345', fontWeight: 500 }}>{serialNumber}</td>
-                    <td style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        <div style={{
-                          width: '32px',
-                          height: '32px',
-                          borderRadius: '50%',
-                          backgroundColor: '#5aa7ef',
-                          color: 'white',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          fontSize: '12px',
-                          fontWeight: 700,
-                          flexShrink: 0
-                        }}>
-                          {u.code.charAt(0).toUpperCase()}
-                        </div>
-                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', fontWeight: 600 }}>{u.code}</span>
-                      </div>
-                    </td>
+
                     <td style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{u.name}</td>
+                    <td style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', fontWeight: 600 }}>{u.code}</span>
+                    </td>
                     <td className="actions-cell" style={{ textAlign: 'left' }}>
                       <div style={styles.actionGroup}>
-                       
-
-                        {/* Edit Button */}
-                        <button style={styles.iconBtnEdit} onClick={() =>startEdit(u)} title="Edit">
+                        <button style={styles.iconBtnEdit} onClick={() => startEdit(u)} title="Edit">
                           <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
                             <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
                             <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
                           </svg>
                         </button>
-
-                        {/* Delete Button */}
-                        <button
-                          style={styles.iconBtnDelete}
-                          onClick={() =>confirmDelete(u._id)} title="Delete">
-                        
+                        <button style={styles.iconBtnDelete} onClick={() => confirmDelete(u._id)} title="Delete">
                           <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
                             <polyline points="3 6 5 6 21 6"></polyline>
                             <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
@@ -355,49 +412,17 @@ function UOM() {
         </table>
       </div>
 
-      {/* PAGINATION */}
       {uoms.length > itemsPerPage && (
-        <div style={{ 
-          marginTop: '20px', 
-          display: 'flex', 
-          gap: '15px', 
-          justifyContent: 'center', 
-          alignItems: 'center',
-          padding: '10px 0'
-        }}>
-          <button 
-            disabled={currentPage === 1} 
-            onClick={() => setCurrentPage(prev => prev - 1)}
-            style={{ 
-              padding: '8px 16px',
-              backgroundColor: currentPage === 1 ? '#e9ecef' : '#5aa7ef',
-              color: currentPage === 1 ? '#6c757d' : 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
-              fontWeight: '600'
-            }}
-          >
-            ← 
+        <div style={{ marginTop: '20px', display: 'flex', gap: '15px', justifyContent: 'center', alignItems: 'center', padding: '10px 0' }}>
+          <button disabled={currentPage === 1} onClick={() => setCurrentPage(prev => prev - 1)}
+            style={{ padding: '8px 16px', backgroundColor: currentPage === 1 ? '#e9ecef' : '#5aa7ef', color: currentPage === 1 ? '#6c757d' : 'white', border: 'none', borderRadius: '4px', cursor: currentPage === 1 ? 'not-allowed' : 'pointer', fontWeight: '600' }}>
+            ←
           </button>
-          
-          <span style={{ fontSize: '12px', fontWeight: '400',color:'#868484' }}>
+          <span style={{ fontSize: '12px', fontWeight: '400', color: '#868484' }}>
             Page {currentPage} of {totalPages || 1}
           </span>
-          
-          <button 
-            disabled={currentPage >= totalPages} 
-            onClick={() => setCurrentPage(prev => prev + 1)}
-            style={{ 
-              padding: '8px 16px',
-              backgroundColor: currentPage >= totalPages ? '#e9ecef' : '#5aa7ef',
-              color: currentPage >= totalPages ? '#6c757d' : 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: currentPage >= totalPages ? 'not-allowed' : 'pointer',
-              fontWeight: '600'
-            }}
-          >
+          <button disabled={currentPage >= totalPages} onClick={() => setCurrentPage(prev => prev + 1)}
+            style={{ padding: '8px 16px', backgroundColor: currentPage >= totalPages ? '#e9ecef' : '#5aa7ef', color: currentPage >= totalPages ? '#6c757d' : 'white', border: 'none', borderRadius: '4px', cursor: currentPage >= totalPages ? 'not-allowed' : 'pointer', fontWeight: '600' }}>
             →
           </button>
         </div>
@@ -408,34 +433,28 @@ function UOM() {
         <div className="modal-overlay">
           <div className="modal-content" style={{ maxWidth: '550px', position: 'relative' }}>
             <h3>Add New UOM</h3>
-            
-            {/* Message Popup inside modal */}
-            <MessagePopup message={message} onClose={clearMessage} />
-            
+            <InlineMessage message={addMessage.text} type={addMessage.type} />
+
             <div className="user-form" style={{ fontSize: '0.85rem', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
               <div>
                 <label style={{ fontSize: '0.8rem' }}>Code *</label>
-                <input 
-                  style={{ fontSize: '0.85rem', width: '100%' }} 
-                  value={newUOM.code} 
-                  onChange={(e) => setNewUOM({...newUOM, code: e.target.value.toUpperCase()})} 
-                  placeholder="e.g., KG"
-                />
+                <input style={{ fontSize: '0.85rem', width: '100%', padding: '8px', boxSizing: 'border-box' }}
+                  value={newUOM.code} onChange={(e) => setNewUOM({ ...newUOM, code: e.target.value.toUpperCase() })}
+                  onKeyDown={(e) => { if (e.key === 'Enter') handleAddUOM(); }} autoFocus placeholder="e.g., KG" />
               </div>
               <div>
                 <label style={{ fontSize: '0.8rem' }}>Name *</label>
-                <input 
-                  style={{ fontSize: '0.85rem', width: '100%' }} 
-                  value={newUOM.name} 
-                  onChange={(e) => setNewUOM({...newUOM, name: e.target.value})} 
-                  placeholder="e.g., Kilogram"
-                />
+                <input style={{ fontSize: '0.85rem', width: '100%', padding: '8px', boxSizing: 'border-box' }}
+                  value={newUOM.name} onChange={(e) => setNewUOM({ ...newUOM, name: e.target.value })}
+                  onKeyDown={(e) => { if (e.key === 'Enter') handleAddUOM(); }} placeholder="e.g., Kilogram" />
               </div>
             </div>
-            
+
             <div className="modal-actions" style={{ marginTop: '25px', display: 'flex', gap: '10px', alignItems: 'right', justifyContent: 'flex-end' }}>
-              <button className="btn btn-primary" onClick={handleAddUOM}>Save UOM</button>
-              <button className="btn btn-cancel" onClick={() => { setIsAddModalOpen(false); setNewUOM({ code: '', name: ''}); clearMessage(); }}>Cancel</button>
+              <button className="btn btn-primary" onClick={handleAddUOM} disabled={isSubmitting}>
+                {isSubmitting ? 'Saving...' : 'Save UOM'}
+              </button>
+              <button className="btn btn-cancel" disabled={isSubmitting} onClick={() => { setIsAddModalOpen(false); setNewUOM({ code: '', name: '' }); setAddMessage({ text: '', type: '' }); }}>Cancel</button>
             </div>
           </div>
         </div>
@@ -446,34 +465,28 @@ function UOM() {
         <div className="modal-overlay">
           <div className="modal-content" style={{ maxWidth: '550px', position: 'relative' }}>
             <h3>Edit UOM</h3>
-
-            {/* Message Popup inside modal */}
-            <MessagePopup message={message} onClose={clearMessage} />
+            <InlineMessage message={editMessage.text} type={editMessage.type} />
 
             <div className="user-form" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', fontSize: '0.85rem' }}>
               <div>
                 <label style={{ fontSize: '0.8rem' }}>Code *</label>
-                <input 
-                  style={{ fontSize: '0.85rem', width: '100%' }} 
-                  value={editUOM.code} 
-                  onChange={(e) => setEditUOM({...editUOM, code: e.target.value.toUpperCase()})} 
-                  placeholder="e.g., KG"
-                />
+                <input style={{ fontSize: '0.85rem', width: '100%', padding: '8px', boxSizing: 'border-box' }}
+                  value={editUOM.code} onChange={(e) => setEditUOM({ ...editUOM, code: e.target.value.toUpperCase() })}
+                  onKeyDown={(e) => { if (e.key === 'Enter') handleUpdateUOM(); }} autoFocus placeholder="e.g., KG" />
               </div>
               <div>
                 <label style={{ fontSize: '0.8rem' }}>Name *</label>
-                <input 
-                  style={{ fontSize: '0.85rem', width: '100%' }} 
-                  value={editUOM.name} 
-                  onChange={(e) => setEditUOM({...editUOM, name: e.target.value})} 
-                  placeholder="e.g., Kilogram"
-                />
+                <input style={{ fontSize: '0.85rem', width: '100%', padding: '8px', boxSizing: 'border-box' }}
+                  value={editUOM.name} onChange={(e) => setEditUOM({ ...editUOM, name: e.target.value })}
+                  onKeyDown={(e) => { if (e.key === 'Enter') handleUpdateUOM(); }} placeholder="e.g., Kilogram" />
               </div>
             </div>
 
             <div className="modal-actions" style={{ marginTop: '25px', display: 'flex', gap: '10px', alignItems: 'right', justifyContent: 'flex-end' }}>
-              <button className="btn btn-primary" onClick={handleUpdateUOM}>Save Changes</button>
-              <button className="btn btn-cancel" onClick={() => { setIsEditModalOpen(false); setEditUOM({ id: '', code: '', name: ''}); clearMessage(); }}>Cancel</button>
+              <button className="btn btn-primary" onClick={handleUpdateUOM} disabled={isSubmitting}>
+                {isSubmitting ? 'Saving...' : 'Save Changes'}
+              </button>
+              <button className="btn btn-cancel" disabled={isSubmitting} onClick={() => { setIsEditModalOpen(false); setEditUOM({ id: '', code: '', name: '' }); setEditMessage({ text: '', type: '' }); }}>Cancel</button>
             </div>
           </div>
         </div>
@@ -483,15 +496,8 @@ function UOM() {
       {isDeleteModalOpen && (
         <div className="modal-overlay">
           <div className="modal-content" style={{ maxWidth: '380px', textAlign: 'center', position: 'relative' }}>
-            
-            {/* Message Popup inside delete modal */}
-            <MessagePopup message={message} onClose={clearMessage} />
-
-            <div style={{
-              width: '52px', height: '52px', borderRadius: '50%', backgroundColor: '#fdecea',
-              color: '#dc3545', display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: '1.5rem', fontWeight: 700, margin: '0 auto 14px'
-            }}>
+            <InlineMessage message={deleteMessage.text} type={deleteMessage.type} />
+            <div style={{ width: '52px', height: '52px', borderRadius: '50%', backgroundColor: '#fdecea', color: '#dc3545', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.5rem', fontWeight: 700, margin: '0 auto 14px' }}>
               !
             </div>
             <h3 style={{ margin: '0 0 8px' }}>Delete UOM</h3>
@@ -500,8 +506,10 @@ function UOM() {
             </p>
 
             <div className="modal-actions" style={{ marginTop: '22px', display: 'flex', justifyContent: 'center', gap: '10px' }}>
-              <button onClick={() => { setIsDeleteModalOpen(false); setDeleteTargetId(null); clearMessage(); }} style={{ backgroundColor: '#6c757d', color: 'white', border: 'none', padding: '10px 24px', borderRadius: '4px', cursor: 'pointer', fontWeight: 600 }}>Cancel</button>
-              <button onClick={handleDelete} style={{ backgroundColor: '#dc3545', color: 'white', border: 'none', padding: '10px 24px', borderRadius: '4px', cursor: 'pointer', fontWeight: 600 }}>Delete</button>
+              <button disabled={isSubmitting} onClick={() => { setIsDeleteModalOpen(false); setDeleteTargetId(null); setDeleteMessage({ text: '', type: '' }); }} style={{ backgroundColor: '#6c757d', color: 'white', border: 'none', padding: '10px 24px', borderRadius: '4px', cursor: 'pointer', fontWeight: 600 }}>Cancel</button>
+              <button disabled={isSubmitting} onClick={handleDelete} style={{ backgroundColor: '#dc3545', color: 'white', border: 'none', padding: '10px 24px', borderRadius: '4px', cursor: 'pointer', fontWeight: 600 }}>
+                {isSubmitting ? 'Deleting...' : 'Delete'}
+              </button>
             </div>
           </div>
         </div>
@@ -509,46 +517,11 @@ function UOM() {
     </div>
   );
 }
-const styles = {
-    actionGroup: {
-        display: 'flex',
-        justifyContent: 'left',
-        gap: '12px',
-    },
-    iconBtnView: {
-        background: '#f0fdf4',
-        color: '#59956f',
-        border: 'none',
-        padding: '8px',
-        borderRadius: '6px',
-        cursor: 'pointer',
-        display: 'flex',
-        alignItems: 'center',
-        transition: 'all 0.2s',
-        backgroundColor:'#e9f2e9'
-    },
 
-    iconBtnEdit: {
-        background: '#eff6ff',
-        color: '#3b82f6',
-        border: 'none',
-        padding: '8px',
-        borderRadius: '6px',
-        cursor: 'pointer',
-        display: 'flex',
-        alignItems: 'center',
-        transition: 'all 0.2s',
-    },
-    iconBtnDelete: {
-        background: '#fef2f2',
-        color: '#ef4444',
-        border: 'none',
-        padding: '8px',
-        borderRadius: '6px',
-        cursor: 'pointer',
-        display: 'flex',
-        alignItems: 'center',
-        transition: 'all 0.2s',
-    },
-}
+const styles = {
+  actionGroup: { display: 'flex', justifyContent: 'left', gap: '12px' },
+  iconBtnEdit: { background: '#eff6ff', color: '#3b82f6', border: 'none', padding: '8px', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', transition: 'all 0.2s' },
+  iconBtnDelete: { background: '#fef2f2', color: '#ef4444', border: 'none', padding: '8px', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', transition: 'all 0.2s' },
+};
+
 export default UOM;

@@ -37,7 +37,7 @@ function Roles() {
 
     // Pagination states
     const [currentPage, setCurrentPage] = useState(1);
-    const [itemsPerPage] = useState(3); // Changed to 5 for testing
+    const [itemsPerPage] = useState(10); // Changed to 5 for testing
 
     // Get filtered roles (exclude admin)
     const filteredRoles = roles.filter(role => role.role.toLowerCase() !== 'admin');
@@ -262,7 +262,7 @@ function Roles() {
     return (
         <div className="roles-container">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                <h2>Roles Management</h2>
+                <h4>Roles Management</h4>
                 <button
                     style={{ width: '14%', color: 'white', backgroundColor: '#5aa7ef', padding: '10px 20px', border: 'none', borderRadius: '5px', cursor: 'pointer' }}
                     onClick={() => { clearMessage(); setIsAddModalOpen(true); }}
@@ -399,7 +399,7 @@ function Roles() {
                         <MessagePopup message={message} onClose={clearMessage} />
 
                         <div className="modal-form-group" style={{ marginTop: '20px' }}>
-                            <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold', fontSize: '14px', color: '#333' }}>
+                            <label style={{ textAlign: 'left', display: 'block', marginBottom: '8px', fontWeight: 'bold', fontSize: '14px', color: '#333' }}>
                                 Role Name *
                             </label>
                             <input

@@ -385,12 +385,12 @@ const SaleRateDifferenceList = () => {
     if (loading) return <div style={{ padding: '20px' }}>Loading records...</div>;
 
     return (
-        <div className="panel" style={{ width: '95%', padding: '25px', borderRadius: '8px', backgroundColor: '#fff', marginTop: '0px', marginBottom: '90px' }}>
+        <div className="panel" style={{ width: '100%', padding: '15px', borderRadius: '8px', backgroundColor: '#fff', marginTop: '0px', marginBottom: '90px' }}>
 
             {/* FILTER SECTION */}
             <div style={{
-                marginBottom: '2px',
-                padding: '15px',
+                padding: '5px',
+                marginBottom: '4px',
                 borderRadius: '6px',
                 display: 'flex',
                 flexWrap: 'wrap',
@@ -399,7 +399,7 @@ const SaleRateDifferenceList = () => {
                 textAlign: 'left'
             }}>
               <div style={{ flex: '1', minWidth: '150px' }}>
-                    <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#555', marginBottom: '4px' }}>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#555'}}>
                         Customer
                     </label>
                     <select
@@ -416,7 +416,6 @@ const SaleRateDifferenceList = () => {
                         }}
                     >
                         <option value="">All Customers</option>
-                        {/* Yahan hum directly 'customers' array use kar rahe hain */}
                         {customers.map(c => (
                             <option key={c._id} value={c._id}>
                                 {c.customerName || c.name}
@@ -426,7 +425,7 @@ const SaleRateDifferenceList = () => {
                 </div>
 
                 <div style={{ flex: '1', minWidth: '130px', textAlign: 'left' }}>
-                    <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#555', marginBottom: '4px' }}>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#555' }}>
                         Date From
                     </label>
                     <input
@@ -447,7 +446,7 @@ const SaleRateDifferenceList = () => {
                 </div>
 
                 <div style={{ flex: '1', minWidth: '130px' }}>
-                    <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#555', marginBottom: '4px' }}>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#555' }}>
                         Date To
                     </label>
                     <input
@@ -495,13 +494,13 @@ const SaleRateDifferenceList = () => {
                 display: 'flex',
                 justifyContent: 'space-between',
                 textAlign: 'right',
-                marginLeft: '78%'
+                marginLeft: '83%'
             }}>
                 <span>Showing {filteredDifferences.length} of {differences.length} records</span>
             </div>
 
             {/* MAIN SUMMARY TABLE */}
-            <div style={{ overflowX: 'auto', borderRadius: '6px', border: '1px solid #eaeaea' }}>
+            <div style={{ overflowX: 'auto', borderRadius: '6px' }}>
                 <table className="po-table">
                     <thead>
                         <tr>

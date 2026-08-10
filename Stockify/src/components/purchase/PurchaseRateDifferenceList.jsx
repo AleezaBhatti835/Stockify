@@ -385,12 +385,12 @@ const PurchaseRateDifferenceList = () => {
     if (loading) return <div style={{ padding: '20px' }}>Loading records...</div>;
 
     return (
-        <div className="panel" style={{ width: '95%', padding: '25px', borderRadius: '8px', backgroundColor: '#fff', marginTop: '0px', marginBottom: '90px' }}>
+        <div className="panel" style={{ width: '100%', padding: '15px 25px', borderRadius: '8px', backgroundColor: '#fff', marginTop: '0px', marginBottom: '90px' }}>
 
             {/* FILTER SECTION */}
             <div style={{
-                marginBottom: '2px',
-                padding: '15px',
+                marginBottom: '10px',
+                marginTop: '1px',
                 borderRadius: '6px',
                 display: 'flex',
                 flexWrap: 'wrap',
@@ -399,7 +399,7 @@ const PurchaseRateDifferenceList = () => {
                 textAlign: 'left'
             }}>
                 <div style={{ flex: '1', minWidth: '150px' }}>
-                    <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#555', marginBottom: '4px' }}>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#555'}}>
                         Supplier
                     </label>
                     <select
@@ -412,7 +412,7 @@ const PurchaseRateDifferenceList = () => {
                             borderRadius: '4px',
                             backgroundColor: '#ffffff',
                             border: '1px solid #ced4da',
-                            fontSize: '14px'
+                            fontSize: '13px'
                         }}
                     >
                         <option value="">All Suppliers</option>
@@ -425,7 +425,7 @@ const PurchaseRateDifferenceList = () => {
                 </div>
 
                 <div style={{ flex: '1', minWidth: '130px', textAlign: 'left' }}>
-                    <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#555', marginBottom: '4px' }}>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#555'}}>
                         Date From
                     </label>
                     <input
@@ -439,14 +439,14 @@ const PurchaseRateDifferenceList = () => {
                             padding: '8px 12px',
                             borderRadius: '4px',
                             border: '1px solid #ced4da',
-                            fontSize: '14px',
+                            fontSize: '13px',
                             backgroundColor: '#ffffff'
                         }}
                     />
                 </div>
 
                 <div style={{ flex: '1', minWidth: '130px' }}>
-                    <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#555', marginBottom: '4px' }}>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#555'}}>
                         Date To
                     </label>
                     <input
@@ -460,7 +460,7 @@ const PurchaseRateDifferenceList = () => {
                             padding: '8px 12px',
                             borderRadius: '4px',
                             border: '1px solid #ced4da',
-                            fontSize: '14px',
+                            fontSize: '13px',
                             backgroundColor: '#ffffff'
                         }}
                     />
@@ -477,7 +477,7 @@ const PurchaseRateDifferenceList = () => {
                             borderRadius: '4px',
                             cursor: 'pointer',
                             fontWeight: '600',
-                            fontSize: '14px',
+                            fontSize: '13px',
                             height: '38px'
                         }}
                     >
@@ -494,17 +494,17 @@ const PurchaseRateDifferenceList = () => {
                 display: 'flex',
                 justifyContent: 'space-between',
                 textAlign: 'right',
-                marginLeft: '78%'
+                marginLeft: '82%'
             }}>
                 <span>Showing {filteredDifferences.length} of {differences.length} records</span>
             </div>
 
             {/* MAIN SUMMARY TABLE */}
-            <div style={{ overflowX: 'auto', borderRadius: '6px', border: '1px solid #eaeaea' }}>
+            <div style={{ overflowX: 'auto', borderRadius: '6px' }}>
                 <table className="po-table">
                     <thead>
                         <tr>
-                            <th style={{ textAlign: 'center' }}>Sr #</th>
+                            <th style={{ textAlign: 'left' }}>Sr #</th>
                             <th style={{ textAlign: 'left' }}>PRD #</th>
                             <th style={{ textAlign: 'left' }}>Invoice #</th>
                             <th style={{ textAlign: 'left' }}>Date</th>
@@ -519,8 +519,8 @@ const PurchaseRateDifferenceList = () => {
                                 const serialNumber = (currentPage - 1) * itemsPerPage + index + 1;
                                 return (
                                     <tr key={diff._id || index}>
-                                        <td style={{ textAlign: 'center' }}>{serialNumber}</td>
-                                        <td style={{ fontWeight: 'bold', textAlign: 'left' }}>
+                                        <td style={{ textAlign: 'left' }}>{serialNumber}</td>
+                                        <td style={{ textAlign: 'left' }}>
                                             {diff.differenceNumber || 'N/A'}
                                         </td>
                                         <td style={{ textAlign: 'left' }}>
@@ -532,7 +532,7 @@ const PurchaseRateDifferenceList = () => {
                                         <td style={{ textAlign: 'left' }}>
                                             {diff.supplierId?.contactPerson || diff.supplierId?.companyName || 'Unknown'}
                                         </td>
-                                        <td style={{ fontWeight: 'bold', color: diff.netDifference > 0 ? 'red' : 'green', fontSize: '15px', textAlign: 'left' }}>
+                                        <td style={{ color: diff.netDifference > 0 ? 'red' : 'green', fontSize: '15px', textAlign: 'left' }}>
                                             {diff.netDifference > 0 ? '+' : ''}{diff.netDifference || 0}
                                         </td>
                                         <td style={{ textAlign: 'left' }}>

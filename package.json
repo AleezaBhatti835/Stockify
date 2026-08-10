@@ -1,0 +1,7 @@
+{
+  "dependencies": {
+    "recharts": "^3.10.1",
+    "xlsx": "^0.18.5",
+    "xlsx-js-style": "^1.2.0"
+  }
+}

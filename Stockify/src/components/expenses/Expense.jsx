@@ -192,8 +192,8 @@ function Expense() {
             )}
 
             <div style={{ ...styles.card, padding: 0, overflow: 'hidden' }}>
-                <div style={{ padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e2e8f0' }}>
-                    <h3 style={{ margin: 0, color: '#0f172a' }}>Expenses</h3>
+                <div style={{ padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <h3 style={{ fontSize: '22px',fontWeight:'400px', color: '#3e576c', fontFamily: 'times new roman' }}>Expenses</h3>
                     <button style={styles.addBtn} onClick={openAddModal}>+ Add Expense</button>
                 </div>
 
@@ -459,7 +459,7 @@ function Expense() {
 
 const styles = {
     wrapper: { display: 'flex', flexDirection: 'column', gap: '16px' },
-    card: { background: '#fff', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' },
+    card: { background: '#fff', borderRadius: '12px'},
     addBtn: { width: '16%', padding: '10px 20px', color: 'white', backgroundColor: '#5aa7ef', whiteSpace: 'nowrap', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 600 },
     table: { width: '100%', borderCollapse: 'collapse' },
     th: {
@@ -467,10 +467,10 @@ const styles = {
         color: '#fdfdfd',
         fontSize: '12px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px'
     },
-    td: { padding: '12px 16px', textAlign: 'left', fontSize: '14px', borderBottom: '1px solid #f1f5f9', color: '#334155' },
+    td: { padding: '6px 16px', textAlign: 'left', fontSize: '14px', borderBottom: '1px solid #f3f5f8', color: '#334155' },
     emptyCell: { padding: '40px 0', textAlign: 'center', color: '#94a3b8', fontSize: '14px' },
-    footerLabel: { padding: '12px 16px', textAlign: 'right', fontWeight: 600, color: '#0f172a', borderTop: '2px solid #e2e8f0' },
-    footerValue: { padding: '12px 16px', fontWeight: 600, fontSize: '15px', color: '#ef4444', borderTop: '2px solid #e2e8f0' },
+    footerLabel: { padding: '12px 16px', textAlign: 'right', fontWeight: 600, color: '#0f172a' },
+    footerValue: { padding: '12px 16px', fontWeight: 600, fontSize: '15px', color: '#ef4444'},
     label: { fontSize: '12px', fontWeight: 700, color: '#475569', marginBottom: '6px', display: 'block', textAlign: 'left' },
     input: { width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '14px', backgroundColor: '#f8fafc', outline: 'none', boxSizing: 'border-box' },
     modalOverlay: { position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999999 },

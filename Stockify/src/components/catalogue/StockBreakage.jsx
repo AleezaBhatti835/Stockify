@@ -3,31 +3,15 @@ import React, { useState, useEffect, useRef } from 'react';
 const API_BASE_URL = 'http://localhost:5000';
 const todayStr = () => new Date().toISOString().slice(0, 10);
 
-function MessagePopup({ message, type, onClose }) {
-  if (!message) return null;
-  return (
-    <div className="message-popup-overlay" onClick={onClose} style={{ zIndex: 1000000 }}>
-      <div className={`message-popup ${type}`} onClick={(e) => e.stopPropagation()}>
-        <button className="message-popup-close" onClick={onClose}>×</button>
-        <div className="message-popup-content">
-          <span className="message-popup-icon">{type === 'error' ? '⚠️' : '✅'}</span>
-          <div className="message-popup-text">
-            <strong>{type === 'error' ? 'Error: ' : 'Success: '}</strong>
-            {message}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function StockBreakage() {
-  const [records, setRecords] = useState([]);
-  const [filteredRecords, setFilteredRecords] = useState([]);
+  const [records, setRecords] = useState({ groups: [], flat: [] });
   const [loading, setLoading] = useState(false);
 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [products, setProducts] = useState([]);
+
+  // ================= VIEW MODE STATE (Abstract vs Product) =================
+  const [viewMode, setViewMode] = useState('summary'); 
 
   // ================= FILTER STATES =================
   const [fromDate, setFromDate] = useState(todayStr());
@@ -46,6 +30,8 @@ function StockBreakage() {
   // Cart of items added in this batch
   const [cartItems, setCartItems] = useState([]);
   const [submitting, setSubmitting] = useState(false);
+  
+  // Inline message state - no popups
   const [message, setMessage] = useState({ text: '', type: '' });
 
   // ================= VIEW MODAL STATES =================
@@ -63,10 +49,10 @@ function StockBreakage() {
     fetchRecords();
   }, []);
 
+  // PAGE RESET: Jab bhi viewMode ya dates change hon
   useEffect(() => {
-    applyFilters();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [records, fromDate, toDate]);
+    setCurrentPage(1);
+  }, [viewMode, fromDate, toDate]);
 
   useEffect(() => {
     function handleClickOutside(event) {
@@ -79,6 +65,41 @@ function StockBreakage() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  // Keyboard shortcut handler for modals
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        if (isAddModalOpen) {
+          e.preventDefault();
+          setIsAddModalOpen(false);
+          setCartItems([]);
+          setSelectedProduct(null);
+          setSearchTerm('');
+          setQuantity(1);
+          setRemarks('');
+          setMessage({ text: '', type: '' });
+        }
+        if (viewModalData) {
+          e.preventDefault();
+          setViewModalData(null);
+        }
+      }
+
+      if (e.key === 'Enter') {
+        if (isAddModalOpen && !submitting && cartItems.length > 0) {
+          // Ctrl+Enter for submit
+          if (e.ctrlKey) {
+            e.preventDefault();
+            handleSubmitBreakage();
+          }
+        }
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isAddModalOpen, viewModalData, submitting, cartItems]);
+
   const fetchRecords = async () => {
     setLoading(true);
     try {
@@ -86,8 +107,14 @@ function StockBreakage() {
       const data = await res.json();
       
       const groups = {};
+      const flatList = [];
+
       if (Array.isArray(data)) {
         data.forEach(r => {
+          // Flat list setup for Detailed View
+          flatList.push(r);
+
+          // Grouping logic for Abstract View
           const key = r.invoiceNumber || Math.floor(new Date(r.createdAt || r.date).getTime() / 5000);
           if (!groups[key]) {
             groups[key] = {
@@ -95,22 +122,36 @@ function StockBreakage() {
               date: r.createdAt || r.date,
               invoiceNumber: r.invoiceNumber || r.breakageNumber || `BRK-${Math.floor(new Date(r.createdAt || r.date).getTime() / 1000)}`,
               remarks: r.notes || r.remarks || '',
-              items: []
+              items: [],
+              itemCount: 0,
+              totalBrokenQty: 0,
+              productNames: []
             };
           }
           groups[key].items.push({
             _id: r._id,
             product: r.product, 
+            productName: r.product?.name || 'Unknown',
             quantity: r.quantity,
             previousQuantity: r.previousQuantity,
             newQuantity: r.newQuantity,
             breakageNumber: r.breakageNumber
           });
+          groups[key].itemCount += 1;
+          groups[key].totalBrokenQty += r.quantity;
+          
+          const pName = r.product?.name || 'Unknown';
+          if (!groups[key].productNames.includes(pName)) {
+            groups[key].productNames.push(pName);
+          }
         });
       }
       
-      const sortedData = Object.values(groups).sort((a, b) => new Date(a.date) - new Date(b.date));
-      setRecords(sortedData);
+      const sortedGroups = Object.values(groups).sort((a, b) => new Date(b.date) - new Date(a.date)); // Newest first
+      const sortedFlat = flatList.sort((a, b) => new Date(b.createdAt || b.date) - new Date(a.createdAt || a.date));
+
+      // Store BOTH raw data types to filter them based on viewMode later
+      setRecords({ groups: sortedGroups, flat: sortedFlat });
       setCurrentPage(1);
     } catch (err) {
       console.error('Error fetching breakage records:', err);
@@ -129,21 +170,27 @@ function StockBreakage() {
     }
   };
 
-  const applyFilters = () => {
-    let filtered = [...records];
+  // 🔥 FAST FILTERING WITH USEMEMO (Prevents Crash)
+  const filteredRecords = React.useMemo(() => {
+    if (!records.groups) return [];
+
+    let dataToFilter = viewMode === 'summary' ? records.groups : records.flat;
+    let filtered = [...dataToFilter];
+
     if (fromDate && toDate) {
       const from = new Date(fromDate);
       const to = new Date(toDate);
       to.setHours(23, 59, 59, 999);
       
       filtered = filtered.filter(record => {
-        const recordDate = new Date(record.date);
+        const recordDate = new Date(record.date || record.createdAt);
         return recordDate >= from && recordDate <= to;
       });
     }
-    setFilteredRecords(filtered);
-    setCurrentPage(1);
-  };
+    
+    return filtered;
+  }, [records, viewMode, fromDate, toDate]);
+
 
   const openAddModal = () => {
     fetchProducts();
@@ -151,14 +198,20 @@ function StockBreakage() {
     setSelectedProduct(null);
     setSearchTerm('');
     setQuantity(1);
-    setRemarks(''); 
+    setRemarks('');
     setSelectedSuggestionIndex(-1);
+    setMessage({ text: '', type: '' });
     setIsAddModalOpen(true);
+    setTimeout(() => {
+      if (searchInputRef.current) {
+        searchInputRef.current.focus();
+      }
+    }, 100);
   };
 
   const showMessage = (text, type) => {
     setMessage({ text, type });
-    setTimeout(() => setMessage({ text: '', type: '' }), 4000);
+    setTimeout(() => setMessage({ text: '', type: '' }), 3000);
   };
 
   const filteredProducts = products.filter(p =>
@@ -188,6 +241,7 @@ function StockBreakage() {
     setShowSuggestions(false);
     setSelectedSuggestionIndex(-1);
     setQuantity(1);
+    setMessage({ text: '', type: '' });
 
     setTimeout(() => {
       if (qtyInputRef.current) {
@@ -265,6 +319,7 @@ function StockBreakage() {
     setSelectedProduct(null);
     setQuantity(1);
     setSelectedSuggestionIndex(-1);
+    setMessage({ text: '', type: '' });
     setTimeout(() => {
       if (searchInputRef.current) {
         searchInputRef.current.focus();
@@ -276,7 +331,7 @@ function StockBreakage() {
     setCartItems(prev => prev.filter(c => c.productId !== productId));
   };
 
-  const handleSubmitBreakage = async () => {
+ const handleSubmitBreakage = async () => {
     if (cartItems.length === 0) {
       showMessage('Please add at least one product.', 'error');
       return;
@@ -289,7 +344,7 @@ function StockBreakage() {
       const payload = {
         invoiceNumber: invoiceNumber,
         notes: remarks,
-        items: cartItems.map(c => ({ 
+        items: cartItems.map((c, idx) => ({ 
           product: c.productId,
           productId: c.productId,
           quantity: Number(c.quantity), 
@@ -297,7 +352,8 @@ function StockBreakage() {
           newQuantity: Number(c.availableQty) - Number(c.quantity),
           reason: 'Damage/Breakage',
           notes: remarks,
-          invoiceNumber: invoiceNumber 
+          invoiceNumber: invoiceNumber, 
+          breakageNumber: `${invoiceNumber}-${idx + 1}` 
         }))
       };
 
@@ -313,17 +369,20 @@ function StockBreakage() {
         data = JSON.parse(text);
       } catch (e) {
         console.error("Non-JSON response from server:", text);
-        showMessage('Server returned an invalid response. Check backend logs.', 'error');
+        showMessage('Server returned an invalid response.', 'error');
         setSubmitting(false);
         return;
       }
 
       if (res.ok || data.success) {
         showMessage('Broken stock recorded successfully!', 'success');
-        setCartItems([]);
-        setIsAddModalOpen(false);
-        setRemarks(''); 
-        fetchRecords(); 
+        setTimeout(() => {
+          setCartItems([]);
+          setIsAddModalOpen(false);
+          setRemarks('');
+          setMessage({ text: '', type: '' });
+          fetchRecords();
+        }, 500);
       } else {
         showMessage(data.message || 'Failed to record broken stock.', 'error');
         console.error("Backend Error:", data);
@@ -376,7 +435,7 @@ function StockBreakage() {
         <body>
           <div class="header-info">
             <h2>CAPOBIZ</h2>
-            <h4>STOCK BREAKAGE / DAMAGE RECEIPT</h4>
+            <h4>STOCK BREAKAGE / DAMAGE RECEIPT ${viewModalData.isSingleItemView ? '(SINGLE ITEM)' : ''}</h4>
           </div>
           
           <div class="meta-info">
@@ -399,7 +458,7 @@ function StockBreakage() {
             <tbody>
               ${viewModalData.items.map(item => `
                 <tr>
-                  <td>${item.product?.name || 'Unknown Product'}</td>
+                  <td>${item.product?.name || item.productName || 'Unknown Product'}</td>
                   <td class="text-center text-danger">${item.quantity}</td>
                   <td class="text-center">${item.previousQuantity || '-'}</td>
                   <td class="text-center">${item.newQuantity || '-'}</td>
@@ -431,18 +490,69 @@ function StockBreakage() {
   const currentRecords = filteredRecords.slice(indexOfFirstRow, indexOfLastRow);
   const totalPages = Math.ceil(filteredRecords.length / rowsPerPage);
 
+  // Inline Message Component
+  const InlineMessage = ({ message, type }) => {
+    if (!message) return null;
+    
+    const colors = {
+      success: { bg: '#d4edda', text: '#155724', border: '#c3e6cb', icon: '✅' },
+      error: { bg: '#fdecea', text: '#dc3545', border: '#f5c6cb', icon: '⚠️' }
+    };
+
+    const style = colors[type] || colors.error;
+
+    return (
+      <div style={{
+        padding: '10px 14px',
+        marginBottom: '12px',
+        borderRadius: '6px',
+        backgroundColor: style.bg,
+        color: style.text,
+        border: `1px solid ${style.border}`,
+        fontSize: '13px',
+        fontWeight: 500
+      }}>
+        {style.icon} {message}
+      </div>
+    );
+  };
+
   return (
     <div style={styles.wrapper}>
-      {message.text && !isAddModalOpen && (
-        <MessagePopup message={message.text} type={message.type} onClose={() => setMessage({text:'', type:''})} />
-      )}
-
       {/* ==================== MAIN LIST ==================== */}
       <div style={{ ...styles.card, padding: 0, overflow: 'hidden' }}>
 
         {/* ==================== FILTERS ==================== */}
         <div style={styles.filterContainer}>
           <div style={styles.filterRow}>
+
+            {/* VIEW MODE RADIO BUTTONS */}
+            <div style={{ width: 'auto',textAlign:'left' }}>
+              <label style={styles.filterLabel}>View Mode</label>
+              <div style={{ display: 'flex', gap: '12px', alignItems: 'left', padding: '7px 12px', border: '1px solid #cbd5e1', borderRadius: '4px', backgroundColor: '#fff', boxSizing: 'border-box', height: '37px' }}>
+                <label style={{ fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', color: '#475569', fontWeight: 500 }}>
+                  <input 
+                    type="radio" 
+                    name="viewMode" 
+                    value="summary" 
+                    checked={viewMode === 'summary'} 
+                    onChange={(e) => setViewMode(e.target.value)} 
+                  />
+                  Abstract
+                </label>
+                <label style={{ fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', color: '#475569', fontWeight: 500 }}>
+                  <input 
+                    type="radio" 
+                    name="viewMode" 
+                    value="detailed" 
+                    checked={viewMode === 'detailed'} 
+                    onChange={(e) => setViewMode(e.target.value)} 
+                  />
+                  Product
+                </label>
+              </div>
+            </div>
+
             <div style={styles.filterGroup}>
               <label style={styles.filterLabel}>From Date</label>
               <input
@@ -470,7 +580,7 @@ function StockBreakage() {
           </div>
 
           <div style={styles.filterStats}>
-            <span>Showing {filteredRecords.length} of {records.length} invoice{filteredRecords.length !== 1 ? 's' : ''}</span>
+            <span>Showing {filteredRecords.length} {viewMode === 'summary' ? 'invoice(s)' : 'item(s)'}</span>
           </div>
         </div>
 
@@ -480,38 +590,109 @@ function StockBreakage() {
             <thead>
               <tr>
                 <th style={{ ...styles.th, width: '10%', textAlign: 'left' }}>Sr#</th>
-                <th style={{ ...styles.th, width: '25%' }}>Date</th>
-                <th style={{ ...styles.th, width: '45%' }}>Breakage / Invoice #</th>
+                <th style={{ ...styles.th, width: '15%' }}>Date</th>
+                <th style={{ ...styles.th, width: '20%' }}>Breakage / Invoice #</th>
+                
+                {viewMode === 'summary' ? (
+                  <th style={{ ...styles.th, width: '35%' }}>Summary</th>
+                ) : (
+                  <>
+                    <th style={{ ...styles.th, width: '25%', textAlign: 'left' }}>Product</th>
+                    <th style={{ ...styles.th, width: '10%', textAlign: 'center' }}>Qty</th>
+                  </>
+                )}
+                
                 <th style={{ ...styles.th, width: '20%', textAlign: 'center' }}>Action</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan="4" style={styles.emptyCell}>Loading...</td></tr>
+                <tr><td colSpan={viewMode === 'summary' ? 5 : 6} style={styles.emptyCell}>Loading...</td></tr>
               ) : filteredRecords.length === 0 ? (
-                <tr><td colSpan="4" style={styles.emptyCell}>No records found.</td></tr>
+                <tr><td colSpan={viewMode === 'summary' ? 5 : 6} style={styles.emptyCell}>No records found.</td></tr>
               ) : currentRecords.length === 0 ? (
-                <tr><td colSpan="4" style={styles.emptyCell}>No records found on this page.</td></tr>
+                <tr><td colSpan={viewMode === 'summary' ? 5 : 6} style={styles.emptyCell}>No records found on this page.</td></tr>
               ) : (
-                currentRecords.map((group, index) => (
-                  <tr key={group.id}>
-                    <td style={{ ...styles.td, textAlign: 'left' }}>{indexOfFirstRow + index + 1}</td>
-                    <td style={styles.td}>{new Date(group.date).toLocaleDateString()}</td>
-                    <td style={{ ...styles.td, fontWeight: 700, color: '#0f172a' }}>{group.invoiceNumber}</td>
-                    <td style={{ ...styles.td, textAlign: 'center' }}>
-                      <button
-                        onClick={() => setViewModalData(group)}
-                        style={styles.iconBtnView}
-                        title="View Details"
-                      >
-                        <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
-                          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                          <circle cx="12" cy="12" r="3"></circle>
-                        </svg>
-                      </button>
-                    </td>
-                  </tr>
-                ))
+                currentRecords.map((item, index) => {
+                  const srNum = indexOfFirstRow + index + 1;
+                  
+                  if (viewMode === 'summary') {
+                    const group = item;
+                    return (
+                      <tr key={group.id}>
+                        <td style={{ ...styles.td, textAlign: 'left' }}>{srNum}</td>
+                        <td style={styles.td}>{new Date(group.date).toLocaleDateString()}</td>
+                        <td style={{ ...styles.td, fontWeight: 700, color: '#0f172a' }}>{group.invoiceNumber}</td>
+                        
+                        <td style={{ padding: '7px' }}>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', justifyContent: 'center' }}>
+                              <span style={{ fontWeight: '600', color: '#2b3a4a', fontSize: '13px' }}>
+                                {group.itemCount} Item{group.itemCount !== 1 ? 's' : ''}
+                              </span>
+                              <div style={{ display: 'flex', gap: '6px' }}>
+                                <span style={{ backgroundColor: '#fff5f5', color: '#dc3545', border: '1px solid #f5c6cb', padding: '2px 8px', borderRadius: '12px', fontSize: '11px', fontWeight: 'bold', display: 'flex', alignItems: 'center' }}>
+                                  <span style={{ fontSize: '12px', marginRight: '3px' }}>↓</span> {group.totalBrokenQty} broken
+                                </span>
+                              </div>
+                            </div>
+                           
+                          </div>
+                        </td>
+
+                        <td style={{ ...styles.td, textAlign: 'center' }}>
+                          <button
+                            onClick={() => setViewModalData(group)}
+                            style={styles.iconBtnView}
+                            title="View Invoice"
+                          >
+                            <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+                              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                              <circle cx="12" cy="12" r="3"></circle>
+                            </svg>
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  } else {
+                    const row = item;
+                    return (
+                      <tr key={row._id}>
+                        <td style={{ ...styles.td, textAlign: 'left' }}>{srNum}</td>
+                        <td style={styles.td}>{new Date(row.createdAt || row.date).toLocaleDateString()}</td>
+                        <td style={{ ...styles.td, fontWeight: 700, color: '#0f172a' }}>{row.invoiceNumber || row.breakageNumber}</td>
+                        <td style={{ ...styles.td, textAlign: 'left', fontWeight: 600 }}>{row.product?.name || 'Unknown'}</td>
+                        <td style={{ ...styles.td, textAlign: 'center', color: '#ef4444', fontWeight: 'bold' }}>{row.quantity}</td>
+                        <td style={{ ...styles.td, textAlign: 'center' }}>
+                          <button
+                            onClick={() => {
+                              setViewModalData({
+                                invoiceNumber: row.invoiceNumber || row.breakageNumber,
+                                date: row.createdAt || row.date,
+                                isSingleItemView: true,
+                                remarks: row.notes || row.remarks,
+                                items: [{
+                                  product: row.product,
+                                  productName: row.product?.name || 'Unknown',
+                                  quantity: row.quantity,
+                                  previousQuantity: row.previousQuantity,
+                                  newQuantity: row.newQuantity
+                                }]
+                              });
+                            }}
+                            style={styles.iconBtnView}
+                            title="View Detail"
+                          >
+                            <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+                              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                              <circle cx="12" cy="12" r="3"></circle>
+                            </svg>
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  }
+                })
               )}
             </tbody>
           </table>
@@ -565,7 +746,9 @@ function StockBreakage() {
 
             <div id="breakage-receipt-content" style={styles.receiptBody}>
               <div style={{ textAlign: 'center', marginBottom: '20px' }}>
-                <h4 style={{ margin: '0 0 8px 0', fontSize: '18px', textDecoration: 'underline' }}>STOCK BREAKAGE RECEIPT</h4>
+                <h4 style={{ margin: '0 0 8px 0', fontSize: '18px', textDecoration: 'underline' }}>
+                  STOCK BREAKAGE RECEIPT {viewModalData.isSingleItemView ? '(SINGLE ITEM)' : ''}
+                </h4>
                 <p style={{ margin: '4px 0', fontSize: '14px' }}>Breakage #: <strong>{viewModalData.invoiceNumber}</strong></p>
                 <p style={{ margin: '4px 0', fontSize: '14px' }}>Date: <strong>{new Date(viewModalData.date).toLocaleDateString()}</strong></p>
                 {viewModalData.remarks && <p style={{ margin: '4px 0', fontSize: '14px' }}>Remarks: {viewModalData.remarks}</p>}
@@ -585,7 +768,7 @@ function StockBreakage() {
                 <tbody>
                   {viewModalData.items.map((item, idx) => (
                     <tr key={idx}>
-                      <td style={styles.receiptTd}>{item.product?.name || 'Unknown Product'}</td>
+                      <td style={styles.receiptTd}>{item.product?.name || item.productName || 'Unknown Product'}</td>
                       <td style={{ ...styles.receiptTd, textAlign: 'center', color: '#ef4444', fontWeight: 600 }}>{item.quantity}</td>
                       <td style={{ ...styles.receiptTd, textAlign: 'center' }}>{item.previousQuantity || '-'}</td>
                       <td style={{ ...styles.receiptTd, textAlign: 'center' }}>{item.newQuantity || '-'}</td>
@@ -612,15 +795,10 @@ function StockBreakage() {
               <button style={styles.closeBtn} onClick={() => setIsAddModalOpen(false)}>×</button>
             </div>
 
-            {message.text && (
-              <div style={{
-                margin: '12px 0', padding: '10px 14px', borderRadius: '8px', fontSize: '13px',
-                background: message.type === 'error' ? '#fef2f2' : '#ecfdf5',
-                color: message.type === 'error' ? '#ef4444' : '#10b981'
-              }}>
-                {message.text}
-              </div>
-            )}
+            {/* Inline Message - No Popup */}
+            <InlineMessage message={message.text} type={message.type} />
+
+           
 
             {/* Top Form Grid */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginTop: '16px' }}>
@@ -638,6 +816,7 @@ function StockBreakage() {
                     setSearchTerm(e.target.value); 
                     setShowSuggestions(true);
                     setSelectedSuggestionIndex(-1);
+                    setMessage({ text: '', type: '' });
                   }}
                   onFocus={() => setShowSuggestions(true)}
                   onKeyDown={handleKeyDown}
@@ -683,12 +862,18 @@ function StockBreakage() {
                   placeholder="Optional notes..."
                   value={remarks}
                   onChange={(e) => setRemarks(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && selectedProduct) {
+                      e.preventDefault();
+                      handleAddToList();
+                    }
+                  }}
                 />
               </div>
             </div>
 
             {selectedProduct && (
-              <div style={{ marginTop: '20px', padding: '16px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px' }}>
+              <div style={{ marginTop: '20px', padding: '16px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '4px' }}>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '10px', marginBottom: '16px' }}>
                   <div style={styles.infoRowCol}><span>Product</span><strong>{selectedProduct.name}</strong></div>
                   <div style={styles.infoRowCol}><span>Category</span><strong>{getCategoryName(selectedProduct)}</strong></div>
@@ -718,7 +903,7 @@ function StockBreakage() {
 
             <div style={{ marginTop: '24px' }}>
               <label style={styles.label}>Items to Mark as Broken</label>
-              <div style={{ border: '1px solid #e2e8f0', borderRadius: '8px', overflow: 'hidden', minHeight: '150px' }}>
+              <div style={{ border: '1px solid #e2e8f0', borderRadius: '4px', overflow: 'hidden', minHeight: '150px' }}>
                 <table style={styles.table}>
                   <thead>
                     <tr>
@@ -769,14 +954,14 @@ function StockBreakage() {
 
 const styles = {
   wrapper: { display: 'flex', flexDirection: 'column', gap: '16px' },
-  card: { width: '90%', background: '#fff', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' },
-  addBtn: { background: '#223747', color: '#fff', border: 'none', padding: '10px 18px', borderRadius: '8px', cursor: 'pointer', fontWeight: 600, fontSize: '14px', marginLeft: 'auto' },
+  card: { width: '100%', background: '#ffffff', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' },
+  addBtn: { background: '#5aa7ef', color: '#fff', border: 'none', padding: '10px 18px', borderRadius: '4px', cursor: 'pointer', fontWeight: 600, fontSize: '14px', marginLeft: 'auto' },
   table: { width: '100%', borderCollapse: 'collapse', marginTop: '0px' },
   th: { textAlign: 'center', padding: '12px 16px', background: '#253247', fontSize: '12px', color: '#fff', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' },
   td: { padding: '10px 16px', textAlign: 'center', fontSize: '14px', borderBottom: '1px solid #f1f5f9', color: '#334155' },
   emptyCell: { padding: '40px 0', textAlign: 'center', color: '#94a3b8', fontSize: '14px' },
   label: { fontSize: '12px', fontWeight: 700, color: '#475569', marginBottom: '6px', display: 'block', textAlign: 'left' },
-  input: { width: '100%', padding: '12px 14px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '14px', background: '#fff', outline: 'none', boxSizing: 'border-box' },
+  input: { width: '100%', padding: '12px 14px', borderRadius: '4px', border: '1px solid #cbd5e1', fontSize: '14px', background: '#fff', outline: 'none', boxSizing: 'border-box' },
   
   actionGroup: {
     display: 'flex',
@@ -807,7 +992,7 @@ const styles = {
   suggestionItem: { padding: '12px 16px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9', fontSize: '14px' },
   
   infoRowCol: { display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '13px', color: '#475569' },
-  addToListBtn: { background: '#223747', color: '#fff', border: 'none', padding: '12px 18px', borderRadius: '8px', cursor: 'pointer', fontWeight: 600, whiteSpace: 'nowrap' },
+  addToListBtn: { background: '#223747', color: '#fff', border: 'none', padding: '12px 18px', borderRadius: '4px', cursor: 'pointer', fontWeight: 600, whiteSpace: 'nowrap' },
   removeBtn: { background: '#fef2f2', color: '#ef4444', border: '1px solid #fecaca', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', fontSize: '12px', fontWeight: 700 },
   
   modalOverlay: { position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999999, backdropFilter: 'blur(4px)' },
@@ -815,20 +1000,20 @@ const styles = {
   
   modalHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e2e8f0', paddingBottom: '16px' },
   closeBtn: { background: 'none', border: 'none', fontSize: '28px', color: '#64748b', cursor: 'pointer', lineHeight: 1 },
-  cancelBtn: { padding: '12px 24px', background: '#f1f5f9', color: '#475569', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 600, fontSize: '14px' },
-  saveBtn: { padding: '12px 24px', background: '#223747', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 600, fontSize: '14px' },
+  cancelBtn: { padding: '12px 24px', background: '#f1f5f9', color: '#475569', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 600, fontSize: '14px' },
+  saveBtn: { padding: '12px 24px', background: '#5aa7ef', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 600, fontSize: '14px' },
   
   paginationContainer: { marginTop: '10px', display: 'flex', gap: '15px', justifyContent: 'center', alignItems: 'center', padding: '15px 0', borderTop: '1px solid #e2e8f0' },
   paginationButton: { padding: '8px 16px', border: 'none', borderRadius: '4px', fontWeight: '600', fontSize: '13px', transition: 'all 0.2s' },
   paginationInfo: { fontSize: '13px', fontWeight: '600', color: '#475569', textAlign: 'center' },
   
-  filterContainer: { padding: '20px 24px', borderBottom: '1px solid #e2e8f0', backgroundColor: '#f8fafc' },
+  filterContainer: { padding: '20px 24px', backgroundColor: '#ffffff' },
   filterRow: { display: 'flex', gap: '16px', alignItems: 'flex-end', flexWrap: 'wrap' },
   filterGroup: { display: 'flex', flexDirection: 'column', flex: '1', minWidth: '150px' },
-  filterLabel: { fontSize: '12px', fontWeight: 700, color: '#475569', marginBottom: '6px', textAlign: 'left' },
-  filterInput: { padding: '10px 14px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', backgroundColor: '#fff', outline: 'none', width: '100%', boxSizing: 'border-box' },
-  clearFilterBtn: { padding: '11px 18px', background: '#e2e8f0', color: '#475569', border: '1px solid #cbd5e1', borderRadius: '8px', cursor: 'pointer', fontWeight: 600, fontSize: '13px', whiteSpace: 'nowrap' },
-  filterStats: { marginTop: '16px', fontSize: '13px', color: '#64748b', textAlign: 'right', fontWeight: '600' },
+  filterLabel: { fontSize: '12px', fontWeight: 500, color: '#475569', textAlign: 'left' },
+  filterInput: { padding: '9px 14px', borderRadius: '4px', border: '1px solid #cbd5e1', fontSize: '13px', backgroundColor: '#fff', outline: 'none', width: '100%', boxSizing: 'border-box' },
+  clearFilterBtn: {padding: '10px 20px', backgroundColor: '#6c757d', color: '#fff', border: '1px solid #cfcece', borderRadius: '4px', cursor: 'pointer'  },
+  filterStats: { marginTop: '16px', fontSize: '13px', color: '#64748b', textAlign: 'right', fontWeight: '400' },
 
   // Receipt Modal Styles
   receiptOverlay: { position: 'fixed', inset: 0, background: 'rgba(0, 0, 0, 0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000, padding: '20px' },

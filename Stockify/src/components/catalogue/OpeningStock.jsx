@@ -1,6 +1,28 @@
 import React, { useState, useEffect, useRef } from 'react';
 import '../roles.css';
 
+// Message Popup Component (Moved outside to prevent re-mounting glitches)
+function MessagePopup({ message, onClose }) {
+    if (!message.text) return null;
+
+    return (
+        <div className="message-popup-overlay" onClick={onClose}>
+            <div className={`message-popup ${message.type}`} onClick={(e) => e.stopPropagation()}>
+                <button className="message-popup-close" onClick={onClose}>×</button>
+                <div className="message-popup-content">
+                    <span className="message-popup-icon">
+                        {message.type === 'error' ? '⚠️' : '✅'}
+                    </span>
+                    <div className="message-popup-text">
+                        <strong>{message.type === 'error' ? 'Error!' : 'Success!'}</strong>
+                        {message.text}
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+}
+
 const OpeningStock = () => {
     const [products, setProducts] = useState([]);
     const [filteredProducts, setFilteredProducts] = useState([]);
@@ -15,6 +37,8 @@ const OpeningStock = () => {
 
     const dropdownRef = useRef(null);
     const inputRef = useRef(null);
+    const quantityRef = useRef(null);
+    const timerRef = useRef(null); // Ref to keep track of message timeout
 
     // Fetch products on mount
     useEffect(() => {
@@ -28,14 +52,16 @@ const OpeningStock = () => {
             }
         };
         document.addEventListener('mousedown', handleClickOutside);
-        return () => document.removeEventListener('mousedown', handleClickOutside);
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+            if (timerRef.current) clearTimeout(timerRef.current);
+        };
     }, []);
 
     // Keyboard navigation
     useEffect(() => {
         const handleKeyDown = (e) => {
             if (!isDropdownOpen || filteredProducts.length === 0) {
-                // If dropdown is closed and user presses ArrowDown, open it
                 if (e.key === 'ArrowDown' && !isDropdownOpen) {
                     e.preventDefault();
                     setFilteredProducts(products);
@@ -51,7 +77,6 @@ const OpeningStock = () => {
                     setHighlightedIndex(prev =>
                         prev < filteredProducts.length - 1 ? prev + 1 : prev
                     );
-                    // Scroll the highlighted item into view
                     setTimeout(() => {
                         const highlightedElement = document.querySelector(`[data-index="${highlightedIndex + 1}"]`);
                         if (highlightedElement) {
@@ -63,7 +88,6 @@ const OpeningStock = () => {
                 case 'ArrowUp':
                     e.preventDefault();
                     setHighlightedIndex(prev => prev > 0 ? prev - 1 : -1);
-                    // Scroll the highlighted item into view
                     setTimeout(() => {
                         const highlightedElement = document.querySelector(`[data-index="${highlightedIndex - 1}"]`);
                         if (highlightedElement) {
@@ -76,6 +100,11 @@ const OpeningStock = () => {
                     e.preventDefault();
                     if (highlightedIndex >= 0 && highlightedIndex < filteredProducts.length) {
                         selectProduct(filteredProducts[highlightedIndex]);
+                        setTimeout(() => {
+                            if (quantityRef.current) {
+                                quantityRef.current.focus();
+                            }
+                        }, 100);
                     }
                     break;
 
@@ -97,27 +126,67 @@ const OpeningStock = () => {
         return () => document.removeEventListener('keydown', handleKeyDown);
     }, [isDropdownOpen, filteredProducts, highlightedIndex, products]);
 
+    // Global keyboard shortcuts for ESC and Enter on form
+    useEffect(() => {
+        const handleGlobalKeyDown = (e) => {
+            if (isDropdownOpen) return;
+
+            if (e.key === 'Escape') {
+                if (selectedProduct || searchTerm) {
+                    e.preventDefault();
+                    setSelectedProduct(null);
+                    setSearchTerm('');
+                    setFilteredProducts(products);
+                    setQuantity('');
+                    clearMessage();
+                    if (inputRef.current) {
+                        inputRef.current.focus();
+                    }
+                }
+            }
+
+            if (e.key === 'Enter' && e.ctrlKey) {
+                e.preventDefault();
+                handleSubmit(e);
+            }
+
+            if (e.key === 'Enter' && document.activeElement === quantityRef.current) {
+                e.preventDefault();
+                handleSubmit(e);
+            }
+        };
+
+        document.addEventListener('keydown', handleGlobalKeyDown);
+        return () => document.removeEventListener('keydown', handleGlobalKeyDown);
+    }, [isDropdownOpen, selectedProduct, searchTerm, products, quantity]);
+
     const fetchProducts = async () => {
         try {
             const res = await fetch('http://localhost:5000/api/products');
             const data = await res.json();
-            setProducts(data);
-            setFilteredProducts(data);
+            const sortedData = Array.isArray(data) ? [...data].sort((a, b) => a.name.localeCompare(b.name)) : [];
+            setProducts(sortedData);
+            setFilteredProducts(sortedData);
         } catch (error) {
             console.error('Error fetching products:', error);
             showMessage('Error fetching products. Please try again.', 'error');
         }
     };
 
-    // Helper function to show messages and auto-clear them after 6 seconds
+    // Helper function to show messages with safe timeout handling
     const showMessage = (text, type) => {
+        if (timerRef.current) clearTimeout(timerRef.current);
+        
         setMessage({ text, type });
-        setTimeout(() => {
+        const duration = type === 'error' ? 4000 : 2500;
+        
+        timerRef.current = setTimeout(() => {
             setMessage({ text: '', type: '' });
-        }, 6000);
+        }, duration);
     };
 
     const clearMessage = () => {
+        if (timerRef.current) clearTimeout(timerRef.current);
         setMessage({ text: '', type: '' });
     };
 
@@ -136,7 +205,6 @@ const OpeningStock = () => {
                 p.name.toLowerCase().includes(value.toLowerCase())
             );
             setFilteredProducts(filtered);
-            // If there are results, highlight the first one
             if (filtered.length > 0) {
                 setHighlightedIndex(0);
             }
@@ -149,22 +217,27 @@ const OpeningStock = () => {
         setSearchTerm(product.name);
         setIsDropdownOpen(false);
         setHighlightedIndex(-1);
-        if (inputRef.current) {
-            inputRef.current.focus();
-        }
+        clearMessage();
+        setTimeout(() => {
+            if (quantityRef.current) {
+                quantityRef.current.focus();
+            }
+        }, 100);
     };
 
     // Handle Form Submission
     const handleSubmit = async (e) => {
-        e.preventDefault();
+        if (e) e.preventDefault();
         clearMessage();
 
         if (!selectedProduct) {
             showMessage('Please select a product first.', 'error');
+            if (inputRef.current) inputRef.current.focus();
             return;
         }
         if (!quantity || isNaN(quantity) || Number(quantity) <= 0) {
             showMessage('Please enter a valid quantity.', 'error');
+            if (quantityRef.current) quantityRef.current.focus();
             return;
         }
 
@@ -186,37 +259,20 @@ const OpeningStock = () => {
                 setQuantity('');
                 setFilteredProducts(products);
                 setHighlightedIndex(-1);
+                setTimeout(() => {
+                    if (inputRef.current) {
+                        inputRef.current.focus();
+                    }
+                }, 300);
             } else {
                 showMessage(result.message || 'Failed to add opening stock.', 'error');
             }
         } catch (error) {
             console.error('Error submitting opening stock:', error);
-            showMessage('error');
+            showMessage('Server error. Please try again.', 'error');
         } finally {
             setLoading(false);
         }
-    };
-
-    // Message Popup Component
-    const MessagePopup = ({ message, onClose }) => {
-        if (!message.text) return null;
-
-        return (
-            <div className="message-popup-overlay" onClick={onClose}>
-                <div className={`message-popup ${message.type}`} onClick={(e) => e.stopPropagation()}>
-                    <button className="message-popup-close" onClick={onClose}>×</button>
-                    <div className="message-popup-content">
-                        <span className="message-popup-icon">
-                            {message.type === 'error' ? '⚠️' : '✅'}
-                        </span>
-                        <div className="message-popup-text">
-                            <strong>{message.type === 'error' ? 'Error!' : 'Success!'}</strong>
-                            {message.text}
-                        </div>
-                    </div>
-                </div>
-            </div>
-        );
     };
 
     return (
@@ -225,12 +281,10 @@ const OpeningStock = () => {
 
             <div style={{ textAlign: 'center', marginBottom: '20px' }}>
                 <h2>Add Opening Stock</h2>
-
             </div>
 
             <form onSubmit={handleSubmit}>
-                {/* Product Search & Select */}
-                <div >
+                <div>
                     <div style={{ marginBottom: '15px', position: 'relative' }} ref={dropdownRef}>
                         <label style={{ textAlign: 'left', display: 'block', fontSize: '13px', fontWeight: '600', color: '#555', marginBottom: '6px' }}>
                             Product Name *
@@ -257,19 +311,6 @@ const OpeningStock = () => {
                                 fontSize: '14px'
                             }}
                         />
-
-                        {/* Keyboard Shortcut Hint */}
-                        {isDropdownOpen && filteredProducts.length > 0 && (
-                            <div style={{
-                                position: 'absolute',
-                                bottom: '-22px',
-                                right: '0',
-                                fontSize: '11px',
-                                color: '#999',
-                                fontStyle: 'italic'
-                            }}>
-                            </div>
-                        )}
 
                         {/* Custom Dropdown Suggestions */}
                         {isDropdownOpen && (
@@ -311,9 +352,8 @@ const OpeningStock = () => {
                                         >
                                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                                 <span>{product.name}</span>
-
                                             </div>
-                                            <div style={{ fontSize: '11px', color: '#999', marginTop: '2px' }}>
+                                            <div style={{ fontSize: '11px', color: '#397aac', marginTop: '2px' }}>
                                                 Stock: {product.quantity || 0} units
                                             </div>
                                         </li>
@@ -326,8 +366,8 @@ const OpeningStock = () => {
                     </div>
 
                     {/* Read-only Prices */}
-                    <div style={{ display: 'flex', width: '100%',alignContent:'center', alignItems: 'center', textAlign: 'center', gap: '35px', marginBottom: '15px' }}>
-                        <div style={{ alignItems: 'center', textAlign: 'center' }}>
+                    <div style={{ display: 'flex', width: '100%', alignItems: 'center', textAlign: 'center', gap: '35px', marginBottom: '15px' }}>
+                        <div style={{ alignItems: 'center', textAlign: 'center', flex: 1 }}>
                             <label style={{ textAlign: 'left', display: 'block', fontSize: '13px', fontWeight: '600', color: '#555', marginBottom: '6px' }}>
                                 Cost Price
                             </label>
@@ -348,7 +388,7 @@ const OpeningStock = () => {
                                 }}
                             />
                         </div>
-                        <div style={{ alignItems: 'center', textAlign: 'center' }}>
+                        <div style={{ alignItems: 'center', textAlign: 'center', flex: 1 }}>
                             <label style={{ textAlign: 'left', display: 'block', fontSize: '13px', fontWeight: '600', color: '#555', marginBottom: '6px' }}>
                                 Retail Price
                             </label>
@@ -400,10 +440,17 @@ const OpeningStock = () => {
                             Opening Quantity *
                         </label>
                         <input
+                            ref={quantityRef}
                             type="number"
                             min="1"
                             value={quantity}
                             onChange={(e) => setQuantity(e.target.value)}
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                    e.preventDefault();
+                                    handleSubmit(e);
+                                }
+                            }}
                             placeholder="Enter quantity..."
                             required
                             style={{

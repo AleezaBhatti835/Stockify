@@ -1,24 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import './purchase.css';
 
-function MessagePopup({ message, type, onClose }) {
-  if (!message) return null;
-  return (
-    <div className="message-popup-overlay" onClick={onClose} style={{ zIndex: 10000 }}>
-      <div className={`message-popup ${type}`} onClick={(e) => e.stopPropagation()}>
-        <button className="message-popup-close" onClick={onClose}>×</button>
-        <div className="message-popup-content">
-          <span className="message-popup-icon">{type === 'error' ? '⚠️' : '✅'}</span>
-          <div className="message-popup-text">
-            <strong>{type === 'error' ? 'Error: ' : 'Success: '}</strong>
-            {message}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 const PurchaseReturnByInvoice = () => {
   const [returnMode, setReturnMode] = useState('with');
   const [message, setMessage] = useState({ text: '', type: '' });
@@ -38,6 +20,8 @@ const PurchaseReturnByInvoice = () => {
   // ==========================================
   const [suppliers, setSuppliers] = useState([]);
   const [products, setProducts] = useState([]);
+  const messageTimerRef = useRef(null);
+  const confirmButtonRef = useRef(null);
 
   // ==========================================
   // WITH INVOICE STATES
@@ -51,8 +35,9 @@ const PurchaseReturnByInvoice = () => {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
 
-  // Reference for Auto-focusing Quantity Input (With Invoice)
+  // References
   const firstQtyInputRef = useRef(null);
+  const withInvoiceWrapperRef = useRef(null);
 
   // ==========================================
   // WITHOUT INVOICE STATES
@@ -67,8 +52,9 @@ const PurchaseReturnByInvoice = () => {
   const [woQuantity, setWoQuantity] = useState(1);
   const [woLineItems, setWoLineItems] = useState([]);
 
-  // Reference for Auto-focusing Quantity Input (Without Invoice)
+  // References
   const woQtyInputRef = useRef(null);
+  const woProductWrapperRef = useRef(null);
 
   // Load Initial Data on Mount
   useEffect(() => {
@@ -102,9 +88,60 @@ const PurchaseReturnByInvoice = () => {
     fetchInitialData();
   }, []);
 
+  // Global Keyboard Shortcuts for Confirmation Modal
+  useEffect(() => {
+    const handleGlobalKeyDown = (e) => {
+      // Enter key on confirmation modal
+      if (e.key === 'Enter' && confirmDialog.isOpen) {
+        e.preventDefault();
+        if (confirmDialog.onConfirm) {
+          confirmDialog.onConfirm();
+        }
+      }
+      
+      // Escape key on confirmation modal
+      if (e.key === 'Escape' && confirmDialog.isOpen) {
+        e.preventDefault();
+        closeConfirmDialog();
+      }
+    };
+
+    window.addEventListener('keydown', handleGlobalKeyDown);
+    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+  }, [confirmDialog.isOpen, confirmDialog.onConfirm]);
+
+  // Click Outside Listener to close dropdowns
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (withInvoiceWrapperRef.current && !withInvoiceWrapperRef.current.contains(event.target)) {
+        setShowSuggestions(false);
+      }
+      if (woProductWrapperRef.current && !woProductWrapperRef.current.contains(event.target)) {
+        setWoShowSuggestions(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      if (messageTimerRef.current) clearTimeout(messageTimerRef.current);
+    };
+  }, []);
+
+  // Auto-focus on confirm button when modal opens
+  useEffect(() => {
+    if (confirmDialog.isOpen) {
+      setTimeout(() => {
+        if (confirmButtonRef.current) {
+          confirmButtonRef.current.focus();
+        }
+      }, 100);
+    }
+  }, [confirmDialog.isOpen]);
+
   const showMessage = (text, type) => {
+    if (messageTimerRef.current) clearTimeout(messageTimerRef.current);
     setMessage({ text, type });
-    setTimeout(() => setMessage({ text: '', type: '' }), 6000);
+    messageTimerRef.current = setTimeout(() => setMessage({ text: '', type: '' }), 6000);
   };
 
   // ==========================================
@@ -139,9 +176,22 @@ const PurchaseReturnByInvoice = () => {
       num.toLowerCase().includes(searchInvoiceNumber.toLowerCase())
     );
     setFilteredSuggestions(filtered);
-    setShowSuggestions(filtered.length > 0);
+    
+    if (filtered.length === 1 && filtered[0].toUpperCase() === searchInvoiceNumber.trim().toUpperCase()) {
+      setShowSuggestions(false);
+    } else {
+      setShowSuggestions(filtered.length > 0);
+    }
     setHighlightedIndex(-1);
   }, [searchInvoiceNumber, availableInvoiceNumbers]);
+
+  // Scroll active item into view (With Invoice)
+  useEffect(() => {
+    if (showSuggestions && highlightedIndex >= 0) {
+      const el = document.getElementById(`with-invoice-item-${highlightedIndex}`);
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  }, [highlightedIndex, showSuggestions]);
 
   const handleWithInvoiceKeyDown = (e) => {
     if (!showSuggestions && filteredSuggestions.length === 0) {
@@ -207,7 +257,6 @@ const PurchaseReturnByInvoice = () => {
           return;
         }
 
-        // Calculate Original Quantities and Amounts
         const origTotalQty = data.items.reduce((sum, item) => sum + (item.purchaseQty || item.quantity || 0), 0);
         const origTotalAmount = data.items.reduce((sum, item) => sum + ((item.purchaseQty || item.quantity || 0) * (item.unitPrice || 0)), 0);
 
@@ -224,7 +273,6 @@ const PurchaseReturnByInvoice = () => {
           }))
         );
 
-        // Auto focus on the first quantity input inside the table
         setTimeout(() => {
           if (firstQtyInputRef.current) {
             firstQtyInputRef.current.focus();
@@ -311,6 +359,14 @@ const PurchaseReturnByInvoice = () => {
     }
   };
 
+  // Scroll active item into view (Without Invoice)
+  useEffect(() => {
+    if (woShowSuggestions && woHighlightedIndex >= 0) {
+      const el = document.getElementById(`wo-prod-item-${woHighlightedIndex}`);
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  }, [woHighlightedIndex, woShowSuggestions]);
+
   const handleWoProductKeyDown = (e) => {
     if (!woShowSuggestions && woFilteredProducts.length === 0) {
       if (e.key === 'Enter') {
@@ -358,7 +414,6 @@ const PurchaseReturnByInvoice = () => {
     setWoHighlightedIndex(-1);
     setWoQuantity(1);
 
-    // Auto focus quantity input immediately after selection
     setTimeout(() => {
       if (woQtyInputRef.current) {
         woQtyInputRef.current.focus();
@@ -449,21 +504,73 @@ const PurchaseReturnByInvoice = () => {
   // Calculations
   const withTotalAmount = lineItems.reduce((sum, row) => sum + ((row.transactionQty || 0) * row.unitPrice), 0);
   const woTotalAmount = woLineItems.reduce((sum, row) => sum + row.totalPrice, 0);
-
   const selectedSupplierObj = suppliers.find(s => s._id === woSupplierId) || {};
 
-  return (
-    <div className="add-purchase-wrapper" style={{ width: '100%',marginBottom:'90px' }}>
-      <MessagePopup message={message.text} type={message.type} onClose={() => setMessage({ text: '', type: '' })} />
+  // Global Keydown for Ctrl + Enter
+  useEffect(() => {
+    const handleGlobalKeyDown = (e) => {
+      if (e.key === 'Enter' && e.ctrlKey) {
+        e.preventDefault();
+        if (returnMode === 'with' && purchase && withTotalAmount > 0 && !confirmDialog.isOpen) {
+          openConfirmDialog(`Process return for Rs ${withTotalAmount.toFixed(2)}?`, handleCompleteWithInvoice);
+        } else if (returnMode === 'without' && woLineItems.length > 0 && woSupplierId && !confirmDialog.isOpen) {
+          openConfirmDialog(`Process blind return to ${selectedSupplierObj.companyName || selectedSupplierObj.contactPerson || 'supplier'} for Rs ${woTotalAmount.toFixed(2)}?`, handleCompleteWithoutInvoice);
+        }
+      }
+    };
+    window.addEventListener('keydown', handleGlobalKeyDown);
+    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+  }, [returnMode, purchase, withTotalAmount, woLineItems.length, woSupplierId, woTotalAmount, selectedSupplierObj, confirmDialog.isOpen, lineItems, woLineItems]);
 
-      <div style={{ textAlign: 'center', alignItems: 'center',marginTop:'20px' }} className="po-header">
-        <h2>Purchase Return Management</h2>
+  return (
+    <div className="add-purchase-wrapper" style={{ width: '100%', marginBottom: '90px' }}>
+      
+      <div style={{ textAlign: 'center', alignItems: 'center', marginTop: '20px' }} className="po-header">
+        <h2 style={{ fontSize: '22px',fontWeight:'400px', color: '#3e576c', fontFamily: 'times new roman' }}>Purchase Return Management</h2>
+       
       </div>
+
+      {/* INLINE MESSAGE ALERT */}
+      {message.text && (
+        <div style={{
+          padding: '12px 16px',
+          marginBottom: '20px',
+          borderRadius: '6px',
+          backgroundColor: message.type === 'error' ? '#f8d7da' : '#d1e7dd',
+          color: message.type === 'error' ? '#842029' : '#0f5132',
+          border: `1px solid ${message.type === 'error' ? '#f5c2c7' : '#badbcc'}`,
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          fontSize: '14px'
+        }}>
+          <span>
+            <strong>{message.type === 'error' ? '⚠️ Error: ' : '✅ Success: '}</strong>
+            {message.text}
+          </span>
+          <button
+            onClick={() => setMessage({ text: '', type: '' })}
+            style={{ 
+              background: 'none', 
+              border: 'none', 
+              cursor: 'pointer', 
+              fontSize: '20px', 
+              color: 'inherit',
+              lineHeight: '1'
+            }}
+          >
+            ×
+          </button>
+        </div>
+      )}
 
       {/* Mode Toggle Buttons */}
       <div style={{ display: 'flex', gap: '10px', marginBottom: '20px', flexWrap: 'wrap' }}>
         <button 
-          onClick={() => setReturnMode('with')}
+          onClick={() => {
+            setReturnMode('with');
+            setMessage({ text: '', type: '' });
+          }}
           style={{ 
             padding: '10px 24px', 
             borderRadius: '25px', 
@@ -478,7 +585,10 @@ const PurchaseReturnByInvoice = () => {
           Return with Invoice
         </button>
         <button 
-          onClick={() => setReturnMode('without')}
+          onClick={() => {
+            setReturnMode('without');
+            setMessage({ text: '', type: '' });
+          }}
           style={{ 
             padding: '10px 24px', 
             borderRadius: '25px', 
@@ -501,7 +611,7 @@ const PurchaseReturnByInvoice = () => {
         <>
           <div className="card" style={{ position: 'relative' }}>
             <div style={{ display: 'flex', gap: '10px', position: 'relative' }}>
-              <div style={{ flex: 1, position: 'relative' }}>
+              <div style={{ flex: 1, position: 'relative' }} ref={withInvoiceWrapperRef}>
                 <input 
                   type="text" 
                   autoComplete="off"
@@ -509,7 +619,6 @@ const PurchaseReturnByInvoice = () => {
                   value={searchInvoiceNumber} 
                   onChange={(e) => { 
                     setSearchInvoiceNumber(e.target.value.toUpperCase()); 
-                    setShowSuggestions(e.target.value.trim() !== ''); 
                   }} 
                   onFocus={() => { 
                     if (searchInvoiceNumber.trim()) setShowSuggestions(true); 
@@ -522,10 +631,11 @@ const PurchaseReturnByInvoice = () => {
                     {filteredSuggestions.map((num, index) => (
                       <div 
                         key={index} 
+                        id={`with-invoice-item-${index}`}
                         onClick={() => { setSearchInvoiceNumber(num); setShowSuggestions(false); handleSearch(num); }} 
                         onMouseEnter={() => setHighlightedIndex(index)} 
                         style={{ 
-                          padding: '10px 14px', 
+                          padding: '5px 14px', 
                           cursor: 'pointer', 
                           backgroundColor: index === highlightedIndex ? '#e8f4fd' : 'white', 
                           color: index === highlightedIndex ? '#007bff' : '#333',
@@ -583,10 +693,18 @@ const PurchaseReturnByInvoice = () => {
                           value={row.transactionQty || ''} 
                           disabled={row.maxReturnable === 0} 
                           onChange={(e) => {
-                            let val = e.target.value.replace(/^0+/, ''); // Remove leading zeros
+                            let val = e.target.value.replace(/^0+/, '');
                             const qty = Math.min(Math.max(0, Number(val)), row.maxReturnable);
                             setLineItems(prev => prev.map(r => r.productId === row.productId ? { ...r, transactionQty: qty } : r));
-                          }} 
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              if (withTotalAmount > 0) {
+                                openConfirmDialog(`Process return for Rs ${withTotalAmount.toFixed(2)}?`, handleCompleteWithInvoice);
+                              }
+                            }
+                          }}
                           style={{ width: '100%', padding: '6px', border: '1px solid #ccc', borderRadius: '4px' }} 
                         />
                       </td>
@@ -626,6 +744,7 @@ const PurchaseReturnByInvoice = () => {
                   );
                 }
               }}
+              title="Shortcut: Ctrl + Enter"
             >
               {completing ? 'Processing...' : 'Complete Return '}
             </button>
@@ -644,7 +763,7 @@ const PurchaseReturnByInvoice = () => {
             <div className="card" style={{ flex: 1, minWidth: '300px', display: 'flex', flexDirection: 'column' }}>
               <h4 style={{ textAlign: 'center', color: '#4a5568', marginBottom: '15px', borderBottom: '1px solid #e2e8f0', paddingBottom: '10px' }}>Add Products</h4>
               
-              <div style={{ position: 'relative', marginBottom: '15px' }}>
+              <div style={{ position: 'relative', marginBottom: '15px' }} ref={woProductWrapperRef}>
                 <label style={{ fontSize: '12px', fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>Search Product *</label>
                 <input 
                   type="text" 
@@ -653,6 +772,9 @@ const PurchaseReturnByInvoice = () => {
                   value={woProductSearch} 
                   onChange={handleWoProductSearchChange} 
                   onKeyDown={handleWoProductKeyDown}
+                  onFocus={() => { 
+                    if (woProductSearch.trim()) setWoShowSuggestions(true); 
+                  }}
                   style={{ width: '100%', padding: '10px', border: '1px solid #ccc', borderRadius: '4px', backgroundColor:'#fff', boxSizing: 'border-box' }} 
                 />
                 {woShowSuggestions && woFilteredProducts.length > 0 && (
@@ -660,6 +782,7 @@ const PurchaseReturnByInvoice = () => {
                     {woFilteredProducts.map((p, i) => (
                       <div 
                         key={p._id} 
+                        id={`wo-prod-item-${i}`}
                         onClick={() => selectWoProduct(p)} 
                         onMouseEnter={() => setWoHighlightedIndex(i)}
                         style={{ 
@@ -688,7 +811,7 @@ const PurchaseReturnByInvoice = () => {
                   min="1" 
                   value={woQuantity || ''} 
                   onChange={e => {
-                    let val = e.target.value.replace(/^0+/, ''); // Remove leading zeros
+                    let val = e.target.value.replace(/^0+/, '');
                     setWoQuantity(val);
                   }} 
                   onKeyDown={(e) => {
@@ -788,7 +911,7 @@ const PurchaseReturnByInvoice = () => {
                           min="1" 
                           value={row.transactionQty || ''} 
                           onChange={(e) => {
-                            let val = e.target.value.replace(/^0+/, ''); // Remove leading zeros
+                            let val = e.target.value.replace(/^0+/, '');
                             const qty = Math.max(1, Number(val));
                             setWoLineItems(prev => prev.map((r, i) => i === index ? { ...r, transactionQty: qty, totalPrice: qty * r.unitPrice } : r));
                           }} 
@@ -828,6 +951,7 @@ const PurchaseReturnByInvoice = () => {
                   );
                 }
               }}
+              title="Shortcut: Ctrl + Enter"
             >
               {completing ? 'Processing...' : '↩ Return'}
             </button>
@@ -836,7 +960,7 @@ const PurchaseReturnByInvoice = () => {
       )}
 
       {/* ========================================== */}
-      {/* CUSTOM CONFIRMATION MODAL */}
+      {/* CUSTOM CONFIRMATION MODAL with Enter Key Support */}
       {/* ========================================== */}
       {confirmDialog.isOpen && (
         <div 
@@ -906,9 +1030,10 @@ const PurchaseReturnByInvoice = () => {
                 onMouseEnter={(e) => e.target.style.backgroundColor = '#e0e0e0'}
                 onMouseLeave={(e) => e.target.style.backgroundColor = '#f1f1f1'}
               >
-                Cancel
+                Cancel (Esc)
               </button>
               <button 
+                ref={confirmButtonRef}
                 onClick={() => {
                   if (confirmDialog.onConfirm) {
                     confirmDialog.onConfirm();
@@ -922,12 +1047,14 @@ const PurchaseReturnByInvoice = () => {
                   borderRadius: '6px', 
                   cursor: 'pointer',
                   fontWeight: '600',
-                  transition: 'background-color 0.2s'
+                  transition: 'background-color 0.2s',
+                  outline: '2px solid transparent',
+                  outlineOffset: '2px'
                 }}
                 onMouseEnter={(e) => e.target.style.backgroundColor = '#155d2e'}
                 onMouseLeave={(e) => e.target.style.backgroundColor = '#1f6b3a'}
               >
-                Yes, Complete
+                Yes, Complete (Enter)
               </button>
             </div>
           </div>
@@ -945,6 +1072,10 @@ const PurchaseReturnByInvoice = () => {
             opacity: 1;
             transform: translateY(0) scale(1);
           }
+        }
+        .modal-force-top button:focus-visible {
+          outline: 2px solid #1f6b3a;
+          outline-offset: 2px;
         }
       `}</style>
 

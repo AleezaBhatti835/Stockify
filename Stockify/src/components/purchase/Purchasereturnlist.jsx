@@ -405,7 +405,7 @@ const PurchaseReturnList = () => {
               <h4 style={{ textAlign:'center',margin: '4px 0', color: '#333' }}>PURCHASE RETURN</h4>
 
               <p style={{ textAlign:'left',margin: '4px 0', color: '#333' }}>Return #: {selectedReturn.returnNumber}</p>
-              <p style={{ textAlign:'left',margin: '4px 0', color: '#333' }}>Original PO #: {selectedReturn.purchase?.purchaseNumber || 'N/A'}</p>
+              <p style={{ textAlign:'left',margin: '4px 0', color: '#333' }}>Original PO #: {selectedReturn.purchase?.invoiceNumber || 'N/A'}</p>
               <p style={{ textAlign:'left',margin: '4px 0', color: '#333' }}>Date: {new Date(selectedReturn.returnDate || selectedReturn.createdAt).toLocaleDateString()}</p>
               <p style={{ textAlign:'left',margin: '4px 0', color: '#333' }}>
                 Supplier: {selectedReturn.supplier?.contactPerson || selectedReturn.supplier?.name || 'Unknown'}
@@ -566,13 +566,12 @@ const PurchaseReturnList = () => {
   if (loading) return <div style={{ padding: '20px' }}>Loading purchase returns...</div>;
 
   return (
-    <div className="panel" style={{ padding: '25px', borderRadius: '8px', backgroundColor: '#fff' }}>
+    <div className="panel" style={{ padding: '15px 25px', borderRadius: '8px', backgroundColor: '#fff' }}>
       
 
       {/* FILTER SECTION */}
       <div style={{
-        marginBottom: '2px',
-        padding: '15px',
+       
         backgroundColor:'#ffffff'
 ,        borderRadius: '6px',
         display: 'flex',
@@ -582,7 +581,7 @@ const PurchaseReturnList = () => {
       }}>
 
         <div style={{ flex: '1.4', minWidth: '200px', position: 'relative' }} ref={dropdownRef}>
-          <label style={{ textAlign:'left',display: 'block', fontSize: '12px', fontWeight: '600', color: '#555', marginBottom: '4px' }}>
+          <label style={{ textAlign:'left',display: 'block', fontSize: '12px', fontWeight: '600', color: '#555' }}>
             Search (Supplier Name)
           </label>
           <input
@@ -669,7 +668,7 @@ const PurchaseReturnList = () => {
         </div>
 
         <div style={{ flex: '1', minWidth: '130px' }}>
-          <label style={{ textAlign:'left',display: 'block', fontSize: '12px', fontWeight: '600', color: '#555', marginBottom: '4px' }}>
+          <label style={{ textAlign:'left',display: 'block', fontSize: '12px', fontWeight: '600', color: '#555' }}>
             Date From
           </label>
           <input
@@ -691,7 +690,7 @@ const PurchaseReturnList = () => {
         </div>
 
         <div style={{ flex: '1', minWidth: '130px' }}>
-          <label style={{ textAlign:'left',display: 'block', fontSize: '12px', fontWeight: '600', color: '#555', marginBottom: '4px' }}>
+          <label style={{ textAlign:'left',display: 'block', fontSize: '12px', fontWeight: '600', color: '#555' }}>
             Date To
           </label>
           <input
@@ -734,7 +733,8 @@ const PurchaseReturnList = () => {
 
       {/* RESULTS COUNT */}
       <div style={{
-        marginBottom: '15px',
+        marginBottom: '10px',
+        marginTop: '10px',
         fontSize: '12px',
         color: '#555',
         display: 'flex',
@@ -745,14 +745,14 @@ const PurchaseReturnList = () => {
         <span>Showing {filteredReturns.length} of {returns.length} purchase returns</span>
       </div>
 
-      <div style={{ overflowX: 'auto', borderRadius: '6px', border: '1px solid #eaeaea' }}>
+      <div style={{ overflowX: 'auto', borderRadius: '6px' }}>
         <table className="po-table">
           <thead>
             <tr>
-              <th>Sr #</th>
+              <th style={{textAlign:'left'}}>Sr #</th>
               <th>Date</th>
               <th>Inv #</th>
-              <th>Purchase Number</th>
+              <th>Return #</th>
               <th>Supplier</th>
               <th>Amount</th>
               <th style={{ textAlign: 'center', width: '200px' }}>Action</th>
@@ -762,12 +762,12 @@ const PurchaseReturnList = () => {
             {currentItems.length > 0 ? (
               currentItems.map((ret, index) => (
                 <tr key={ret._id}>
-                  <td>{indexOfFirstItem + index + 1}</td>
+                  <td style={{textAlign:'left'}}>{indexOfFirstItem + index + 1}</td>
                   <td>{formatDate(ret.returnDate)}</td>
                   <td>{ret.purchase?.invoiceNumber || 'N/A'}</td>
-                  <td>{ret.purchase?.purchaseNumber || 'N/A'}</td>
+                  <td>{ret.returnNumber || 'N/A'}</td>
                   <td>{ret.supplier?.contactPerson || ret.supplier?.name || 'Unknown'}</td>
-                  <td style={{ fontWeight: 'bold', color: '#137333' }}>{(ret.totalAmount)}</td>
+                  <td style={{ color: '#137333' }}>{(ret.totalAmount)}</td>
                   <td style={{ textAlign: 'center' }}>
                     {/* View Button - FIXED */}
                     <button

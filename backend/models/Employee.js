@@ -11,6 +11,9 @@ const employeeSchema = new mongoose.Schema({
     ref: 'Designation', 
     required: true 
   },
+    address: { type: String },
+  cnic: { type: String },
+
   status: { type: String, default: 'active' }, // For soft deletion
 pic: { type: String, default: '' }
 });

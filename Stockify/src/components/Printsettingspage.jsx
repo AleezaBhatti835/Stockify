@@ -2,9 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { usePrintSettings } from '../context/PrintSettingsContext';
 
 const paperOptions = [
-  { value: 'A4', label: '📄 A4 (Standard)' },
-  { value: 'A5', label: '📝 A5 (Half Page)' },
-  { value: 'Thermal58', label: '🧾 Thermal (58mm)' },
+  { value: 'A4', label: ' A4 (Standard)' },
+  { value: 'A5', label: ' A5 (Half Page)' },
+  { value: 'Thermal58', label: 'Thermal(58mm)' },
 ];
 
 const Printsettingspage = () => {
@@ -109,10 +109,11 @@ const styles = {
     marginBottom: '24px',
   },
   pageTitle: {
-    fontSize: '24px',
-    fontWeight: '700',
-    color: '#0f172a',
+     color: '#3e576c', fontSize: '20px',
+         fontWeight: '700',
     margin: '0 0 8px 0',
+    fontFamily:'times new roman',
+    
   },
   pageSubtitle: {
     fontSize: '14px',
@@ -136,6 +137,7 @@ const styles = {
     margin: '0 0 16px 0',
     textTransform: 'uppercase',
     letterSpacing: '0.5px',
+    textAlign: 'left',
   },
   buttonGroup: {
     display: 'flex',

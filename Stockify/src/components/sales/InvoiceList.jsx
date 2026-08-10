@@ -568,12 +568,12 @@ function InvoiceList() {
 }
 
 const styles = {
-    filterBar: { marginBottom: '12px', display: 'flex', alignItems: 'flex-end', gap: '12px', flexWrap: 'wrap' },
-    dateField: { display: 'flex', flexDirection: 'column', gap: '5px', width: '25%', minWidth: '180px' },
-    customerField: { backgroundColor:'none',display: 'flex', flexDirection: 'column', gap: '5px', width: '25%', minWidth: '200px' },
-    dateLabel: { fontSize: '12px', fontWeight: 600, color: '#475569', textAlign: 'left' },
-    dateInput: { padding: '9px 14px', borderRadius: '6px', border: '1px solid #cfd0d3', fontSize: '14px', backgroundColor: '#ffffff', outline: 'none', width: '100%', boxSizing: 'border-box' },
-    customerSelect: { padding: '9px 14px', borderRadius: '6px', border: '1px solid #cfd0d3', fontSize: '14px', backgroundColor: '#ffffff', outline: 'none', width: '100%', cursor: 'pointer', boxSizing: 'border-box' },
+    filterBar: { display: 'flex', alignItems: 'flex-end', gap: '12px', flexWrap: 'wrap',padding:'0px' },
+    dateField: { display: 'flex', flexDirection: 'column', gap: '5px', width: '28%', minWidth: '190px' },
+    customerField: { backgroundColor:'none',display: 'flex', flexDirection: 'column', gap: '5px', width: '27%', minWidth: '200px' },
+    dateLabel: { fontSize: '12px', fontWeight: 500, color: '#475569', textAlign: 'left',marginBottom:'none' },
+    dateInput: { padding: '8px 14px', borderRadius: '4px', border: '1px solid #cfd0d3', fontSize: '14px', backgroundColor: '#ffffff', outline: 'none', width: '100%', boxSizing: 'border-box' },
+    customerSelect: { padding: '9px 14px', borderRadius: '4px', border: '1px solid #cfd0d3', fontSize: '14px', backgroundColor: '#ffffff', outline: 'none', width: '100%', cursor: 'pointer', boxSizing: 'border-box' },
     clearBtn: { padding: '8px 16px',
               backgroundColor: '#6c757d',
               color: 'white',
@@ -583,11 +583,11 @@ const styles = {
               fontWeight: '600',
               fontSize: '14px',
               height: '38px'},
-    resultCount: { textAlign: 'right', marginBottom: '12px', fontSize: '13px', color: '#475569' },
-    tableWrapper: { background: '#fff', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)', border: '1px solid #e2e8f0', width: '100%' },
+    resultCount: { textAlign: 'right', marginBottom: '10px',marginTop:'10px', fontSize: '13px', color: '#475569',marginRight:'15px' },
+    tableWrapper: { background: '#fff', borderRadius: '8px', overflow: 'hidden', width: '100%' },
     table: { width: '100%', borderCollapse: 'collapse' },
-    th: { textAlign: 'left', padding: '14px 18px', background: '#26384a', color: '#ffffff', fontSize: '12px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', borderBottom: '1px solid #1e293b' },
-    td: { padding: '14px 18px', textAlign: 'left', fontSize: '14px', borderBottom: '1px solid #f1f5f9', color: '#475569' },
+    th: { textAlign: 'left', padding: '10px 18px', background: '#26384a', color: '#ffffff', fontSize: '12px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', borderBottom: '1px solid #1e293b' },
+    td: { padding: '5px 18px', textAlign: 'left', fontSize: '14px', borderBottom: '1px solid #f1f5f9', color: '#475569' },
     emptyCell: { textAlign: 'center', padding: '40px', color: '#94a3b8', fontSize: '15px' },
 
     iconBtnView: {

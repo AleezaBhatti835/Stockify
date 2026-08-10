@@ -22,11 +22,12 @@ html, body {
   overflow-x: hidden;
 }
 
-h2 {
+h4 {
   margin-top: 0;
   margin-bottom: 20px;
-  color: #333333;
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  color: #3e576c;
+  font-family: 'times new roman', serif;
+  font-size: 20px;
 }
 
 .message {
@@ -145,7 +146,6 @@ input[type="file"]::file-selector-button:hover {
   margin-top: 10px;
   border-bottom: 1px solid #a2a6ab;
   background-color: #ffffff;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
 }
 
 /* Add this new class for employee table */
@@ -162,12 +162,11 @@ input[type="file"]::file-selector-button:hover {
   margin-top: 10px;
   border-bottom: 1px solid #a2a6ab;
   background-color: #ffffff;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
 }
 
 /* Column widths for employee table */
-.employee-table th,
-.employee-table td {
+.employee-table th
+{
   padding: 10px 12px;
   text-align: left;
   font-size: 14px;
@@ -177,7 +176,16 @@ input[type="file"]::file-selector-button:hover {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-
+.employee-table td {
+   padding: 1px 12px;
+  text-align: left;
+  font-size: 14px;
+  border-bottom: 1px solid #d6dade;
+  color: #292b2d;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .employee-table th {
   background-color: #26384a;
   color: #fdfdfd;
@@ -231,7 +239,7 @@ input[type="file"]::file-selector-button:hover {
   
   .employee-table th,
   .employee-table td {
-    padding: 8px 10px;
+    padding: 4px 10px;
     font-size: 13px;
   }
 }
@@ -245,7 +253,6 @@ input[type="file"]::file-selector-button:hover {
   margin-top: 10px;
   border-bottom: 1px solid #a2a6ab;
   background-color: #ffffff;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
 }
 
 /* Hide default calendar icon and use custom */
@@ -287,7 +294,7 @@ input[type="date"]::-moz-calendar-picker-indicator {
 
 .roles-table th,
 .roles-table td {
-  padding: 10px 12px;
+  padding: 3px 12px;
   text-align: left;
   font-size: 14px;
   border-bottom: 1px solid #d6dade;

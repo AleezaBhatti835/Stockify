@@ -444,13 +444,11 @@ const applyFilters = () => {
   if (loading) return <div style={{ padding: '20px' }}>Loading purchases...</div>;
 
   return (
-    <div className="panel" style={{ padding: '25px', borderRadius: '8px', backgroundColor: '#fff' }}>
+    <div className="panel" style={{ padding: '15px 25px', borderRadius: '8px', backgroundColor: '#fff' }}>
 
 
       {/* FILTER SECTION */}
       <div style={{
-        marginBottom: '2px',
-        padding: '15px',
         borderRadius: '6px',
         display: 'flex',
         flexWrap: 'wrap',
@@ -459,7 +457,7 @@ const applyFilters = () => {
         , textAlign: 'left',
       }}>
         <div style={{ flex: '1', minWidth: '150px' }}>
-          <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#555', marginBottom: '4px' }}>
+          <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#555' }}>
             Supplier
           </label>
           <select
@@ -486,7 +484,7 @@ const applyFilters = () => {
         </div>
 
         <div style={{ flex: '1', minWidth: '130px', textAlign: 'left' }}>
-          <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#555', marginBottom: '4px' }}>
+          <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#555' }}>
             Date From
           </label>
           <input
@@ -508,7 +506,7 @@ const applyFilters = () => {
         </div>
 
         <div style={{ flex: '1', minWidth: '130px' }}>
-          <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#555', marginBottom: '4px' }}>
+          <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#555' }}>
             Date To
           </label>
           <input
@@ -551,28 +549,29 @@ const applyFilters = () => {
 
       {/* RESULTS COUNT */}
       <div style={{
-         marginBottom: '15px',
-        fontSize: '12px',
+ marginBottom: '10px',
+        marginTop: '10px',
+                fontSize: '12px',
         color: '#555',
         display: 'flex',
         justifyContent: 'space-between',
         textAlign:'right',
-        marginLeft:'78%'
+        marginLeft:'80%'
       }}>
         <span>Showing {filteredPurchases.length} of {purchases.length} purchases</span>
       </div>
 
       {/* MAIN SUMMARY TABLE */}
-      <div style={{ overflowX: 'auto', borderRadius: '6px', border: '1px solid #eaeaea' }}>
+      <div style={{ overflowX: 'auto', borderRadius: '6px'}}>
         <table className="po-table">
           <thead>
             <tr>
-              <th style={{ textAlign: 'center' }}>Sr #</th>
+              <th style={{ textAlign: 'left' }}>Sr #</th>
               <th style={{ textAlign: 'left' }}>Invoice #</th>
               <th style={{ textAlign: 'left' }}>Date</th>
               <th style={{ textAlign: 'left' }}>Supplier</th>
               <th style={{ textAlign: 'left' }}>Total Amount</th>
-              <th style={{ textAlign: 'left' }}>Action</th>
+              <th style={{ textAlign: 'center',width:'15%',marginRight:'10px' }}>Action</th>
             </tr>
           </thead>
           <tbody style={{ color: '#2b3a4a' }}>
@@ -581,8 +580,8 @@ const applyFilters = () => {
                 const serialNumber = (currentPage - 1) * itemsPerPage + index + 1;
                 return (
                   <tr key={purchase._id || index}>
-                    <td style={{ textAlign: 'center' }}>{serialNumber}</td>
-                    <td style={{ fontWeight: 'bold', textAlign: 'left' }}>
+                    <td style={{ textAlign: 'left' }}>{serialNumber}</td>
+                    <td style={{ textAlign: 'left' }}>
                       {purchase.invoiceNumber || 'N/A'}
                     </td>
                     <td style={{ textAlign: 'left' }}>
@@ -591,10 +590,10 @@ const applyFilters = () => {
                     <td style={{ textAlign: 'left' }}>
                       {purchase.supplier?.contactPerson || purchase.supplier?.name || 'Unknown'}
                     </td>
-                    <td style={{ fontWeight: 'bold', color: '#137333', fontSize: '15px', textAlign: 'left' }}>
+                    <td style={{ fontWeight: 'bold', color: '#137333', fontSize: '14px', textAlign: 'left' }}>
                       {purchase.totalAmount || 0}
                     </td>
-                    <td style={{ textAlign: 'left' }}>
+                    <td style={{ marginLeft:'20%' }}>
                       <button
                         style={styles.iconBtnView}
                         onClick={() => openModal(purchase)}
@@ -675,9 +674,10 @@ const styles = {
     borderRadius: '6px',
     cursor: 'pointer',
     display: 'flex',
-    alignItems: 'center',
+    alignItems: 'left',
     transition: 'all 0.2s',
-    backgroundColor: '#ebf5fc'
+    backgroundColor: '#ebf5fc',
+    marginLeft:'35%',
   },
   td: {
     padding: '10px 12px',

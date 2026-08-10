@@ -14,8 +14,9 @@
 
 .roles-container h2 {
   margin: 0;
-  font-size: 1.5rem;
-  font-weight: 700;
+ color: #3e576c;
+  font-family: 'times new roman', serif;
+  font-size: 20px;
 }
 
 /* ===== Buttons ===== */
@@ -23,7 +24,7 @@
   padding: 8px 16px;
   border: none;
   border-radius: 6px;
-  font-size: 0.85rem;
+  font-size: 0.7rem;
   font-weight: 600;
   cursor: pointer;
   background-color: #e5e7eb;
@@ -212,8 +213,7 @@
   background: #fff;
   border-radius: 10px;
   padding: 30px;
-  width: 90% !important;
-  max-width: 650px !important;
+  width: 41% !important;
   max-height: 90vh !important;
   overflow-y: auto !important;
   box-sizing: border-box !important;
@@ -234,6 +234,7 @@
 /* ===== Form grid inside modal (Add / Edit) ===== */
 .supplier-form-container {
   width: 100%;
+  margin-top: 20px;
   display: block !important; /* Protects against global grid hijacking */
 }
 
@@ -260,7 +261,7 @@
   margin-bottom: 6px;
   font-weight: 600;
   color: #374151;
-  font-size: 0.85rem;
+  font-size: 0.7rem;
 text-align: left;}
 
 .supplier-form-container input,
@@ -300,7 +301,7 @@ text-align: left;}
 .view-modal-content {
   padding: 0 !important;
   overflow: hidden;
-  max-width: 550px;
+  width: 20%;
 }
 
 .view-header-blue {
@@ -355,20 +356,22 @@ text-align: left;}
   display: flex;
   flex-direction: column;
   gap: 8px;
-  align-items: flex-start; /* Changed from center to flex-start */
+  align-items: center; /* Changed from center to flex-start */
 }
 .view-detail-item label {
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: #6b7280;
   font-weight: 600;
+    color: #1f2937;
+text-align: left;
   align-items: flex-start;
 }
 
 .view-detail-item span {
-  font-size: 1rem;
-  color: #1f2937;
+  font-size: 0.7rem;
+    color: #6b7280;
+
 }
 
 .view-detail-full {
@@ -466,7 +469,7 @@ text-align: left;}
 @keyframes popIn {
   0% {
     opacity: 0;
-    transform: scale(0.8) translateY(-30px);
+    transform: scale(0.7) translateY(-30px);
   }
   100% {
     opacity: 1;

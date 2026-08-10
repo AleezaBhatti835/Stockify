@@ -32,8 +32,6 @@ const TAB_TITLES = {
   reorder: 'Reorder Levels'
 };
 
-// `view` is driven by the sidebar (Dashboard.js), same pattern as UOM/Category/Product.
-// Accepts: 'current' | 'expiry' | 'reorder'
 function Stock({ view = 'current' }) {
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -45,7 +43,7 @@ function Stock({ view = 'current' }) {
 
   // Pagination states
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(3);
+  const [itemsPerPage] = useState(10);
 
   // Filter state
   const [filterCategory, setFilterCategory] = useState('');
@@ -56,6 +54,26 @@ function Stock({ view = 'current' }) {
     fetchCategories();
     fetchUOMs();
   }, []);
+
+  // Keyboard shortcut handler (ESC to close modals or reset filters)
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        if (isViewModalOpen) {
+          e.preventDefault();
+          setIsViewModalOpen(false);
+          setViewProduct(null);
+        } else if (filterCategory || filterUom) {
+          // If filters are active, pressing Escape clears them
+          e.preventDefault();
+          clearFilters();
+        }
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isViewModalOpen, filterCategory, filterUom]);
 
   // Reset to page 1 when filters change or data changes
   useEffect(() => {
@@ -145,7 +163,6 @@ function Stock({ view = 'current' }) {
 
   // Base lists per submodule (before filters)
   const currentStock = products.filter(p => (p.quantity || 0) > 0);
-  // Only products that have ALREADY expired (expiry date in the past)
   const expiryProducts = products
     .filter(p => !!p.expiryDate && daysUntil(p.expiryDate) < 0)
     .slice()
@@ -158,7 +175,7 @@ function Stock({ view = 'current' }) {
     return reorderProducts;
   };
 
-  // Apply Category / UOM / Expiry Date filters on top of the base list for this tab
+  // Apply Category / UOM filters on top of the base list for this tab
   const filteredList = getBaseList().filter(p => {
     if (filterCategory) {
       const catId = p.categoryId?._id || p.categoryId;
@@ -191,7 +208,7 @@ function Stock({ view = 'current' }) {
     return 'No products at or below reorder level.';
   };
 
-  // Column definitions per tab, so headers/cells/colSpan all stay in sync
+  // Column definitions per tab
   const getColumns = () => {
     const base = [
       { key: 'index', label: 'SR#', width: '6%', align: 'left' },
@@ -219,7 +236,6 @@ function Stock({ view = 'current' }) {
       ];
     }
 
-    // expiry
     return [
       ...base,
       { key: 'expiryDate', label: 'Expiry Date', width: '18%', align: 'center' },
@@ -272,11 +288,7 @@ function Stock({ view = 'current' }) {
 
   return (
     <div className="roles-container">
-    
-
       <MessagePopup message={message} onClose={clearMessage} />
-
-    
 
       {/* FILTER BAR */}
       <div style={{
@@ -287,12 +299,12 @@ function Stock({ view = 'current' }) {
         marginBottom: '1px',
         padding: '16px',
         borderRadius: '6px',
-         textAlign:'left'
+        textAlign: 'left'
       }}>
         <div style={{ minWidth: '180px' }}>
-          <label style={{ fontSize: '0.75rem', fontWeight: 600, color: '#495057', display: 'block', marginBottom: '4px' }}>Category</label>
+          <label style={{ fontSize: '0.65rem', fontWeight: 600, color: '#495057', display: 'block', marginBottom: '4px' }}>Category</label>
           <select
-            style={{ fontSize: '0.85rem', width: '100%', padding: '9px 10px', border: '1px solid #ced4da', borderRadius: '4px', backgroundColor: 'white' }}
+            style={{ fontSize: '0.7rem', width: '100%', padding: '9px 10px', border: '1px solid #ced4da', borderRadius: '4px', backgroundColor: 'white' }}
             value={filterCategory}
             onChange={(e) => setFilterCategory(e.target.value)}
           >
@@ -304,9 +316,9 @@ function Stock({ view = 'current' }) {
         </div>
 
         <div style={{ minWidth: '180px' }}>
-          <label style={{ fontSize: '0.75rem', fontWeight: 600, color: '#495057', display: 'block', marginBottom: '4px' }}>UOM</label>
+          <label style={{ fontSize: '0.65rem', fontWeight: 600, color: '#495057', display: 'block', marginBottom: '4px' }}>UOM</label>
           <select
-            style={{ fontSize: '0.85rem', width: '100%', padding: '9px 10px', border: '1px solid #ced4da', borderRadius: '4px', backgroundColor: 'white' }}
+            style={{ fontSize: '0.7rem', width: '100%', padding: '9px 10px', border: '1px solid #ced4da', borderRadius: '4px', backgroundColor: 'white' }}
             value={filterUom}
             onChange={(e) => setFilterUom(e.target.value)}
           >
@@ -328,7 +340,7 @@ function Stock({ view = 'current' }) {
               borderRadius: '4px',
               cursor: 'pointer',
               fontWeight: 600,
-              fontSize: '0.85rem',
+              fontSize: '0.7rem',
               whiteSpace: 'nowrap'
             }}
           >
@@ -336,17 +348,19 @@ function Stock({ view = 'current' }) {
           </button>
         )}
       </div>
-  {/* RESULTS COUNT */}
+
+      {/* RESULTS COUNT */}
       <div style={{
         marginBottom: '7px',
         fontSize: '14px',
         color: '#555',
         display: 'flex',
-        textAlign:'right',
-        marginLeft:'80%'
+        textAlign: 'right',
+        marginLeft: '80%'
       }}>
-        <span style={{ textAlign:'right'}}>Showing {currentItems.length} of {filteredList.length} products</span>
+        <span style={{ textAlign: 'right' }}>Showing {currentItems.length} of {filteredList.length} products</span>
       </div>
+
       {/* TABLE */}
       <div className="table-scroll-wrapper" style={{ overflowX: 'auto', width: '100%' }}>
         <table className="roles-table" style={{ width: '100%', tableLayout: 'fixed' }}>
@@ -415,7 +429,7 @@ function Stock({ view = 'current' }) {
             ← 
           </button>
           
-          <span style={{ fontSize: '12px', fontWeight: '400',color:'#868484' }}>
+          <span style={{ fontSize: '12px', fontWeight: '400', color: '#868484' }}>
             Page {currentPage} of {totalPages || 1}
           </span>
           
@@ -432,7 +446,7 @@ function Stock({ view = 'current' }) {
               fontWeight: '600'
             }}
           >
-             →
+            →
           </button>
         </div>
       )}

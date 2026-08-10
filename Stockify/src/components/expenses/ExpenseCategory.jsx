@@ -10,10 +10,10 @@ function ExpenseCategory() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [name, setName] = useState('');
-  const [originalName, setOriginalName] = useState(''); // 🔥 Track original name for 'Nothing updated' check
-  const [modalError, setModalError] = useState(''); // 🔥 Inline error state for Modal
+  const [originalName, setOriginalName] = useState('');
+  const [modalError, setModalError] = useState('');
 
-  const [message, setMessage] = useState({ text: '', type: '' });
+  const [message, setMessage] = useState({ text: '', type: '', visible: false });
   const [deleteConfirmId, setDeleteConfirmId] = useState(null);
 
   useEffect(() => {
@@ -34,31 +34,30 @@ function ExpenseCategory() {
   };
 
   const showMessage = (text, type) => {
-    setMessage({ text, type });
-    setTimeout(() => setMessage({ text: '', type: '' }), 4000);
+    setMessage({ text, type, visible: true });
+    setTimeout(() => setMessage({ text: '', type: '', visible: false }), 3000);
   };
 
   const openAddModal = () => {
     setEditingId(null);
     setName('');
     setOriginalName('');
-    setModalError(''); // Clear errors
+    setModalError('');
     setIsModalOpen(true);
   };
 
   const openEditModal = (cat) => {
     setEditingId(cat._id);
     setName(cat.name);
-    setOriginalName(cat.name); // Save original state
-    setModalError(''); // Clear errors
+    setOriginalName(cat.name);
+    setModalError('');
     setIsModalOpen(true);
   };
 
   const handleSave = async () => {
-    setModalError(''); // Reset modal errors
+    setModalError('');
     if (!name.trim()) return setModalError('Category name is required.');
 
-    // 🔥 Check if anything actually changed during Edit
     if (editingId && name.trim() === originalName.trim()) {
       return setModalError('Nothing updated.');
     }
@@ -77,14 +76,12 @@ function ExpenseCategory() {
       const data = await res.json();
 
       if (res.ok) {
-        // Success is shown globally as a toast
         showMessage(editingId ? 'Category updated successfully!' : 'Category added successfully!', 'success');
         setIsModalOpen(false);
         setName('');
         setEditingId(null);
         fetchCategories();
       } else {
-        // Validation/Duplicate errors show INLINE in the modal
         setModalError(data.message || 'Something went wrong.');
       }
     } catch (err) {
@@ -113,44 +110,46 @@ function ExpenseCategory() {
   return (
     <div style={styles.wrapper}>
       
-      {/* ==================== GLOBAL TOAST MESSAGE ==================== */}
-      {message.text && (
-        <div style={{
-          position: 'fixed',
-          top: '24px',
-          right: '24px',
-          zIndex: 1000000, /* Higher than modal overlays */
-          padding: '16px 24px',
-          borderRadius: '8px',
-          fontSize: '14px',
-          fontWeight: 600,
-          boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
-          background: message.type === 'error' ? '#fef2f2' : '#ecfdf5',
-          color: message.type === 'error' ? '#ef4444' : '#10b981',
-          border: `1px solid ${message.type === 'error' ? '#f87171' : '#34d399'}`,
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px',
-          animation: 'fadeIn 0.3s'
-        }}>
-          {message.type === 'error' ? '⚠️' : '✅'} {message.text}
+      {/* ==================== CENTERED NOTIFICATION OVERLAY ==================== */}
+      {message.visible && (
+        <div style={styles.notificationOverlay}>
+          <div style={{
+            ...styles.notificationContent,
+            background: message.type === 'error' ? '#fef2f2' : '#ecfdf5',
+            border: `2px solid ${message.type === 'error' ? '#f87171' : '#34d399'}`
+          }}>
+            <div style={styles.notificationIcon}>
+              {message.type === 'error' ? '⚠️' : '✅'}
+            </div>
+            <div style={{
+              ...styles.notificationText,
+              color: message.type === 'error' ? '#ef4444' : '#10b981'
+            }}>
+              {message.text}
+            </div>
+          </div>
         </div>
       )}
 
       <div style={{ ...styles.card, padding: 0, overflow: 'hidden' }}>
-        <div style={{ padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e2e8f0' }}>
-          <h3 style={{ margin: 0, color: '#0f172a' }}>Expense Categories</h3>
+        <div style={{ padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+          <h4 style={{ fontSize: '22px',fontWeight:'400px', color: '#3e576c', fontFamily: 'times new roman' }}>Expense Categories</h4>
           <button style={styles.addBtn} onClick={openAddModal}>+ Add Category</button>
         </div>
 
-        {/* Cleaned up Table Wrapper */}
-        <div style={{ padding: '24px 20px', display: 'flex', justifyContent: 'center', overflowX: 'auto' }}>
-          <table className='roles-table' style={{ width: '100%', maxWidth: '800px', borderCollapse: 'collapse' }}>
+        {/* Table without borders */}
+        <div style={{ padding: '8px 20px', display: 'flex', justifyContent: 'center', overflowX: 'auto' }}>
+          <table className='roles-table' style={{ 
+            width: '100%', 
+            maxWidth: '800px',
+            borderCollapse: 'collapse',
+            border: 'none'
+          }}>
             <thead>
               <tr>
-                <th style={{ ...styles.th, width: '20%', textAlign: 'center' }}>Sr#</th>
-                <th style={{ ...styles.th, width: '55%', textAlign: 'left' }}>Category Name</th>
-                <th style={{ ...styles.th, width: '25%', textAlign: 'center' }}>Actions</th>
+                <th style={{ ...styles.th, width: '20%', textAlign: 'left', border: 'none' }}>Sr#</th>
+                <th style={{ ...styles.th, width: '55%', textAlign: 'left', border: 'none' }}>Category Name</th>
+                <th style={{ ...styles.th, width: '25%', textAlign: 'center', border: 'none' }}>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -161,9 +160,9 @@ function ExpenseCategory() {
               ) : (
                 categories.map((cat, index) => (
                   <tr key={cat._id}>
-                    <td style={{ ...styles.td, textAlign: 'center' }}>{index + 1}</td>
-                    <td style={{ ...styles.td, fontWeight: 600, textAlign: 'left' }}>{cat.name}</td>
-                    <td style={{ ...styles.td, textAlign: 'center' }}>
+                    <td style={{ ...styles.td, textAlign: 'left', border: 'none' }}>{index + 1}</td>
+                    <td style={{ ...styles.td, fontWeight: 600, textAlign: 'left', border: 'none' }}>{cat.name}</td>
+                    <td style={{ ...styles.td, textAlign: 'center', border: 'none' }}>
                       <div style={styles.actionGroup}>
                         {/* Edit Button */}
                         <button style={styles.iconBtnEdit} onClick={() => openEditModal(cat)} title="Edit">
@@ -207,7 +206,6 @@ function ExpenseCategory() {
               <button style={styles.closeBtn} onClick={() => setIsModalOpen(false)}>×</button>
             </div>
 
-            {/* 🔥 INLINE ERROR MESSAGE FOR MODAL 🔥 */}
             {modalError && (
               <div style={{ marginTop: '16px', padding: '10px 14px', backgroundColor: '#fef2f2', color: '#ef4444', fontSize: '13px', fontWeight: 600, borderRadius: '6px', border: '1px solid #fecaca' }}>
                 ⚠️ {modalError}
@@ -253,24 +251,26 @@ function ExpenseCategory() {
 
 const styles = {
   wrapper: { display: 'flex', flexDirection: 'column', gap: '16px' },
-  card: { background: '#fff', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' },
-  addBtn: { background: '#3c4e6b', color: '#fff', border: 'none', padding: '10px 18px', borderRadius: '8px', cursor: 'pointer', fontWeight: 600, fontSize: '14px' },
+  card: { background: '#fff', borderRadius: '8px' },
+  addBtn: { background: '#5aa7ef', color: '#fff', border: 'none', padding: '10px 18px', borderRadius: '4px', cursor: 'pointer', fontWeight: 600, fontSize: '14px' },
   th: { 
     padding: '12px 16px', 
-    background: '#3c4e6b', 
+    background: '#26384a', 
     fontSize: '12px', 
     color: '#fff', 
     fontWeight: 600, 
     textTransform: 'uppercase', 
     letterSpacing: '0.5px',
-    whiteSpace: 'nowrap'
+    whiteSpace: 'nowrap',
+    border: 'none'
   },
   td: { 
-    padding: '12px 16px', 
+    padding: '6px 16px', 
     fontSize: '14px', 
-    borderBottom: '1px solid #f1f5f9', 
-    color: '#334155',
-    verticalAlign: 'middle'
+ borderBottom: '1px solid #f2f6f8',
+     color: '#334155',
+    verticalAlign: 'middle',
+    border: 'none'
   },
   emptyCell: { padding: '40px 0', textAlign: 'center', color: '#94a3b8', fontSize: '14px' },
   label: { fontSize: '12px', fontWeight: 700, color: '#475569', marginBottom: '6px', display: 'block', textAlign: 'left' },
@@ -309,6 +309,40 @@ const styles = {
     alignItems: 'center',
     transition: 'all 0.2s',
   },
+  notificationOverlay: {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1000000,
+    animation: 'fadeIn 0.3s ease-out',
+  },
+  notificationContent: {
+    background: '#fff',
+    padding: '30px 40px',
+    borderRadius: '12px',
+    boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: '12px',
+    minWidth: '350px',
+    maxWidth: '500px',
+  },
+  notificationIcon: {
+    fontSize: '48px',
+    lineHeight: 1,
+  },
+  notificationText: {
+    fontSize: '18px',
+    fontWeight: 600,
+    textAlign: 'center',
+  }
 };
 
 export default ExpenseCategory;

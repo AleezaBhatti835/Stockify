@@ -30,7 +30,7 @@ function Users() {
 
   // Pagination states
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(2);
+  const [itemsPerPage] = useState(5);
 
   // Custom message state
   const [message, setMessage] = useState({ text: '', type: '' });
@@ -38,10 +38,10 @@ function Users() {
   // New state for custom delete confirmation modal
   const [userToDelete, setUserToDelete] = useState(null);
 
-  // Added confirmPassword to initialState
+  // Initial state with default contact +92
   const initialState = {
-    name: '', email: '', password: '', confirmPassword: '', cnic: '',
-    contact: '', address: '', status: 'Active', role: '', pic: ''
+    name: '', emailPrefix: '', password: '', confirmPassword: '', cnic: '',
+    contact: '+92', address: '', status: 'Active', role: '', pic: ''
   };
 
   const [newUser, setNewUser] = useState(initialState);
@@ -49,16 +49,99 @@ function Users() {
   const [editUser, setEditUser] = useState(initialState);
   const [viewUser, setViewUser] = useState(null);
 
-  // Get filtered users (exclude admins)
-  const filteredUsers = users.filter(u => u.role && (u.role.role || '').toLowerCase() !== 'admin');
+  // Helper functions for formatting CNIC and Contact
+  const formatCNIC = (value) => {
+    const numbers = value.replace(/\D/g, '').slice(0, 13);
+    if (numbers.length <= 5) {
+      return numbers;
+    } else if (numbers.length <= 12) {
+      return `${numbers.slice(0, 5)}-${numbers.slice(5)}`;
+    } else {
+      return `${numbers.slice(0, 5)}-${numbers.slice(5, 12)}-${numbers.slice(12, 13)}`;
+    }
+  };
 
-  // Pagination logic
+  const formatContact = (value) => {
+    let numbers = value.replace(/\D/g, '');
+    if (numbers.startsWith('92')) {
+      numbers = numbers.slice(2);
+    }
+    numbers = numbers.slice(0, 10);
+    return `+92${numbers}`;
+  };
+
+  // Keyboard shortcut handler
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        if (isAddModalOpen) {
+          e.preventDefault();
+          setIsAddModalOpen(false);
+          setNewUser(initialState);
+          clearMessage();
+        }
+        if (editUserId) {
+          e.preventDefault();
+          setEditUserId(null);
+          clearMessage();
+        }
+        if (viewUser) {
+          e.preventDefault();
+          setViewUser(null);
+        }
+        if (userToDelete) {
+          e.preventDefault();
+          setUserToDelete(null);
+          clearMessage();
+        }
+      }
+
+      if (e.key === 'Enter' && isAddModalOpen) {
+        e.preventDefault();
+        handleAddUser();
+      }
+
+      if (e.key === 'Enter' && editUserId) {
+        e.preventDefault();
+        handleUpdateUser();
+      }
+
+      if (e.key === 'Enter' && userToDelete) {
+        e.preventDefault();
+        executeDelete();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isAddModalOpen, editUserId, viewUser, userToDelete, newUser, editUser]);
+
+  // Get filtered users (STRICTLY EXCLUDE ADMINS)
+  const filteredUsers = users.filter(u => {
+    const emailStr = (u.email || '').toLowerCase();
+    const nameStr = (u.name || '').toLowerCase();
+    
+    if (emailStr === 'admin@gmail.com' || emailStr.includes('admin')) return false;
+    if (nameStr === 'admin') return false;
+
+    if (!u.role) return true; 
+    
+    let roleName = '';
+    if (typeof u.role === 'object' && u.role.role) {
+      roleName = u.role.role;
+    } else {
+      const matchedRole = roles.find(r => r._id === u.role);
+      roleName = matchedRole ? matchedRole.role : String(u.role);
+    }
+    
+    return roleName.toLowerCase() !== 'admin';
+  });
+
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
   const currentItems = filteredUsers.slice(indexOfFirstItem, indexOfLastItem);
   const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
 
-  // Reset to page 1 when users change
   useEffect(() => {
     setCurrentPage(1);
   }, [users]);
@@ -76,7 +159,6 @@ function Users() {
     fetchRoles();
   }, []);
 
-  // Helper function to show messages and auto-clear them after 6 seconds
   const showMessage = (text, type) => {
     setMessage({ text, type });
     setTimeout(() => {
@@ -93,7 +175,15 @@ function Users() {
       const res = await fetch('http://localhost:5000/api/users');
       if (res.ok) {
         const data = await res.json();
-        setUsers(Array.isArray(data) ? data : []);
+        if (Array.isArray(data)) {
+          setUsers(data);
+        } else if (data && data.data && Array.isArray(data.data)) {
+          setUsers(data.data);
+        } else if (data && data.users && Array.isArray(data.users)) {
+          setUsers(data.users);
+        } else {
+          setUsers([]);
+        }
       } else {
         setUsers([]);
       }
@@ -155,40 +245,31 @@ function Users() {
     }
   };
 
-  const isValidEmail = (email) => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email);
-  };
-
-  // Helper function to check for duplicates
   const checkDuplicates = (payload, userIdToExclude = null) => {
-    // Check Email
     const duplicateEmail = users.find(u => u.email === payload.email && u._id !== userIdToExclude);
     if (duplicateEmail) return "This Email is already registered.";
 
-    // Check CNIC (only if provided)
     if (payload.cnic && payload.cnic.trim() !== '') {
       const duplicateCnic = users.find(u => u.cnic && u.cnic === payload.cnic && u._id !== userIdToExclude);
       if (duplicateCnic) return "This CNIC is already registered.";
     }
 
-    // Check Contact Number (only if provided)
-    if (payload.contact && payload.contact.trim() !== '') {
+    if (payload.contact && payload.contact.trim() !== '+92' && payload.contact.trim() !== '') {
       const duplicateContact = users.find(u => u.contact && u.contact === payload.contact && u._id !== userIdToExclude);
       if (duplicateContact) return "This Contact Number is already registered.";
     }
 
-    return null; // No duplicates found
+    return null;
   };
 
   const handleAddUser = async () => {
-    if (!newUser.name || !newUser.email || !newUser.password || !newUser.role) {
-      showMessage('Name, Email, Password and Role are required!', 'error');
+    if (!newUser.name || !newUser.emailPrefix || !newUser.password || !newUser.role) {
+      showMessage('Name, Email prefix, Password and Role are required!', 'error');
       return;
     }
 
-    if (!isValidEmail(newUser.email)) {
-      showMessage('Please enter a valid email address (e.g., name@gmail.com).', 'error');
+    if (newUser.password.length < 8) {
+      showMessage('Password must be at least 8 characters long!', 'error');
       return;
     }
 
@@ -197,21 +278,24 @@ function Users() {
       return;
     }
 
-    // Check for duplicates before saving
-    const duplicateError = checkDuplicates(newUser);
+    const fullEmail = `${newUser.emailPrefix.trim()}@gmail.com`;
+    const payloadObj = { ...newUser, email: fullEmail };
+    const duplicateError = checkDuplicates(payloadObj);
     if (duplicateError) {
       showMessage(duplicateError, 'error');
       return;
     }
 
     try {
-      const { confirmPassword, ...payload } = newUser;
+      const { confirmPassword, emailPrefix, ...payload } = payloadObj;
 
       const res = await fetch('http://localhost:5000/api/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
+      
+      const responseData = await res.json().catch(() => null);
 
       if (res.ok) {
         showMessage('User added successfully!', 'success');
@@ -219,7 +303,7 @@ function Users() {
         setIsAddModalOpen(false);
         fetchUsers();
       } else {
-        showMessage('Error saving user. Check if email is already in use.', 'error');
+        showMessage(responseData?.message || 'Error saving user. Backend rejected data.', 'error');
       }
     } catch (error) {
       showMessage('Server error while saving user.', 'error');
@@ -229,8 +313,8 @@ function Users() {
   const handleUpdateUser = async () => {
     if (!editUserId) return;
 
-    if (!isValidEmail(editUser.email)) {
-      showMessage('Please enter a valid email address.', 'error');
+    if (editUser.password && editUser.password.length < 8) {
+      showMessage('Password must be at least 8 characters long!', 'error');
       return;
     }
 
@@ -239,7 +323,6 @@ function Users() {
       return;
     }
 
-    // Check for duplicates before updating (excluding current user)
     const duplicateError = checkDuplicates(editUser, editUserId);
     if (duplicateError) {
       showMessage(duplicateError, 'error');
@@ -249,9 +332,8 @@ function Users() {
     try {
       const { confirmPassword, ...payload } = editUser;
 
-      if (!payload.password) {
-        delete payload.password;
-      }
+      if (!payload.password) delete payload.password;
+      if (!payload.role) delete payload.role; 
 
       const res = await fetch(`http://localhost:5000/api/users/${editUserId}`, {
         method: 'PUT',
@@ -259,13 +341,15 @@ function Users() {
         body: JSON.stringify(payload)
       });
 
+      const responseData = await res.json().catch(() => null);
+
       if (res.ok) {
         showMessage('User updated successfully!', 'success');
         setEditUserId(null);
         setEditUser(initialState);
         fetchUsers();
       } else {
-        showMessage('Error updating user.', 'error');
+        showMessage(responseData?.message || 'Backend rejected data (400 Bad Request).', 'error');
       }
     } catch (error) {
       showMessage('Server error while updating user.', 'error');
@@ -289,17 +373,32 @@ function Users() {
     if (!user) return;
     clearMessage();
     setEditUserId(user._id);
+
+    let emailPrefixVal = user.email || '';
+    if (emailPrefixVal.endsWith('@gmail.com')) {
+      emailPrefixVal = emailPrefixVal.replace('@gmail.com', '');
+    }
+
     setEditUser({
       name: user.name || '',
       email: user.email || '',
+      emailPrefix: emailPrefixVal,
       cnic: user.cnic || '',
-      contact: user.contact || '',
+      contact: user.contact || '+92',
       address: user.address || '',
-      role: user.role?._id || user.role || '',
+      role: typeof user.role === 'object' ? (user.role?._id || '') : (user.role || ''),
+      status: user.status || 'Active',
       pic: user.pic || '',
       password: '',
       confirmPassword: ''
     });
+  };
+
+  const handleInputKeyDown = (e, action) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      action();
+    }
   };
 
   const formGroupStyle = { display: 'flex', flexDirection: 'column', alignItems: 'flex-start', width: '100%' };
@@ -309,8 +408,8 @@ function Users() {
     <div className="roles-container">
       {/* HEADER WITH TOP RIGHT BUTTON */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-        <h2>Manage System Users</h2>
-        <button style={{ width: '14%', color: 'white', backgroundColor: '#5aa7ef' }} onClick={() => { clearMessage(); setIsAddModalOpen(true); }}>
+        <h4>Manage System Users</h4>
+        <button style={{ width: '14%', color: 'white', backgroundColor: '#5aa7ef', padding: '10px', border: 'none', borderRadius: '5px', cursor: 'pointer' }} onClick={() => { clearMessage(); setIsAddModalOpen(true); }}>
           + Add User
         </button>
       </div>
@@ -327,36 +426,48 @@ function Users() {
       </div>
 
       <div className="table-scroll-wrapper">
-        <table className="roles-table" style={{ width: '100%', tableLayout: 'fixed' }}>
+        <table className="roles-table" style={{ width: '100%', tableLayout: 'fixed', borderCollapse: 'collapse' }}>
           <thead>
             <tr>
-              <th style={{ width: '10%', textAlign: 'center' }}>Sr #</th>
-              <th style={{ width: '20%', textAlign: 'left' }}>Name</th>
-              <th style={{ width: '25%', textAlign: 'left' }}>Email</th>
-              <th style={{ width: '20%', textAlign: 'left' }}>Role</th>
-              <th style={{ width: '25%', textAlign: 'center' }}>Actions</th>
+              <th style={{ width: '10%', textAlign: 'center', padding: '12px' }}>Sr #</th>
+              <th style={{ width: '20%', textAlign: 'left', padding: '12px' }}>Name</th>
+              <th style={{ width: '25%', textAlign: 'left', padding: '12px' }}>Email</th>
+              <th style={{ width: '20%', textAlign: 'left', padding: '12px' }}>Role</th>
+              <th style={{ width: '25%', textAlign: 'center', padding: '12px' }}>Actions</th>
             </tr>
           </thead>
           <tbody>
             {currentItems.length > 0 ? (
               currentItems.map((u, index) => {
                 const serialNumber = (currentPage - 1) * itemsPerPage + index + 1;
+                
+                let displayRoleName = <span style={{ color: 'red' }}>No Role</span>;
+                if (u.role) {
+                  if (typeof u.role === 'object' && u.role.role) {
+                    displayRoleName = u.role.role;
+                  } else {
+                    const matchedRole = roles.find(r => r._id === u.role);
+                    displayRoleName = matchedRole ? matchedRole.role : String(u.role);
+                  }
+                }
+
                 return (
-                  <tr key={u._id}>
-                    <td style={{ textAlign: 'center' }}>{serialNumber}</td>
-                    <td style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textAlign: 'left' }}>
+                  <tr key={u._id} style={{ borderBottom: '1px solid #ddd' }}>
+                    <td style={{ textAlign: 'center', padding: '12px' }}>{serialNumber}</td>
+                    <td style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textAlign: 'left', padding: '12px' }}>
                       {u.name || 'N/A'}
                     </td>
-                    <td style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textAlign: 'left' }}>
+                    <td style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textAlign: 'left', padding: '12px' }}>
                       {u.email || 'N/A'}
                     </td>
-                    <td style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textAlign: 'left' }}>
-                      {u.role && typeof u.role === 'object' && u.role.role ? u.role.role : <span style={{ color: 'red' }}>No Role</span>}
+                    <td style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textAlign: 'left', padding: '12px' }}>
+                      {displayRoleName}
                     </td>
-                    <td style={{ ...styles.td, textAlign: 'center' }}>
+                    <td style={{ textAlign: 'center', padding: '12px' }}>
                       <div style={styles.actionGroup}>
+                        
                         {/* View Button */}
-                        <button style={styles.iconBtnView} onClick={() => handleViewRole(role)} title="View">
+                        <button style={styles.iconBtnView} onClick={() => openView(u)} title="View">
                           <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
                             <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
                             <circle cx="12" cy="12" r="3"></circle>
@@ -364,7 +475,7 @@ function Users() {
                         </button>
 
                         {/* Edit Button */}
-                        <button style={styles.iconBtnEdit} onClick={() => handleEditRole(role)} title="Edit">
+                        <button style={styles.iconBtnEdit} onClick={() => startEdit(u)} title="Edit">
                           <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
                             <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
                             <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
@@ -374,10 +485,7 @@ function Users() {
                         {/* Delete Button */}
                         <button
                           style={styles.iconBtnDelete}
-                          onClick={() => {
-                            handleDeleteClick(role._id);
-                            setIsDeleteModalOpen(true);
-                          }}
+                          onClick={() => setUserToDelete(u._id)}
                           title="Delete"
                         >
                           <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
@@ -421,7 +529,7 @@ function Users() {
             ←
           </button>
 
-          <span style={{ fontSize: '12px', fontWeight: '400',color:'#868484'}}>
+          <span style={{ fontSize: '12px', fontWeight: '400', color:'#868484' }}>
             Page {currentPage} of {totalPages || 1}
           </span>
 
@@ -477,43 +585,102 @@ function Users() {
 
               <div style={formGroupStyle}>
                 <label style={labelStyle}>Full Name *</label>
-                <input placeholder="e.g., John Doe" autoComplete="off" value={newUser.name} onChange={(e) => setNewUser({ ...newUser, name: e.target.value })} style={{ width: '100%' }} />
+                <input 
+                  placeholder="e.g. John Doe" 
+                  autoComplete="off" 
+                  value={newUser.name} 
+                  onChange={(e) => setNewUser({ ...newUser, name: e.target.value })}
+                  onKeyDown={(e) => handleInputKeyDown(e, handleAddUser)}
+                  style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px', boxSizing: 'border-box' }} 
+                />
               </div>
 
+              {/* Email with right-side @gmail.com suffix */}
               <div style={formGroupStyle}>
                 <label style={labelStyle}>Email Address *</label>
-                <input placeholder="e.g., user@gmail.com" type="email" autoComplete="off" value={newUser.email} onChange={(e) => setNewUser({ ...newUser, email: e.target.value })} style={{ width: '100%' }} />
+                <div style={{ position: 'relative', width: '100%', display: 'flex', alignItems: 'center' }}>
+                  <input 
+                    placeholder="e.g. username" 
+                    autoComplete="off" 
+                    value={newUser.emailPrefix} 
+                    onChange={(e) => setNewUser({ ...newUser, emailPrefix: e.target.value.replace(/@.*/, '') })}
+                    onKeyDown={(e) => handleInputKeyDown(e, handleAddUser)}
+                    style={{ width: '100%', padding: '8px', paddingRight: '85px', border: '1px solid #ccc', borderRadius: '4px', boxSizing: 'border-box' }} 
+                  />
+                  <span style={{ position: 'absolute', right: '10px', color: '#888', fontSize: '13px', pointerEvents: 'none' }}>
+                    @gmail.com
+                  </span>
+                </div>
               </div>
 
               <div style={formGroupStyle}>
-                <label style={labelStyle}>Password *</label>
-                <input placeholder="e.g., Pass123!@#" type="password" autoComplete="new-password" value={newUser.password} onChange={(e) => setNewUser({ ...newUser, password: e.target.value })} style={{ width: '100%' }} />
+                <label style={labelStyle}>Password * (Min 8 chars)</label>
+                <input 
+
+                  type="password" 
+                  autoComplete="new-password" 
+                  value={newUser.password} 
+                  onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
+                  onKeyDown={(e) => handleInputKeyDown(e, handleAddUser)}
+                  style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px', boxSizing: 'border-box' }} 
+                />
               </div>
 
               <div style={formGroupStyle}>
                 <label style={labelStyle}>Confirm Password *</label>
-                <input placeholder="Confirm Password" type="password" autoComplete="new-password" value={newUser.confirmPassword} onChange={(e) => setNewUser({ ...newUser, confirmPassword: e.target.value })} style={{ width: '100%' }} />
+                <input 
+                  Total 
+                  type="password" 
+                  autoComplete="new-password" 
+                  value={newUser.confirmPassword} 
+                  onChange={(e) => setNewUser({ ...newUser, confirmPassword: e.target.value })}
+                  onKeyDown={(e) => handleInputKeyDown(e, handleAddUser)}
+                  style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px', boxSizing: 'border-box' }} 
+                />
               </div>
 
+              {/* CNIC Automatic Formatting */}
               <div style={formGroupStyle}>
                 <label style={labelStyle}>CNIC</label>
-                <input placeholder="e.g., 12345-1234567-1" autoComplete="off" value={newUser.cnic} onChange={(e) => setNewUser({ ...newUser, cnic: e.target.value })} style={{ width: '100%' }} />
+                <input 
+                  placeholder="64822-1648208-2" 
+                  autoComplete="off" 
+                  maxLength={15}
+                  value={newUser.cnic} 
+                  onChange={(e) => setNewUser({ ...newUser, cnic: formatCNIC(e.target.value) })}
+                  onKeyDown={(e) => handleInputKeyDown(e, handleAddUser)}
+                  style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px', boxSizing: 'border-box' }} 
+                />
               </div>
 
+              {/* Contact Number with default +92 */}
               <div style={formGroupStyle}>
                 <label style={labelStyle}>Contact Number</label>
-                <input placeholder="e.g., 0300-1234567" autoComplete="off" value={newUser.contact} onChange={(e) => setNewUser({ ...newUser, contact: e.target.value })} style={{ width: '100%' }} />
+                <input 
+                  placeholder="+923001234567" 
+                  autoComplete="off" 
+                  value={newUser.contact} 
+                  onChange={(e) => setNewUser({ ...newUser, contact: formatContact(e.target.value) })}
+                  onKeyDown={(e) => handleInputKeyDown(e, handleAddUser)}
+                  style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px', boxSizing: 'border-box' }} 
+                />
               </div>
 
               <div style={formGroupStyle}>
                 <label style={labelStyle}>Address</label>
                 <div style={{ width: '100%' }}>
                   <textarea
-                    placeholder="e.g., 123 Main St, Block A, City"
+                    placeholder="e.g.Block A, City"
                     autoComplete="off"
                     rows={3}
                     value={newUser.address}
                     onChange={(e) => setNewUser({ ...newUser, address: e.target.value })}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && e.ctrlKey) {
+                        e.preventDefault();
+                        handleAddUser();
+                      }
+                    }}
                     style={{
                       width: '100%',
                       backgroundColor: '#ffffff',
@@ -531,7 +698,11 @@ function Users() {
 
               <div style={formGroupStyle}>
                 <label style={labelStyle}>User Role *</label>
-                <select value={newUser.role} onChange={(e) => setNewUser({ ...newUser, role: e.target.value })} style={{ width: '100%' }}>
+                <select 
+                  value={newUser.role} 
+                  onChange={(e) => setNewUser({ ...newUser, role: e.target.value })}
+                  style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px', boxSizing: 'border-box' }}
+                >
                   <option value="">-- Select Role * --</option>
                   {Array.isArray(roles) && roles.map(r => <option key={r._id} value={r._id}>{r.role}</option>)}
                 </select>
@@ -539,14 +710,14 @@ function Users() {
 
               <div style={formGroupStyle}>
                 <label style={labelStyle}>Upload Profile Image</label>
-                <input type="file" accept="image/*" onChange={(e) => handleImageUpload(e, false)} style={{ border: '1px solid #ccc', padding: '5px', width: '100%', boxSizing: 'border-box' }} />
+                <input type="file" accept="image/*" onChange={(e) => handleImageUpload(e, false)} style={{ border: '1px solid #ccc', padding: '5px', width: '100%', borderRadius: '4px', boxSizing: 'border-box' }} />
               </div>
 
             </div>
 
             <div className="modal-actions" style={{ marginTop: '25px', display: 'flex', gap: '10px', alignItems: 'right', justifyContent: 'flex-end' }}>
-              <button className="btn btn-primary" onClick={handleAddUser}>Save User</button>
-              <button className="btn btn-cancel" onClick={() => { setIsAddModalOpen(false); setNewUser(initialState); clearMessage(); }}>
+              <button className="btn btn-primary" onClick={handleAddUser} style={{ padding: '10px 15px', background: '#5aa7ef', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer' }}>Save User</button>
+              <button className="btn btn-cancel" onClick={() => { setIsAddModalOpen(false); setNewUser(initialState); clearMessage(); }} style={{ padding: '10px 15px', background: '#ccc', color: 'black', border: 'none', borderRadius: '5px', cursor: 'pointer' }}>
                 Cancel
               </button>
             </div>
@@ -602,9 +773,12 @@ function Users() {
                 <div className="view-detail-item">
                   <label>Role</label>
                   <span>
-                    {viewUser.role?.role ||
-                      viewUser.role ||
-                      "N/A"}
+                    {(() => {
+                      if (!viewUser.role) return "N/A";
+                      if (typeof viewUser.role === 'object' && viewUser.role.role) return viewUser.role.role;
+                      const matched = roles.find(r => r._id === viewUser.role);
+                      return matched ? matched.role : String(viewUser.role);
+                    })()}
                   </span>
                 </div>
 
@@ -646,35 +820,87 @@ function Users() {
 
               <div style={formGroupStyle}>
                 <label style={labelStyle}>Full Name *</label>
-                <input placeholder="e.g., John Doe" value={editUser.name} onChange={(e) => setEditUser({ ...editUser, name: e.target.value })} style={{ width: '100%' }} />
+                <input 
+                  placeholder="e.g. John Doe" 
+                  value={editUser.name} 
+                  onChange={(e) => setEditUser({ ...editUser, name: e.target.value })}
+                  onKeyDown={(e) => handleInputKeyDown(e, handleUpdateUser)}
+                  style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px', boxSizing: 'border-box' }} 
+                />
               </div>
 
+              {/* Email (Readonly during edit to prevent desync) */}
               <div style={formGroupStyle}>
-                <label>Email <span className="field-hint">(view only)</span></label>
+                <label>Email <span className="field-hint" style={{ fontSize: '11px', color: '#888' }}>(view only)</span></label>
                 <input style={{
                   width: '100%',
                   backgroundColor: '#f5f5f5',
-                  cursor: 'not-allowed'
+                  cursor: 'not-allowed',
+                  padding: '8px', border: '1px solid #ccc', borderRadius: '4px', boxSizing: 'border-box'
                 }} type="email" readOnly disabled className="input-readonly" value={editUser.email} />
               </div>
 
               <div style={formGroupStyle}>
+                <label style={labelStyle}>New Password</label>
+                <input 
+                  placeholder="Min 8 characters" 
+                  type="password" 
+                  autoComplete="new-password" 
+                  value={editUser.password} 
+                  onChange={(e) => setEditUser({ ...editUser, password: e.target.value })}
+                  onKeyDown={(e) => handleInputKeyDown(e, handleUpdateUser)}
+                  style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px', boxSizing: 'border-box' }} 
+                />
+              </div>
+
+              <div style={formGroupStyle}>
+                <label style={labelStyle}>Confirm New Password</label>
+                <input 
+                  type="password" 
+                  autoComplete="new-password" 
+                  value={editUser.confirmPassword} 
+                  onChange={(e) => setEditUser({ ...editUser, confirmPassword: e.target.value })}
+                  onKeyDown={(e) => handleInputKeyDown(e, handleUpdateUser)}
+                  style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px', boxSizing: 'border-box' }} 
+                />
+              </div>
+
+              <div style={formGroupStyle}>
                 <label style={labelStyle}>CNIC</label>
-                <input placeholder="e.g., 12345-1234567-1" value={editUser.cnic} onChange={(e) => setEditUser({ ...editUser, cnic: e.target.value })} style={{ width: '100%' }} />
+                <input 
+                  placeholder="64822-1648208-2" 
+                  maxLength={15}
+                  value={editUser.cnic} 
+                  onChange={(e) => setEditUser({ ...editUser, cnic: formatCNIC(e.target.value) })}
+                  onKeyDown={(e) => handleInputKeyDown(e, handleUpdateUser)}
+                  style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px', boxSizing: 'border-box' }} 
+                />
               </div>
 
               <div style={formGroupStyle}>
                 <label style={labelStyle}>Contact Number</label>
-                <input placeholder="e.g., 0300-1234567" value={editUser.contact} onChange={(e) => setEditUser({ ...editUser, contact: e.target.value })} style={{ width: '100%' }} />
+                <input 
+                  placeholder="+923001234567" 
+                  value={editUser.contact} 
+                  onChange={(e) => setEditUser({ ...editUser, contact: formatContact(e.target.value) })}
+                  onKeyDown={(e) => handleInputKeyDown(e, handleUpdateUser)}
+                  style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px', boxSizing: 'border-box' }} 
+                />
               </div>
 
               <div style={formGroupStyle}>
                 <label style={labelStyle}>Address</label>
                 <textarea
                   className="address-input"
-                  placeholder="e.g., 123 Main St, Block A, City"
+                  placeholder="e.g. Block A, City"
                   value={editUser.address}
                   onChange={(e) => setEditUser({ ...editUser, address: e.target.value })}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && e.ctrlKey) {
+                      e.preventDefault();
+                      handleUpdateUser();
+                    }
+                  }}
                   style={{
                     width: '100%',
                     backgroundColor: '#ffffff',
@@ -692,7 +918,11 @@ function Users() {
 
               <div style={formGroupStyle}>
                 <label style={labelStyle}>User Role *</label>
-                <select value={editUser.role} onChange={(e) => setEditUser({ ...editUser, role: e.target.value })} style={{ width: '100%' }}>
+                <select 
+                  value={editUser.role} 
+                  onChange={(e) => setEditUser({ ...editUser, role: e.target.value })}
+                  style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px', boxSizing: 'border-box' }}
+                >
                   <option value="">-- Select Role * --</option>
                   {Array.isArray(roles) && roles.map(r => <option key={r._id} value={r._id}>{r.role}</option>)}
                 </select>
@@ -701,16 +931,16 @@ function Users() {
               {/* Spanning full width for image upload in edit modal */}
               <div style={{ ...formGroupStyle, gridColumn: '1 / span 2' }}>
                 <label style={labelStyle}>Update Profile Image</label>
-                <input type="file" accept="image/*" onChange={(e) => handleImageUpload(e, true)} style={{ border: '1px solid #ccc', padding: '5px', width: '100%', boxSizing: 'border-box' }} />
+                <input type="file" accept="image/*" onChange={(e) => handleImageUpload(e, true)} style={{ border: '1px solid #ccc', padding: '5px', width: '100%', borderRadius: '4px', boxSizing: 'border-box' }} />
               </div>
 
             </div>
 
             <div className="modal-actions" style={{ marginTop: '25px', display: 'flex', gap: '10px', alignItems: 'right', justifyContent: 'flex-end' }}>
-              <button className="btn btn-primary" onClick={handleUpdateUser}>
+              <button className="btn btn-primary" onClick={handleUpdateUser} style={{ padding: '10px 15px', background: '#5aa7ef', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer' }}>
                 Save Changes
               </button>
-              <button className="btn btn-cancel" onClick={() => { setEditUserId(null); clearMessage(); }}>
+              <button className="btn btn-cancel" onClick={() => { setEditUserId(null); clearMessage(); }} style={{ padding: '10px 15px', background: '#ccc', color: 'black', border: 'none', borderRadius: '5px', cursor: 'pointer' }}>
                 Cancel
               </button>
             </div>

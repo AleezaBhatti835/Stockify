@@ -530,21 +530,21 @@ function SalesReturnList() {
 const styles = {
     page: { padding: '24px', background: '#eff0f3', minHeight: '100%' },
     
-    filterCard: {  padding: '16px', borderRadius: '8px', marginBottom: '10px', display: 'flex', gap: '20px', flexWrap: 'wrap', alignItems: 'flex-end' },
+    filterCard: {   borderRadius: '8px', marginBottom: '10px', display: 'flex', gap: '20px', flexWrap: 'wrap', alignItems: 'flex-end' },
     filterGroup: { display: 'flex', flexDirection: 'column', flex: 1, minWidth: '200px' },
-    filterLabel: { textAlign: 'left', fontSize: '13px', fontWeight: 600, color: '#475569', marginBottom: '6px' },
-    filterInput: { textAlign: 'left', padding: '10px 14px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '14px', outline: 'none', backgroundColor: '#fff', color: '#334155' },
-    clearBtn: { width: '60%', border: '1px solid #b6b0b0', background: '#c7c9ca', color: '#ffffff', padding: '9px 16px', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: 600, height: '38px', whiteSpace: 'nowrap' },
+    filterLabel: { textAlign: 'left', fontSize: '12px', fontWeight: 500, color: '#475569'},
+    filterInput: { textAlign: 'left', padding: '8px 14px', borderRadius: '4px', border: '1px solid #cbd5e1', fontSize: '14px', outline: 'none', backgroundColor: '#fff', color: '#334155' },
+    clearBtn: { width: '60%', border: '1px solid #b6b0b0', background: '#c7c9ca', color: '#ffffff', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: 600, height: '38px', whiteSpace: 'nowrap' },
 
     suggestionsList: { position: 'absolute', top: '100%', left: 0, right: 0, backgroundColor: '#fff', border: '1px solid #ccc', borderTop: 'none', borderRadius: '0 0 6px 6px', maxHeight: '180px', overflowY: 'auto', zIndex: 1000, boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' },
     suggestionItem: { textAlign: 'left', padding: '10px 14px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9', fontSize: '13px', color: '#334155' },
 
-    resultCount: { textAlign: 'right', marginBottom: '12px', fontSize: '13px', color: '#475569', fontWeight: 600 },
+    resultCount: { textAlign: 'right', marginBottom: '12px', fontSize: '13px', color: '#475569', fontWeight: 400 },
     
-    tableWrapper: { background: '#fff', borderRadius: '10px', border: '1px solid #e2e8f0', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', width: '100%' },
+    tableWrapper: { background: '#fff', borderRadius: '6px', overflow: 'hidden', width: '100%' },
     table: { width: '100%', borderCollapse: 'collapse' },
-    th: { textAlign: 'left', padding: '14px 18px', background: '#26384a', color: '#ffffff', fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', borderBottom: '1px solid #cbd5e1' },
-    td: { padding: '14px 18px', textAlign: 'left', fontSize: '14px', borderBottom: '1px solid #f1f5f9', color: '#334155' },
+    th: { textAlign: 'left', padding: '10px 18px', background: '#26384a', color: '#ffffff', fontSize: '12px', fontWeight: 600, textTransform: 'uppercase', borderBottom: '1px solid #cbd5e1' },
+    td: { padding: '5px 18px', textAlign: 'left', fontSize: '14px', borderBottom: '1px solid #f1f5f9', color: '#334155' },
     emptyCell: { textAlign: 'center', padding: '40px 0', color: '#94a3b8', fontSize: '14px' },
 
     iconBtnView: {

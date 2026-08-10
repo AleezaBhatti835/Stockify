@@ -289,10 +289,10 @@ function SalesRebateList() {
               <table style={styles.receiptTable}>
                 <thead>
                   <tr>
-                    <th style={{ ...styles.receiptTh, width: '40%' }}>Product Name</th>
-                    <th style={{ ...styles.receiptTh, textAlign: 'center', width: '15%' }}>Qty</th>
-                    <th style={{ ...styles.receiptTh, textAlign: 'right', width: '20%' }}>Unit Price</th>
-                    <th style={{ ...styles.receiptTh, textAlign: 'right', width: '25%' }}>Total</th>
+                    <th style={{ ...styles.receiptTh, width: '20%' }}>Product Name</th>
+                    <th style={{ ...styles.receiptTh, textAlign: 'left', width: '20%' }}>Qty</th>
+                    <th style={{ ...styles.receiptTh, textAlign: 'left', width: '25%' }}>Unit Price</th>
+                    <th style={{ ...styles.receiptTh, textAlign: 'left', width: '10%' }}>Total</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -302,9 +302,9 @@ function SalesRebateList() {
                     (viewDetails || []).map((d, idx) => (
                       <tr key={idx}>
                         <td style={styles.receiptTdName}>{d.product?.name || 'Unknown Product'}</td>
-                        <td style={{ ...styles.receiptTd, textAlign: 'center' }}>{d.quantity}</td>
-                        <td style={{ ...styles.receiptTd, textAlign: 'right' }}>{d.unitPrice?.toFixed(2)}</td>
-                        <td style={{ ...styles.receiptTd, textAlign: 'right', fontWeight: 600 }}>{d.totalPrice?.toFixed(2)}</td>
+                        <td style={{ ...styles.receiptTd, textAlign: 'left' }}>{d.quantity}</td>
+                        <td style={{ ...styles.receiptTd, textAlign: 'left' }}>{d.unitPrice?.toFixed(2)}</td>
+                        <td style={{ ...styles.receiptTd, textAlign: 'left', fontWeight: 600 }}>{d.totalPrice?.toFixed(2)}</td>
                       </tr>
                     ))
                   )}
@@ -369,22 +369,21 @@ function SalesRebateList() {
           </div>
         </div>
 
-        <div style={{ overflowX: 'auto', padding: '0 28px 20px 28px' }}>
+        <div style={{ overflowX: 'auto', padding: '0 24px 10px 24px' }}>
           <div style={{ 
-            border: '1px solid #ece9e9', 
-            borderRadius: '12px', 
+            borderRadius: '4px', 
             overflow: 'hidden',
           }}>
             <table style={styles.table}>
               <thead>
                 <tr>
-                  <th style={{ ...styles.th, borderTopLeftRadius: '11px' }}>Sr#</th>
+                  <th style={{ ...styles.th, borderTopLeftRadius: '6px' }}>Sr#</th>
                   <th style={{ ...styles.th, textAlign: 'left', width: '13%' }}>Date</th>
                   <th style={{ ...styles.th, textAlign: 'left', width: '15%' }}>Rebate #</th>
                   <th style={{ ...styles.th, textAlign: 'left', width: '15%' }}>Invoice #</th>
                   <th style={{ ...styles.th, textAlign: 'left', width: '18%' }}>Customer</th>
                   <th style={{ ...styles.th, textAlign: 'left', width: '15%' }}>Amount</th>
-                  <th style={{ ...styles.th, textAlign: 'center', borderTopRightRadius: '11px', width: '10%' }}>Action</th>
+                  <th style={{ ...styles.th, textAlign: 'center', borderTopRightRadius: '6px', width: '10%' }}>Action</th>
                 </tr>
               </thead>
               <tbody>
@@ -453,23 +452,25 @@ function SalesRebateList() {
 }
 
 const styles = {
-  wrapper: { width: '95%', margin: '1px 25px', display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '300px' },
+  wrapper: { width: '100%', display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '300px' },
   card: { background: '#ffffff', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 1px 1px rgba(226, 31, 31, 0.05)' },
   filterContainer: { padding: '16px 20px', backgroundColor: '#ffffff', marginTop: '0px' },
   filterRow: { display: 'flex', gap: '16px', alignItems: 'flex-end', flexWrap: 'wrap' },
   filterGroup: { display: 'flex', flexDirection: 'column', flex: '1', minWidth: '160px' },
-  filterLabel: { fontSize: '12px', fontWeight: 700, color: '#475569', textAlign: 'left', marginBottom: '4px' },
+  filterLabel: { fontSize: '12px', fontWeight: 600, color: '#475569', textAlign: 'left' },
   filterInput: { padding: '8px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '13px', backgroundColor: '#fff', outline: 'none', width: '100%', boxSizing: 'border-box' },
-  clearFilterBtn: { padding: '9px 16px', background: '#6c757d', color: '#ffffff', border: '1px solid #cfcece', borderRadius: '6px', cursor: 'pointer', fontWeight: 600, fontSize: '13px', whiteSpace: 'nowrap' },
-  filterStats: { marginTop: '10px', fontSize: '12px', color: '#64748b', textAlign: 'right', marginBottom: '10px' },
+  clearFilterBtn: { padding: '9px 16px', background: '#6c757d', color: '#ffffff', border: '1px solid #cfcece', borderRadius: '4px', cursor: 'pointer', fontWeight: 600, fontSize: '13px', whiteSpace: 'nowrap' },
+  filterStats: { marginTop: '10px', fontSize: '12px', color: '#64748b', textAlign: 'right'},
   table: { 
     width: '100%', 
     borderCollapse: 'collapse',
     margin: 0,
+   
   },
+
   th: { 
     textAlign: 'left', 
-    padding: '12px 16px', 
+    padding: '10px 16px', 
     background: '#26384a', 
     fontSize: '12px', 
     color: '#fff', 
@@ -477,8 +478,9 @@ const styles = {
     textTransform: 'uppercase', 
     letterSpacing: '0.5px',
     borderBottom: 'none',
+    borderradius: '10px'
   },
-  td: { padding: '10px 16px', textAlign: 'left', fontSize: '14px', color: '#334155' },
+  td: { padding: '10px 16px', textAlign: 'left', fontSize: '14px', color: '#334155', borderBottom: '1px solid #f1f5f9' },
   emptyCell: { padding: '30px 0', textAlign: 'center', color: '#94a3b8', fontSize: '14px' },
   iconBtnView: {
     background: '#f0fdf4',

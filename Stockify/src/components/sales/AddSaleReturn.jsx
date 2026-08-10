@@ -1,22 +1,40 @@
 import React, { useState, useEffect, useRef } from 'react';
 
-function MessagePopup({ message, type, onClose }) {
+// ==========================================
+// INLINE MESSAGE COMPONENT
+// ==========================================
+const InlineMessage = ({ message, type }) => {
   if (!message) return null;
+  
+  const colors = {
+    success: { bg: '#d4edda', text: '#155724', border: '#c3e6cb', icon: '✅' },
+    error: { bg: '#fdecea', text: '#dc3545', border: '#f5c6cb', icon: '⚠️' }
+  };
+
+  const style = colors[type] || colors.error;
+
   return (
-    <div className="message-popup-overlay" onClick={onClose} style={{ zIndex: 10000 }}>
-      <div className={`message-popup ${type}`} onClick={(e) => e.stopPropagation()}>
-        <button className="message-popup-close" onClick={onClose}>×</button>
-        <div className="message-popup-content">
-          <span className="message-popup-icon">{type === 'error' ? '⚠️' : '✅'}</span>
-          <div className="message-popup-text">
-            <strong>{type === 'error' ? 'Error: ' : 'Success: '}</strong>
-            {message}
-          </div>
-        </div>
+    <div style={{
+      padding: '12px 16px',
+      marginBottom: '20px',
+      borderRadius: '6px',
+      backgroundColor: style.bg,
+      color: style.text,
+      border: `1px solid ${style.border}`,
+      fontSize: '14px',
+      fontWeight: 500,
+      display: 'flex',
+      alignItems: 'center',
+      gap: '8px'
+    }}>
+      <span>{style.icon}</span>
+      <div>
+        <strong>{type === 'error' ? 'Error: ' : 'Success: '}</strong>
+        {message}
       </div>
     </div>
   );
-}
+};
 
 const SalesReturnByInvoice = () => {
   const [returnMode, setReturnMode] = useState('with');
@@ -52,6 +70,7 @@ const SalesReturnByInvoice = () => {
   
   // Reference for Auto-focusing Quantity Input (With Invoice)
   const firstQtyInputRef = useRef(null);
+  const withInvSearchRef = useRef(null);
 
   // ==========================================
   // WITHOUT INVOICE STATES
@@ -68,6 +87,7 @@ const SalesReturnByInvoice = () => {
   
   // Reference for Auto-focusing Quantity Input (Without Invoice)
   const woQtyInputRef = useRef(null);
+  const woSearchRef = useRef(null);
 
   // Load Initial Data on Mount
   useEffect(() => {
@@ -101,18 +121,34 @@ const SalesReturnByInvoice = () => {
     fetchInitialData();
   }, []);
 
+  // Click Outside Hook to close Dropdowns
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (withInvSearchRef.current && !withInvSearchRef.current.contains(event.target)) {
+        setShowSuggestions(false);
+        setHighlightedIndex(-1);
+      }
+      if (woSearchRef.current && !woSearchRef.current.contains(event.target)) {
+        setWoShowSuggestions(false);
+        setWoHighlightedIndex(-1);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   const showMessage = (text, type) => {
     setMessage({ text, type });
-    setTimeout(() => setMessage({ text: '', type: '' }), 6000);
+    setTimeout(() => setMessage({ text: '', type: '' }), 4000);
   };
 
   // ==========================================
-  // CONFIRM DIALOG HELPERS
+  // CONFIRM DIALOG HELPERS & KEYBOARD SHORTCUTS
   // ==========================================
-  const openConfirmDialog = (message, onConfirm) => {
+  const openConfirmDialog = (msg, onConfirm) => {
     setConfirmDialog({
       isOpen: true,
-      message,
+      message: msg,
       onConfirm: onConfirm,
       onCancel: () => {
         setConfirmDialog({ isOpen: false, message: '', onConfirm: null, onCancel: null });
@@ -124,25 +160,49 @@ const SalesReturnByInvoice = () => {
     setConfirmDialog({ isOpen: false, message: '', onConfirm: null, onCancel: null });
   };
 
+  // Enter & Escape key shortcuts specifically for the Confirm Dialog
+  useEffect(() => {
+    const handleDialogKey = (e) => {
+      if (confirmDialog.isOpen) {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          if (confirmDialog.onConfirm) confirmDialog.onConfirm();
+        } else if (e.key === 'Escape') {
+          e.preventDefault();
+          closeConfirmDialog();
+        }
+      }
+    };
+
+    if (confirmDialog.isOpen) {
+      document.addEventListener('keydown', handleDialogKey);
+    }
+    return () => document.removeEventListener('keydown', handleDialogKey);
+  }, [confirmDialog]);
+
   // ==========================================
   // WITH INVOICE LOGIC
   // ==========================================
-  useEffect(() => {
-    if (searchInvoiceNumber.trim() === '') {
+  const handleWithInvoiceSearchChange = (e) => {
+    const val = e.target.value.toUpperCase();
+    setSearchInvoiceNumber(val);
+    setHighlightedIndex(-1);
+
+    if (val.trim() !== '') {
+      const filtered = availableInvoiceNumbers.filter(num =>
+        num.toLowerCase().includes(val.toLowerCase())
+      );
+      setFilteredSuggestions(filtered);
+      setShowSuggestions(filtered.length > 0);
+    } else {
       setFilteredSuggestions([]);
       setShowSuggestions(false);
-      setHighlightedIndex(-1);
-      return;
     }
-    const filtered = availableInvoiceNumbers.filter(num =>
-      num.toLowerCase().includes(searchInvoiceNumber.toLowerCase())
-    );
-    setFilteredSuggestions(filtered);
-    setShowSuggestions(filtered.length > 0);
-    setHighlightedIndex(-1);
-  }, [searchInvoiceNumber, availableInvoiceNumbers]);
+  };
 
   const handleWithInvoiceKeyDown = (e) => {
+    if (confirmDialog.isOpen) return; // Prevent interference when modal is open
+
     if (!showSuggestions && filteredSuggestions.length === 0) {
       if (e.key === 'Enter') {
         e.preventDefault();
@@ -210,7 +270,6 @@ const SalesReturnByInvoice = () => {
         return;
       }
 
-      // Calculate Total Original Quantity & Amount manually 
       const origTotalQty = data.items.reduce((sum, item) => sum + (item.saleQty || item.quantity || 0), 0);
       const origTotalAmount = data.items.reduce((sum, item) => sum + ((item.saleQty || item.quantity || 0) * (item.unitPrice || 0)), 0);
 
@@ -227,7 +286,6 @@ const SalesReturnByInvoice = () => {
         }))
       );
 
-      // Auto focus on the first quantity input inside the table
       setTimeout(() => {
         if (firstQtyInputRef.current) {
           firstQtyInputRef.current.focus();
@@ -312,6 +370,8 @@ const SalesReturnByInvoice = () => {
   };
 
   const handleWoProductKeyDown = (e) => {
+    if (confirmDialog.isOpen) return; // Prevent interference when modal is open
+
     if (!woShowSuggestions && woFilteredProducts.length === 0) {
       if (e.key === 'Enter') {
         e.preventDefault();
@@ -356,9 +416,8 @@ const SalesReturnByInvoice = () => {
     setWoProductSearch(prod.name);
     setWoShowSuggestions(false);
     setWoHighlightedIndex(-1);
-    setWoQuantity(1); // Reset qty to 1 when new product selected
+    setWoQuantity(1);
     
-    // Auto focus quantity input immediately after selection
     setTimeout(() => {
       if (woQtyInputRef.current) {
         woQtyInputRef.current.focus();
@@ -372,7 +431,6 @@ const SalesReturnByInvoice = () => {
     const qty = Number(woQuantity);
     if (!qty || qty <= 0) return showMessage('Quantity must be greater than 0.', 'error');
 
-    // Proceed to add to cart without blocking if Customer is missing
     if (woCustomerId) {
       try {
         const res = await fetch(`http://localhost:5000/api/sales/check-customer-purchase?customerId=${woCustomerId}&productId=${woSelectedProduct._id}`, { cache: 'no-store' });
@@ -468,14 +526,18 @@ const SalesReturnByInvoice = () => {
 
   return (
     <div className="add-purchase-wrapper">
-      <MessagePopup message={message.text} type={message.type} onClose={() => setMessage({ text: '', type: '' })} />
- <div style={{ textAlign: 'center', alignItems: 'center',marginTop:'20px' }} className="po-header">
-        <h2>Sales Return Management</h2>
+      
+      <div style={{ textAlign: 'center', alignItems: 'center', marginTop:'20px', marginBottom: '15px' }} className="po-header">
+        <h2 style={{ fontSize: '22px',fontWeight:'400px', color: '#3e576c', fontFamily: 'times new roman' }}>Sales Return Management</h2>
       </div>
+
+      {/* INLINE MESSAGE */}
+      <InlineMessage message={message.text} type={message.type} />
+
       {/* Mode Toggle Buttons */}
       <div style={{ display: 'flex', gap: '10px', marginBottom: '20px', flexWrap: 'wrap' }}>
         <button
-          onClick={() => setReturnMode('with')}
+          onClick={() => { setReturnMode('with'); setMessage({text:'', type:''}); }}
           style={{
             padding: '10px 24px',
             borderRadius: '25px',
@@ -490,7 +552,7 @@ const SalesReturnByInvoice = () => {
           Return with Invoice
         </button>
         <button
-          onClick={() => setReturnMode('without')}
+          onClick={() => { setReturnMode('without'); setMessage({text:'', type:''}); }}
           style={{
             padding: '10px 24px',
             borderRadius: '25px',
@@ -513,16 +575,13 @@ const SalesReturnByInvoice = () => {
         <>
           <div className="card" style={{ position: 'relative' }}>
             <div style={{ display: 'flex', gap: '10px', position: 'relative' }}>
-              <div style={{ flex: 1, position: 'relative' }}>
+              <div style={{ flex: 1, position: 'relative' }} ref={withInvSearchRef}>
                 <input
                   type="text"
                   autoComplete="off"
                   placeholder="Search Invoice Number... (e.g. SL-1)"
                   value={searchInvoiceNumber}
-                  onChange={(e) => {
-                    setSearchInvoiceNumber(e.target.value.toUpperCase());
-                    setShowSuggestions(e.target.value.trim() !== '');
-                  }}
+                  onChange={handleWithInvoiceSearchChange}
                   onFocus={() => {
                     if (searchInvoiceNumber.trim()) setShowSuggestions(true);
                   }}
@@ -537,7 +596,7 @@ const SalesReturnByInvoice = () => {
                         onClick={() => { setSearchInvoiceNumber(num); setShowSuggestions(false); handleSearch(num); }}
                         onMouseEnter={() => setHighlightedIndex(index)}
                         style={{
-                          padding: '10px 14px',
+                          padding: '5px 14px',
                           cursor: 'pointer',
                           backgroundColor: index === highlightedIndex ? '#e8f4fd' : 'white',
                           color: index === highlightedIndex ? '#007bff' : '#333',
@@ -595,9 +654,20 @@ const SalesReturnByInvoice = () => {
                           value={row.transactionQty || ''}
                           disabled={row.maxReturnable === 0}
                           onChange={(e) => {
-                            let val = e.target.value.replace(/^0+/, ''); // Remove leading zero
+                            let val = e.target.value.replace(/^0+/, ''); 
                             const qty = Math.min(Math.max(0, Number(val)), row.maxReturnable);
                             setLineItems(prev => prev.map(r => r.productId === row.productId ? { ...r, transactionQty: qty } : r));
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              if (withTotalAmount > 0) {
+                                openConfirmDialog(
+                                  `Process sales return for Rs ${withTotalAmount.toFixed(2)}?`,
+                                  handleCompleteWithInvoice
+                                );
+                              }
+                            }
                           }}
                           style={{ width: '100%', padding: '6px', border: '1px solid #ccc', borderRadius: '4px' }}
                         />
@@ -628,7 +698,7 @@ const SalesReturnByInvoice = () => {
             </div>
             <button
               className="btn-submit-order"
-              style={{ backgroundColor: '#4d9b6b',width:'18%', padding: '15px 1px', border: 'none', borderRadius: '4px', color: '#fff', fontWeight: 'bold', cursor: 'pointer'}}
+              style={{ backgroundColor: '#4d9b6b', width: '18%', padding: '15px 1px', border: 'none', borderRadius: '4px', color: '#fff', fontWeight: 'bold', cursor: 'pointer'}}
               disabled={completing || !sale || withTotalAmount === 0}
               onClick={() => {
                 if (withTotalAmount > 0) {
@@ -656,7 +726,7 @@ const SalesReturnByInvoice = () => {
             <div className="card" style={{ flex: 1, minWidth: '300px', display: 'flex', flexDirection: 'column' }}>
               <h4 style={{ textAlign: 'center', color: '#4a5568', marginBottom: '15px', borderBottom: '1px solid #e2e8f0', paddingBottom: '10px' }}>Add Products</h4>
               
-              <div style={{ position: 'relative', marginBottom: '15px' }}>
+              <div style={{ position: 'relative', marginBottom: '15px' }} ref={woSearchRef}>
                 <label style={{ fontSize: '12px', fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>Search Product *</label>
                 <input
                   type="text"
@@ -664,6 +734,7 @@ const SalesReturnByInvoice = () => {
                   placeholder="Type to search..."
                   value={woProductSearch}
                   onChange={handleWoProductSearchChange}
+                  onFocus={() => { if (woProductSearch.trim()) setWoShowSuggestions(true); }}
                   onKeyDown={handleWoProductKeyDown}
                   style={{ backgroundColor: '#fff', width: '100%', padding: '10px', border: '1px solid #ccc', borderRadius: '4px', boxSizing: 'border-box' }}
                 />
@@ -708,7 +779,10 @@ const SalesReturnByInvoice = () => {
                     setWoQuantity(val);
                   }}
                   onKeyDown={(e) => {
-                    if (e.key === 'Enter') handleWoAddToCart();
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleWoAddToCart();
+                    }
                   }}
                   style={{ backgroundColor: '#fff', width: '100%', padding: '10px', border: '1px solid #ccc', borderRadius: '4px', boxSizing: 'border-box' }}
                 />
@@ -805,9 +879,18 @@ const SalesReturnByInvoice = () => {
                           min="1"
                           value={row.transactionQty || ''}
                           onChange={(e) => {
-                            let val = e.target.value.replace(/^0+/, ''); // Remove leading zero
+                            let val = e.target.value.replace(/^0+/, ''); 
                             const qty = Math.max(1, Number(val));
                             setWoLineItems(prev => prev.map((r, i) => i === index ? { ...r, transactionQty: qty, totalPrice: qty * r.unitPrice } : r));
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' && woTotalAmount > 0 && woCustomerId) {
+                              e.preventDefault();
+                              openConfirmDialog(
+                                `Process blind return for ${selectedCustomerObj.name || 'customer'} for Rs ${woTotalAmount.toFixed(2)}?`,
+                                handleCompleteWithoutInvoice
+                              );
+                            }
                           }}
                           style={{ width: '80px', padding: '6px', border: '1px solid #ccc', borderRadius: '4px', textAlign: 'center' }}
                         />

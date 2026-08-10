@@ -1,24 +1,41 @@
 import { useState, useEffect } from 'react';
 import './supplier.css';
 
-// Message Popup Component
-function MessagePopup({ message, onClose }) {
-  if (!message.text) return null;
+// ====== AVATAR COMPONENT ======
+function AvatarImage({ pic, name, size }) {
+  const getInitials = (name) => {
+    if (!name) return 'S';
+    return name.trim().split(/\s+/).slice(0, 2).map(w => w[0]).join('').toUpperCase();
+  };
+
+  if (pic) {
+    return (
+      <img
+        src={pic.startsWith('http') ? pic : `http://localhost:5000${pic.startsWith('/') ? '' : '/'}${pic}`}
+        alt={name}
+        style={{
+          width: size, height: size, borderRadius: '50%', objectFit: 'cover',
+          border: '1px solid #dee2e6', flexShrink: 0
+        }}
+        onError={(e) => {
+          e.target.style.display = 'none';
+          e.target.parentNode.innerHTML = `
+            <div style="width:${size}px;height:${size}px;border-radius:50%;background-color:#5aa7ef;color:white;display:flex;align-items:center;justify-content:center;font-size:${size * 0.35}px;font-weight:600;flex-shrink:0;">
+              ${getInitials(name)}
+            </div>
+          `;
+        }}
+      />
+    );
+  }
 
   return (
-    <div className="message-popup-overlay" onClick={onClose}>
-      <div className={`message-popup ${message.type}`} onClick={(e) => e.stopPropagation()}>
-        <button className="message-popup-close" onClick={onClose}>×</button>
-        <div className="message-popup-content">
-          <span className="message-popup-icon">
-            {message.type === 'error' ? '⚠️' : '✅'}
-          </span>
-          <div className="message-popup-text">
-            <strong>{message.type === 'error' ? 'Error!' : 'Success!'}</strong>
-            {message.text}
-          </div>
-        </div>
-      </div>
+    <div style={{
+      width: size, height: size, borderRadius: '50%', backgroundColor: '#5aa7ef',
+      color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center',
+      fontSize: `${size * 0.35}px`, fontWeight: 600, flexShrink: 0
+    }}>
+      {getInitials(name)}
     </div>
   );
 }
@@ -26,20 +43,21 @@ function MessagePopup({ message, onClose }) {
 function Suppliers() {
   const [suppliers, setSuppliers] = useState([]);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [message, setMessage] = useState({ text: '', type: '' });
-  
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+
   // Pagination states
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(2);
+  const [itemsPerPage] = useState(10);
 
   const initialState = {
     companyName: '',
     contactPerson: '',
-    phone: '',
+    phone: '+92',
+    emailPrefix: '',
     email: '',
     address: '',
     city: '',
-    ntn: '',
+    cnic: '',
     pic: '',
     status: 'Active'
   };
@@ -49,6 +67,80 @@ function Suppliers() {
   const [editSupplier, setEditSupplier] = useState(initialState);
   const [deleteTargetId, setDeleteTargetId] = useState(null);
   const [viewSupplier, setViewSupplier] = useState(null);
+
+  // Inline message states for modals
+  const [addMessage, setAddMessage] = useState({ text: '', type: '' });
+  const [editMessage, setEditMessage] = useState({ text: '', type: '' });
+  const [deleteMessage, setDeleteMessage] = useState({ text: '', type: '' });
+  const [imageMessage, setImageMessage] = useState({ text: '', type: '' });
+
+  // Helper functions for formatting CNIC and Contact
+  const formatCNIC = (value) => {
+    const numbers = value.replace(/\D/g, '').slice(0, 13);
+    if (numbers.length <= 5) {
+      return numbers;
+    } else if (numbers.length <= 12) {
+      return `${numbers.slice(0, 5)}-${numbers.slice(5)}`;
+    } else {
+      return `${numbers.slice(0, 5)}-${numbers.slice(5, 12)}-${numbers.slice(12, 13)}`;
+    }
+  };
+
+  const formatContact = (value) => {
+    let numbers = value.replace(/\D/g, '');
+    if (numbers.startsWith('92')) {
+      numbers = numbers.slice(2);
+    }
+    numbers = numbers.slice(0, 10);
+    return `+92${numbers}`;
+  };
+
+  // Keyboard shortcut handler
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        if (isAddModalOpen) {
+          e.preventDefault();
+          setIsAddModalOpen(false);
+          setNewSupplier(initialState);
+          setAddMessage({ text: '', type: '' });
+          setImageMessage({ text: '', type: '' });
+        }
+        if (editSupplierId) {
+          e.preventDefault();
+          setEditSupplierId(null);
+          setEditMessage({ text: '', type: '' });
+          setImageMessage({ text: '', type: '' });
+        }
+        if (viewSupplier) {
+          e.preventDefault();
+          setViewSupplier(null);
+        }
+        if (isDeleteModalOpen) {
+          e.preventDefault();
+          setDeleteTargetId(null);
+          setIsDeleteModalOpen(false);
+          setDeleteMessage({ text: '', type: '' });
+        }
+      }
+
+      if (e.key === 'Enter') {
+        if (isAddModalOpen) {
+          e.preventDefault();
+          handleAddSupplier();
+        } else if (editSupplierId) {
+          e.preventDefault();
+          handleUpdateSupplier();
+        } else if (isDeleteModalOpen) {
+          e.preventDefault();
+          proceedDelete();
+        }
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isAddModalOpen, editSupplierId, viewSupplier, isDeleteModalOpen, newSupplier, editSupplier, deleteTargetId]);
 
   // Pagination logic
   const indexOfLastItem = currentPage * itemsPerPage;
@@ -75,16 +167,24 @@ function Suppliers() {
     }
   };
 
-  // Helper function to show messages and auto-clear them after 6 seconds
-  const showMessage = (text, type) => {
-    setMessage({ text, type });
-    setTimeout(() => {
-      setMessage({ text: '', type: '' });
-    }, 6000);
+  const showAddMessage = (text, type) => {
+    setAddMessage({ text, type });
+    setTimeout(() => setAddMessage({ text: '', type: '' }), 3000);
   };
 
-  const clearMessage = () => {
-    setMessage({ text: '', type: '' });
+  const showEditMessage = (text, type) => {
+    setEditMessage({ text, type });
+    setTimeout(() => setEditMessage({ text: '', type: '' }), 3000);
+  };
+
+  const showDeleteMessage = (text, type) => {
+    setDeleteMessage({ text, type });
+    setTimeout(() => setDeleteMessage({ text: '', type: '' }), 3000);
+  };
+
+  const showImageMessage = (text, type) => {
+    setImageMessage({ text, type });
+    setTimeout(() => setImageMessage({ text: '', type: '' }), 3000);
   };
 
   const handleImageUpload = async (e, isEditing) => {
@@ -100,84 +200,67 @@ function Suppliers() {
         isEditing
           ? setEditSupplier({ ...editSupplier, pic: data.imageUrl })
           : setNewSupplier({ ...newSupplier, pic: data.imageUrl });
-        showMessage('Image uploaded successfully!', 'success');
+        showImageMessage('✅ Image uploaded successfully!', 'success');
+      } else {
+        showImageMessage('❌ Upload failed. Server error.', 'error');
       }
     } catch (error) {
-      showMessage('Upload failed.', 'error');
+      showImageMessage('❌ Upload failed. Could not reach server.', 'error');
     }
   };
 
-  // Validation function for duplicates
   const checkDuplicate = (field, value, excludeId = null) => {
     return suppliers.some(supplier => {
-      // Skip checking if it's the current supplier being edited
       if (excludeId && supplier._id === excludeId) return false;
-
-      // Skip if the field is empty
       if (!value || value.trim() === '') return false;
-
-      // Check if the field matches (case insensitive for email)
+      
       if (field === 'email') {
         return supplier.email?.toLowerCase() === value.toLowerCase().trim();
       }
-
-      // For phone and ntn, compare as strings (trimmed)
       if (field === 'phone') {
         return supplier.phone?.trim() === value.trim();
       }
-
-      if (field === 'ntn') {
-        return supplier.ntn?.trim() === value.trim();
+      if (field === 'cnic') {
+        return supplier.cnic?.trim() === value.trim();
       }
-
       return false;
     });
   };
 
   const validateSupplier = (supplierData, isEditing = false) => {
-    // Required fields validation
     if (!supplierData.companyName || !supplierData.contactPerson || !supplierData.phone) {
-      showMessage('Company Name, Contact Person and Phone are required!', 'error');
       return false;
     }
 
-    // Email format validation (if provided)
     if (supplierData.email && supplierData.email.trim() !== '') {
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(supplierData.email)) {
-        showMessage('Please enter a valid email address!', 'error');
         return false;
       }
     }
 
-    // Phone number format validation (at least 10 digits)
-    if (supplierData.phone) {
+    if (supplierData.phone && supplierData.phone !== '+92') {
       const phoneRegex = /^[0-9+\-\s()]{10,15}$/;
       if (!phoneRegex.test(supplierData.phone.trim())) {
-        showMessage('Please enter a valid phone number (10-15 digits)!', 'error');
         return false;
       }
     }
 
-    // Check for duplicate phone
     const excludeId = isEditing ? editSupplierId : null;
-    if (checkDuplicate('phone', supplierData.phone, excludeId)) {
-      showMessage('This phone number is already registered to another supplier!', 'error');
-      return false;
+    if (supplierData.phone && supplierData.phone !== '+92') {
+      if (checkDuplicate('phone', supplierData.phone, excludeId)) {
+        return false;
+      }
     }
 
-    // Check for duplicate email (if provided)
     if (supplierData.email && supplierData.email.trim() !== '') {
       if (checkDuplicate('email', supplierData.email, excludeId)) {
-        showMessage('This email is already registered to another supplier!', 'error');
         return false;
       }
     }
 
-    // Check for duplicate NTN/Tax Number (if provided)
-    if (supplierData.ntn && supplierData.ntn.trim() !== '') {
-      if (checkDuplicate('ntn', supplierData.ntn, excludeId)) {
-        showMessage('This NTN/Tax Number is already registered to another supplier!', 'error');
+    if (supplierData.cnic && supplierData.cnic.trim() !== '') {
+      if (checkDuplicate('cnic', supplierData.cnic, excludeId)) {
         return false;
       }
     }
@@ -186,93 +269,155 @@ function Suppliers() {
   };
 
   const handleAddSupplier = async () => {
-    // Validate the new supplier data
-    if (!validateSupplier(newSupplier, false)) {
+    const fullEmail = newSupplier.emailPrefix.trim() ? `${newSupplier.emailPrefix.trim()}@gmail.com` : '';
+    const payload = { ...newSupplier, email: fullEmail };
+
+    if (!validateSupplier(payload, false)) {
+      showAddMessage('Company Name, Contact Person and Phone are required!', 'error');
       return;
     }
 
     try {
+      const { emailPrefix, ...finalPayload } = payload;
       const res = await fetch('http://localhost:5000/api/suppliers', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newSupplier)
+        body: JSON.stringify(finalPayload)
       });
 
       if (res.ok) {
-        showMessage('Supplier added successfully!', 'success');
-        setNewSupplier(initialState);
-        setIsAddModalOpen(false);
-        fetchSuppliers();
+        showAddMessage('Supplier added successfully!', 'success');
+        setTimeout(() => {
+          setNewSupplier(initialState);
+          setIsAddModalOpen(false);
+          setAddMessage({ text: '', type: '' });
+          fetchSuppliers();
+        }, 500);
       } else {
         const errorData = await res.json();
-        showMessage(errorData.message || 'Error saving supplier.', 'error');
+        showAddMessage(errorData.message || 'Error saving supplier.', 'error');
       }
     } catch (error) {
-      showMessage('Server error.', 'error');
+      showAddMessage('Server error.', 'error');
     }
   };
 
   const handleUpdateSupplier = async () => {
-    // Validate the edited supplier data
-    if (!validateSupplier(editSupplier, true)) {
+    const originalSupplier = suppliers.find(s => s._id === editSupplierId);
+    
+    if (!editSupplier.companyName || !editSupplier.contactPerson || !editSupplier.phone) {
+      showEditMessage('Company Name, Contact Person and Phone are required!', 'error');
+      return;
+    }
+
+    // Build full email from prefix
+    const fullEmail = editSupplier.emailPrefix.trim() ? `${editSupplier.emailPrefix.trim()}@gmail.com` : '';
+
+    // Check if nothing changed
+    if (originalSupplier) {
+      const isSame = 
+        originalSupplier.companyName === editSupplier.companyName &&
+        originalSupplier.contactPerson === editSupplier.contactPerson &&
+        originalSupplier.phone === editSupplier.phone &&
+        originalSupplier.email === fullEmail &&
+        originalSupplier.address === editSupplier.address &&
+        originalSupplier.city === editSupplier.city &&
+        originalSupplier.cnic === editSupplier.cnic;
+      
+      if (isSame) {
+        showEditMessage('Nothing to update!', 'info');
+        return;
+      }
+    }
+
+    // Create payload with full email
+    const payload = { ...editSupplier, email: fullEmail };
+
+    if (!validateSupplier(payload, true)) {
+      showEditMessage('Validation failed. Please check your inputs.', 'error');
       return;
     }
 
     try {
+      const { emailPrefix, ...finalPayload } = payload;
       const res = await fetch(`http://localhost:5000/api/suppliers/${editSupplierId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(editSupplier)
+        body: JSON.stringify(finalPayload)
       });
 
       if (res.ok) {
-        showMessage('Supplier updated successfully!', 'success');
-        setEditSupplierId(null);
-        fetchSuppliers();
+        showEditMessage('Supplier updated successfully!', 'success');
+        setTimeout(() => {
+          setEditSupplierId(null);
+          setEditMessage({ text: '', type: '' });
+          fetchSuppliers();
+        }, 500);
       } else {
         const errorData = await res.json();
-        showMessage(errorData.message || 'Error updating supplier.', 'error');
+        showEditMessage(errorData.message || 'Error updating supplier.', 'error');
       }
     } catch (error) {
-      showMessage('Update failed.', 'error');
+      showEditMessage('Update failed.', 'error');
     }
   };
 
   const confirmDelete = (id) => {
+    setDeleteMessage({ text: '', type: '' });
     setDeleteTargetId(id);
+    setIsDeleteModalOpen(true);
   };
 
   const cancelDelete = () => {
     setDeleteTargetId(null);
+    setIsDeleteModalOpen(false);
+    setDeleteMessage({ text: '', type: '' });
   };
 
   const proceedDelete = () => {
     handleDelete(deleteTargetId);
-    setDeleteTargetId(null);
   };
 
   const handleDelete = async (id) => {
     try {
-      await fetch(`http://localhost:5000/api/suppliers/${id}`, { method: 'DELETE' });
-      showMessage('Supplier deleted successfully!', 'success');
-      fetchSuppliers();
+      const res = await fetch(`http://localhost:5000/api/suppliers/${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        showDeleteMessage('Supplier deleted successfully!', 'success');
+        setTimeout(() => {
+          setDeleteTargetId(null);
+          setIsDeleteModalOpen(false);
+          setDeleteMessage({ text: '', type: '' });
+          fetchSuppliers();
+        }, 500);
+      } else {
+        const errorData = await res.json();
+        showDeleteMessage(errorData.message || 'Error deleting supplier.', 'error');
+      }
     } catch (error) {
-      showMessage('Error deleting supplier.', 'error');
+      showDeleteMessage('Error deleting supplier.', 'error');
     }
   };
 
   const startEdit = (supplier) => {
-    clearMessage();
+    setEditMessage({ text: '', type: '' });
+    setImageMessage({ text: '', type: '' });
     setEditSupplierId(supplier._id);
+    
+    let emailPrefixVal = supplier.email || '';
+    if (emailPrefixVal.endsWith('@gmail.com')) {
+      emailPrefixVal = emailPrefixVal.replace('@gmail.com', '');
+    }
+
     setEditSupplier({
-      companyName: supplier.companyName,
-      contactPerson: supplier.contactPerson,
-      phone: supplier.phone,
-      email: supplier.email,
-      address: supplier.address,
-      city: supplier.city,
-      ntn: supplier.ntn,
-      pic: supplier.pic
+      companyName: supplier.companyName || '',
+      contactPerson: supplier.contactPerson || '',
+      phone: supplier.phone || '+92',
+      email: supplier.email || '',
+      emailPrefix: emailPrefixVal,
+      address: supplier.address || '',
+      city: supplier.city || '',
+      cnic: supplier.cnic || '',
+      pic: supplier.pic || ''
     });
   };
 
@@ -289,11 +434,47 @@ function Suppliers() {
     return name.charAt(0).toUpperCase();
   };
 
+  // Handle Enter key on input fields
+  const handleInputKeyDown = (e, action) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      action();
+    }
+  };
+
+  // Inline Message Component
+  const InlineMessage = ({ message, type }) => {
+    if (!message) return null;
+    
+    const colors = {
+      success: { bg: '#d4edda', text: '#155724', border: '#c3e6cb', icon: '✅' },
+      error: { bg: '#fdecea', text: '#dc3545', border: '#f5c6cb', icon: '⚠️' },
+      info: { bg: '#e7f3ff', text: '#0056b3', border: '#b8d4f0', icon: 'ℹ️' }
+    };
+
+    const style = colors[type] || colors.info;
+
+    return (
+      <div style={{
+        padding: '10px 14px',
+        marginBottom: '15px',
+        borderRadius: '6px',
+        backgroundColor: style.bg,
+        color: style.text,
+        border: `1px solid ${style.border}`,
+        fontSize: '14px',
+        fontWeight: 500
+      }}>
+        {style.icon} {message}
+      </div>
+    );
+  };
+
   return (
     <div className="roles-container">
       <div className="page-header">
-        <h2>Manage Suppliers</h2>
-        <button style={{ width: '16%', color: 'white', backgroundColor: '#5aa7ef' }} className="btn btn-primary" onClick={() => { clearMessage(); setIsAddModalOpen(true); }}>+ Add Supplier</button>
+        <h4>Manage Suppliers</h4>
+        <button style={{ width: '16%', color: 'white', backgroundColor: '#5aa7ef' }} className="btn btn-primary" onClick={() => { setAddMessage({ text: '', type: '' }); setImageMessage({ text: '', type: '' }); setIsAddModalOpen(true); }}>+ Add Supplier</button>
       </div>
 
       {/* RESULTS COUNT */}
@@ -311,12 +492,12 @@ function Suppliers() {
         <table className="roles-table">
           <thead>
             <tr>
-              <th style={{ width: '10%', textAlign: 'center' }}>Sr #</th>
-              <th style={{ width: "25%" }}>Company</th>
-              <th style={{ width: "22%" }}>Name</th>
-              <th style={{ width: "18%" }}>Phone</th>
-              <th style={{ width: "15%" }}>City</th>
-              <th style={{ width: "20%", textAlign: "center" }}>Actions</th>
+              <th style={{ width: '6%', textAlign: 'left' }}>Sr #</th>
+              <th style={{ width: "14%" }}>Name</th>
+              <th style={{ width: "12%" }}>Company</th>
+              <th style={{ width: "18%" }}>Email</th>
+              <th style={{ width: "16%" }}>Phone</th>
+              <th style={{ width: "16%", textAlign: "center" }}>Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -325,11 +506,16 @@ function Suppliers() {
                 const serialNumber = (currentPage - 1) * itemsPerPage + index + 1;
                 return (
                   <tr key={s._id}>
-                    <td style={{ textAlign: 'center' }}>{serialNumber}</td>
-                    <td>{s.companyName}</td>
-                    <td>{s.contactPerson}</td>
-                    <td>{s.phone}</td>
-                    <td>{s.city || 'N/A'}</td>
+                    <td style={{ textAlign: 'left' }}>{serialNumber}</td>
+                    <td style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <AvatarImage pic={s.pic} name={s.contactPerson} size={32} />
+                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{s.contactPerson}</span>
+                      </div>
+                    </td>
+                    <td style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.companyName}</td>
+                    <td style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.email || 'N/A'}</td>
+                    <td style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.phone}</td>
                     <td className="actions-cell">
                       <div style={styles.actionGroup}>
                         {/* View Button */}
@@ -351,10 +537,7 @@ function Suppliers() {
                         {/* Delete Button */}
                         <button
                           style={styles.iconBtnDelete}
-                          onClick={() => {
-                            confirmDelete(s._id);
-                            setIsDeleteModalOpen(true);
-                          }}
+                          onClick={() => confirmDelete(s._id)}
                           title="Delete"
                         >
                           <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
@@ -371,7 +554,7 @@ function Suppliers() {
               })
             ) : (
               <tr>
-                <td colSpan="6" style={{ textAlign: 'center', padding: '40px', color: '#6c757d' }}>
+                <td colSpan="7" style={{ textAlign: 'center', padding: '40px', color: '#6c757d' }}>
                   No suppliers found. Click "Add Supplier" to create one.
                 </td>
               </tr>
@@ -382,18 +565,18 @@ function Suppliers() {
 
       {/* PAGINATION */}
       {suppliers.length > itemsPerPage && (
-        <div style={{ 
-          marginTop: '20px', 
-          display: 'flex', 
-          gap: '15px', 
-          justifyContent: 'center', 
+        <div style={{
+          marginTop: '20px',
+          display: 'flex',
+          gap: '15px',
+          justifyContent: 'center',
           alignItems: 'center',
           padding: '10px 0'
         }}>
-          <button 
-            disabled={currentPage === 1} 
+          <button
+            disabled={currentPage === 1}
             onClick={() => setCurrentPage(prev => prev - 1)}
-            style={{ 
+            style={{
               padding: '8px 16px',
               backgroundColor: currentPage === 1 ? '#e9ecef' : '#5aa7ef',
               color: currentPage === 1 ? '#6c757d' : 'white',
@@ -403,17 +586,17 @@ function Suppliers() {
               fontWeight: '600'
             }}
           >
-            ← 
+            ←
           </button>
-          
-          <span style={{ fontSize: '12px', fontWeight: '400',color:'#868484' }}>
+
+          <span style={{ fontSize: '12px', fontWeight: '400', color: '#868484' }}>
             Page {currentPage} of {totalPages || 1}
           </span>
-          
-          <button 
-            disabled={currentPage >= totalPages} 
+
+          <button
+            disabled={currentPage >= totalPages}
             onClick={() => setCurrentPage(prev => prev + 1)}
-            style={{ 
+            style={{
               padding: '8px 16px',
               backgroundColor: currentPage >= totalPages ? '#e9ecef' : '#5aa7ef',
               color: currentPage >= totalPages ? '#6c757d' : 'white',
@@ -423,7 +606,7 @@ function Suppliers() {
               fontWeight: '600'
             }}
           >
-             →
+            →
           </button>
         </div>
       )}
@@ -434,41 +617,102 @@ function Suppliers() {
           <div className="custom-modal-content">
             <h3 className="modal-title-left">Add New Supplier</h3>
 
-            {/* Message Popup */}
-            <MessagePopup message={message} onClose={clearMessage} />
+            {/* Inline Message */}
+            <InlineMessage message={addMessage.text} type={addMessage.type} />
+
+            {/* Image Upload Inline Message */}
+            {imageMessage.text && !addMessage.text && (
+              <div style={{
+                padding: '8px 12px',
+                marginBottom: '12px',
+                borderRadius: '4px',
+                backgroundColor: imageMessage.type === 'error' ? '#fdecea' : '#d4edda',
+                color: imageMessage.type === 'error' ? '#dc3545' : '#155724',
+                border: `1px solid ${imageMessage.type === 'error' ? '#f5c6cb' : '#c3e6cb'}`,
+                fontSize: '13px'
+              }}>
+                {imageMessage.text}
+              </div>
+            )}
 
             <div className="supplier-form-container">
               <div className="form-grid">
                 <div className="form-field">
                   <label>Company Name *</label>
-                  <input value={newSupplier.companyName} onChange={(e) => setNewSupplier({ ...newSupplier, companyName: e.target.value })} />
+                  <input 
+                    value={newSupplier.companyName} 
+                    onChange={(e) => setNewSupplier({ ...newSupplier, companyName: e.target.value })}
+                    onKeyDown={(e) => handleInputKeyDown(e, handleAddSupplier)}
+                    autoFocus
+                  />
                 </div>
                 <div className="form-field">
-                  <label>Name*</label>
-                  <input value={newSupplier.contactPerson} onChange={(e) => setNewSupplier({ ...newSupplier, contactPerson: e.target.value })} />
+                  <label>Name *</label>
+                  <input 
+                    value={newSupplier.contactPerson} 
+                    onChange={(e) => setNewSupplier({ ...newSupplier, contactPerson: e.target.value })}
+                    onKeyDown={(e) => handleInputKeyDown(e, handleAddSupplier)}
+                  />
                 </div>
                 <div className="form-field">
                   <label>Phone *</label>
-                  <input value={newSupplier.phone} onChange={(e) => setNewSupplier({ ...newSupplier, phone: e.target.value })} placeholder="e.g., 0300-1234567" />
+                  <input 
+                    value={newSupplier.phone} 
+                    onChange={(e) => setNewSupplier({ ...newSupplier, phone: formatContact(e.target.value) })} 
+                    placeholder="+923001234567"
+                    onKeyDown={(e) => handleInputKeyDown(e, handleAddSupplier)}
+                  />
                 </div>
+                
+                {/* Email with suffix */}
                 <div className="form-field">
                   <label>Email</label>
-                  <input type="email" value={newSupplier.email} onChange={(e) => setNewSupplier({ ...newSupplier, email: e.target.value })} />
+                  <div style={{ position: 'relative', width: '100%', display: 'flex', alignItems: 'center' }}>
+                    <input 
+                      style={{ width: '100%', paddingRight: '85px', boxSizing: 'border-box' }}
+                      value={newSupplier.emailPrefix} 
+                      onChange={(e) => setNewSupplier({ ...newSupplier, emailPrefix: e.target.value.replace(/@.*/, '') })} 
+                      placeholder="username"
+                      onKeyDown={(e) => handleInputKeyDown(e, handleAddSupplier)}
+                    />
+                    <span style={{ position: 'absolute', right: '10px', color: '#888', fontSize: '12px', pointerEvents: 'none' }}>
+                      @gmail.com
+                    </span>
+                  </div>
                 </div>
+
                 <div className="form-field">
                   <label>City</label>
-                  <input value={newSupplier.city} onChange={(e) => setNewSupplier({ ...newSupplier, city: e.target.value })} />
+                  <input 
+                    value={newSupplier.city} 
+                    onChange={(e) => setNewSupplier({ ...newSupplier, city: e.target.value })}
+                    onKeyDown={(e) => handleInputKeyDown(e, handleAddSupplier)}
+                  />
                 </div>
+                
                 <div className="form-field">
                   <label>CNIC</label>
-                  <input value={newSupplier.cnic} onChange={(e) => setNewSupplier({ ...newSupplier, cnic: e.target.value })} placeholder="XXXXXXX-X" />
+                  <input 
+                    value={newSupplier.cnic} 
+                    maxLength={15} 
+                    onChange={(e) => setNewSupplier({ ...newSupplier, cnic: formatCNIC(e.target.value) })} 
+                    placeholder="64822-1648208-2"
+                    onKeyDown={(e) => handleInputKeyDown(e, handleAddSupplier)}
+                  />
                 </div>
+
                 <div className="form-field form-field-full">
                   <label>Address</label>
                   <textarea
                     rows={3}
                     value={newSupplier.address}
                     onChange={(e) => setNewSupplier({ ...newSupplier, address: e.target.value })}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && e.ctrlKey) {
+                        e.preventDefault();
+                        handleAddSupplier();
+                      }
+                    }}
                   />
                 </div>
                 <div className="form-field form-field-full">
@@ -480,7 +724,7 @@ function Suppliers() {
 
             <div className="modal-actions" style={{ marginTop: '25px', display: 'flex', gap: '10px', alignItems: 'right', justifyContent: 'flex-end' }}>
               <button className="btn btn-primary" onClick={handleAddSupplier}>Save Supplier</button>
-              <button className="btn btn-cancel" onClick={() => { setIsAddModalOpen(false); clearMessage(); }}>Cancel</button>
+              <button className="btn btn-cancel" onClick={() => { setIsAddModalOpen(false); setAddMessage({ text: '', type: '' }); setImageMessage({ text: '', type: '' }); }}>Cancel</button>
             </div>
           </div>
         </div>
@@ -492,46 +736,102 @@ function Suppliers() {
           <div className="custom-modal-content">
             <h3 className="modal-title-left">Edit Supplier</h3>
 
-            {/* Message Popup */}
-            <MessagePopup message={message} onClose={clearMessage} />
+            {/* Inline Message */}
+            <InlineMessage message={editMessage.text} type={editMessage.type} />
+
+            {/* Image Upload Inline Message */}
+            {imageMessage.text && !editMessage.text && (
+              <div style={{
+                padding: '8px 12px',
+                marginBottom: '12px',
+                borderRadius: '4px',
+                backgroundColor: imageMessage.type === 'error' ? '#fdecea' : '#d4edda',
+                color: imageMessage.type === 'error' ? '#dc3545' : '#155724',
+                border: `1px solid ${imageMessage.type === 'error' ? '#f5c6cb' : '#c3e6cb'}`,
+                fontSize: '13px'
+              }}>
+                {imageMessage.text}
+              </div>
+            )}
 
             <div className="supplier-form-container">
               <div className="form-grid">
                 <div className="form-field">
                   <label>Company Name *</label>
-                  <input value={editSupplier.companyName} onChange={(e) => setEditSupplier({ ...editSupplier, companyName: e.target.value })} />
-                </div>
-                <div className="form-field">
-                  <label>Name*</label>
-                  <input value={editSupplier.contactPerson} onChange={(e) => setEditSupplier({ ...editSupplier, contactPerson: e.target.value })} />
-                </div>
-                <div className="form-field">
-                  <label>Phone *</label>
-                  <input value={editSupplier.phone} onChange={(e) => setEditSupplier({ ...editSupplier, phone: e.target.value })} placeholder="e.g., 0300-1234567" />
-                </div>
-                <div>
-                  <label style={{ fontSize: '0.8rem' }}>Email Address <span style={{ fontSize: '0.7rem', color: '#6c757d' }}>(view only)</span></label>
-                  <input
-                    style={{ fontSize: '0.85rem', width: '100%', backgroundColor: '#e9ecef', cursor: 'not-allowed' }}
-                    value={editSupplier.email || 'N/A'}
-                    readOnly
-                    disabled
+                  <input 
+                    value={editSupplier.companyName} 
+                    onChange={(e) => setEditSupplier({ ...editSupplier, companyName: e.target.value })}
+                    onKeyDown={(e) => handleInputKeyDown(e, handleUpdateSupplier)}
+                    autoFocus
                   />
                 </div>
                 <div className="form-field">
-                  <label>City</label>
-                  <input value={editSupplier.city} onChange={(e) => setEditSupplier({ ...editSupplier, city: e.target.value })} />
+                  <label>Name *</label>
+                  <input 
+                    value={editSupplier.contactPerson} 
+                    onChange={(e) => setEditSupplier({ ...editSupplier, contactPerson: e.target.value })}
+                    onKeyDown={(e) => handleInputKeyDown(e, handleUpdateSupplier)}
+                  />
                 </div>
                 <div className="form-field">
-                  <label>CNIC</label>
-                  <input style={{ fontSize: '0.85rem', width: '100%' }} value={editSupplier.cnic || 'N/A'} />
+                  <label>Phone *</label>
+                  <input 
+                    value={editSupplier.phone} 
+                    onChange={(e) => setEditSupplier({ ...editSupplier, phone: formatContact(e.target.value) })} 
+                    placeholder="+923001234567"
+                    onKeyDown={(e) => handleInputKeyDown(e, handleUpdateSupplier)}
+                  />
                 </div>
+                
+                {/* Email with suffix */}
+                <div className="form-field">
+                  <label>Email</label>
+                  <div style={{ position: 'relative', width: '100%', display: 'flex', alignItems: 'center' }}>
+                    <input 
+                      style={{ width: '100%', paddingRight: '85px', boxSizing: 'border-box' }}
+                      value={editSupplier.emailPrefix} 
+                      onChange={(e) => setEditSupplier({ ...editSupplier, emailPrefix: e.target.value.replace(/@.*/, ''), email: `${e.target.value.replace(/@.*/, '')}@gmail.com` })} 
+                      placeholder="username"
+                      onKeyDown={(e) => handleInputKeyDown(e, handleUpdateSupplier)}
+                    />
+                    <span style={{ position: 'absolute', right: '10px', color: '#888', fontSize: '12px', pointerEvents: 'none' }}>
+                      @gmail.com
+                    </span>
+                  </div>
+                </div>
+
+                <div className="form-field">
+                  <label>City</label>
+                  <input 
+                    value={editSupplier.city} 
+                    onChange={(e) => setEditSupplier({ ...editSupplier, city: e.target.value })}
+                    onKeyDown={(e) => handleInputKeyDown(e, handleUpdateSupplier)}
+                  />
+                </div>
+
+                <div className="form-field">
+                  <label>CNIC</label>
+                  <input 
+                    value={editSupplier.cnic} 
+                    maxLength={15} 
+                    onChange={(e) => setEditSupplier({ ...editSupplier, cnic: formatCNIC(e.target.value) })} 
+                    placeholder="64822-1648208-2"
+                    onKeyDown={(e) => handleInputKeyDown(e, handleUpdateSupplier)}
+                  />
+                </div>
+
                 <div className="form-field form-field-full">
                   <label>Address</label>
                   <textarea
                     rows={3}
                     value={editSupplier.address}
                     onChange={(e) => setEditSupplier({ ...editSupplier, address: e.target.value })}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && e.ctrlKey) {
+                        e.preventDefault();
+                        handleUpdateSupplier();
+                      }
+                    }}
                   />
                 </div>
                 <div className="form-field form-field-full">
@@ -543,7 +843,7 @@ function Suppliers() {
 
             <div className="modal-actions" style={{ marginTop: '25px', display: 'flex', gap: '10px', alignItems: 'right', justifyContent: 'flex-end' }}>
               <button className="btn btn-primary" onClick={handleUpdateSupplier}>Save Changes</button>
-              <button className="btn btn-cancel" onClick={() => { setEditSupplierId(null); clearMessage(); }}>Cancel</button>
+              <button className="btn btn-cancel" onClick={() => { setEditSupplierId(null); setEditMessage({ text: '', type: '' }); setImageMessage({ text: '', type: '' }); }}>Cancel</button>
             </div>
           </div>
         </div>
@@ -552,7 +852,7 @@ function Suppliers() {
       {/* VIEW MODAL */}
       {viewSupplier && (
         <div className="modal-overlay">
-          <div className="custom-modal-content view-modal-content">
+          <div style={{width:'20%'}} className="custom-modal-content view-modal-content">
             <div className="view-header-blue">
               {viewSupplier.pic ? (
                 <img className="view-avatar-circle" src={viewSupplier.pic} alt={viewSupplier.companyName} />
@@ -600,13 +900,13 @@ function Suppliers() {
       )}
 
       {/* DELETE CONFIRMATION MODAL */}
-      {deleteTargetId && (
+      {isDeleteModalOpen && deleteTargetId && (
         <div className="modal-overlay">
           <div className="custom-modal-content modal-small">
             <h3>Delete Supplier?</h3>
 
-            {/* Message Popup */}
-            <MessagePopup message={message} onClose={clearMessage} />
+            {/* Inline Message */}
+            <InlineMessage message={deleteMessage.text} type={deleteMessage.type} />
 
             <p className="confirm-text">
               This will permanently remove this supplier. This action cannot be undone.
@@ -621,48 +921,47 @@ function Suppliers() {
     </div>
   );
 }
-const styles = {
-    actionGroup: {
-        display: 'flex',
-        justifyContent: 'left',
-        gap: '12px',
-    },
-     iconBtnView: {
-        background: '#f0fdf4',
-        color: '#59956f',
-        border: 'none',
-        padding: '8px',
-        borderRadius: '6px',
-        cursor: 'pointer',
-        display: 'flex',
-        alignItems: 'center',
-        transition: 'all 0.2s',
-        backgroundColor:'#e9f2e9'
-    },
 
-   
-    iconBtnEdit: {
-        background: '#eff6ff',
-        color: '#3b82f6',
-        border: 'none',
-        padding: '8px',
-        borderRadius: '6px',
-        cursor: 'pointer',
-        display: 'flex',
-        alignItems: 'center',
-        transition: 'all 0.2s',
-    },
-    iconBtnDelete: {
-        background: '#fef2f2',
-        color: '#ef4444',
-        border: 'none',
-        padding: '8px',
-        borderRadius: '6px',
-        cursor: 'pointer',
-        display: 'flex',
-        alignItems: 'center',
-        transition: 'all 0.2s',
-    },
+const styles = {
+  actionGroup: {
+    display: 'flex',
+    justifyContent: 'left',
+    gap: '12px',
+  },
+  iconBtnView: {
+    background: '#f0fdf4',
+    color: '#59956f',
+    border: 'none',
+    padding: '8px',
+    borderRadius: '6px',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    transition: 'all 0.2s',
+    backgroundColor: '#e9f2e9'
+  },
+  iconBtnEdit: {
+    background: '#eff6ff',
+    color: '#3b82f6',
+    border: 'none',
+    padding: '8px',
+    borderRadius: '6px',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    transition: 'all 0.2s',
+  },
+  iconBtnDelete: {
+    background: '#fef2f2',
+    color: '#ef4444',
+    border: 'none',
+    padding: '8px',
+    borderRadius: '6px',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    transition: 'all 0.2s',
+  },
 }
 
 export default Suppliers;

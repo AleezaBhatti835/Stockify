@@ -1,24 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import './purchase.css';
 
-function MessagePopup({ message, type, onClose }) {
-    if (!message) return null;
-    return (
-        <div className="message-popup-overlay" onClick={onClose} style={{ zIndex: 10000 }}>
-            <div className={`message-popup ${type}`} onClick={(e) => e.stopPropagation()}>
-                <button className="message-popup-close" onClick={onClose}>×</button>
-                <div className="message-popup-content">
-                    <span className="message-popup-icon">{type === 'error' ? '⚠️' : '✅'}</span>
-                    <div className="message-popup-text">
-                        <strong>{type === 'error' ? 'Error: ' : 'Success: '}</strong>
-                        {message}
-                    </div>
-                </div>
-            </div>
-        </div>
-    );
-}
-
 const PurchaseRateDifference = () => {
     const [message, setMessage] = useState({ text: '', type: '' });
     const [completing, setCompleting] = useState(false);
@@ -35,6 +17,59 @@ const PurchaseRateDifference = () => {
     const [highlightedIndex, setHighlightedIndex] = useState(-1);
 
     const firstQtyInputRef = useRef(null);
+    const messageRef = useRef(null);
+    const confirmButtonRef = useRef(null);
+    const searchWrapperRef = useRef(null);
+
+    // Keyboard shortcut for confirmation modal
+    useEffect(() => {
+        const handleGlobalKeyDown = (e) => {
+            if (e.key === 'Enter' && confirmDialog.isOpen) {
+                e.preventDefault();
+                if (confirmDialog.onConfirm) {
+                    confirmDialog.onConfirm();
+                }
+            }
+            if (e.key === 'Escape' && confirmDialog.isOpen) {
+                e.preventDefault();
+                closeConfirmDialog();
+            }
+        };
+
+        window.addEventListener('keydown', handleGlobalKeyDown);
+        return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+    }, [confirmDialog.isOpen, confirmDialog.onConfirm]);
+
+    // Auto-focus on confirm button
+    useEffect(() => {
+        if (confirmDialog.isOpen) {
+            setTimeout(() => {
+                if (confirmButtonRef.current) {
+                    confirmButtonRef.current.focus();
+                }
+            }, 100);
+        }
+    }, [confirmDialog.isOpen]);
+
+    // Scroll to message when it appears
+    useEffect(() => {
+        if (message.text && messageRef.current) {
+            messageRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+    }, [message.text]);
+
+    // Click outside to close suggestions
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (searchWrapperRef.current && !searchWrapperRef.current.contains(event.target)) {
+                setShowSuggestions(false);
+                setFilteredSuggestions([]);
+                setHighlightedIndex(-1);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
 
     useEffect(() => {
         const fetchInvoices = async () => {
@@ -55,7 +90,7 @@ const PurchaseRateDifference = () => {
 
     const showMessage = (text, type) => {
         setMessage({ text, type });
-        setTimeout(() => setMessage({ text: '', type: '' }), 6000);
+        setTimeout(() => setMessage({ text: '', type: '' }), 5000);
     };
 
     const openConfirmDialog = (message, onConfirm) => {
@@ -65,25 +100,20 @@ const PurchaseRateDifference = () => {
         setConfirmDialog({ isOpen: false, message: '', onConfirm: null });
     };
 
+    // Scroll active item into view
     useEffect(() => {
-        if (searchInvoiceNumber.trim() === '') {
-            setFilteredSuggestions([]);
-            setShowSuggestions(false);
-            setHighlightedIndex(-1);
-            return;
+        if (showSuggestions && highlightedIndex >= 0) {
+            const el = document.getElementById(`invoice-item-${highlightedIndex}`);
+            if (el) el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         }
-        const filtered = availableInvoiceNumbers.filter(num =>
-            num.toLowerCase().includes(searchInvoiceNumber.toLowerCase())
-        );
-        setFilteredSuggestions(filtered);
-        setShowSuggestions(filtered.length > 0);
-        setHighlightedIndex(-1);
-    }, [searchInvoiceNumber, availableInvoiceNumbers]);
+    }, [highlightedIndex, showSuggestions]);
 
     const handleKeyDown = (e) => {
-        if (!showSuggestions && filteredSuggestions.length === 0) {
+        if (!showSuggestions || filteredSuggestions.length === 0) {
             if (e.key === 'Enter') {
                 e.preventDefault();
+                setShowSuggestions(false);
+                setFilteredSuggestions([]);
                 handleSearch();
             }
             return;
@@ -99,17 +129,23 @@ const PurchaseRateDifference = () => {
                 break;
             case 'Enter':
                 e.preventDefault();
-                if (highlightedIndex >= 0) {
+                if (highlightedIndex >= 0 && highlightedIndex < filteredSuggestions.length) {
                     const selected = filteredSuggestions[highlightedIndex];
                     setSearchInvoiceNumber(selected);
                     setShowSuggestions(false);
+                    setFilteredSuggestions([]);
+                    setHighlightedIndex(-1);
                     handleSearch(selected);
                 } else {
+                    setShowSuggestions(false);
+                    setFilteredSuggestions([]);
                     handleSearch();
                 }
                 break;
             case 'Escape':
+                e.preventDefault();
                 setShowSuggestions(false);
+                setFilteredSuggestions([]);
                 setHighlightedIndex(-1);
                 break;
             default:
@@ -119,12 +155,16 @@ const PurchaseRateDifference = () => {
 
     const handleSearch = async (overrideNumber = null) => {
         const queryNumber = typeof overrideNumber === 'string' ? overrideNumber : searchInvoiceNumber;
+
+        setShowSuggestions(false);
+        setFilteredSuggestions([]);
+        setHighlightedIndex(-1);
+
         if (!queryNumber || !queryNumber.trim()) return showMessage('Enter an invoice number.', 'error');
 
         setSearching(true);
         setPurchase(null);
         setLineItems([]);
-        setShowSuggestions(false);
 
         try {
             const res = await fetch(`http://localhost:5000/api/purchase-rate-difference/search?invoiceNumber=${encodeURIComponent(queryNumber.trim())}`, { cache: 'no-store' });
@@ -193,6 +233,8 @@ const PurchaseRateDifference = () => {
                 setPurchase(null);
                 setLineItems([]);
                 setSearchInvoiceNumber('');
+                setShowSuggestions(false);
+                setFilteredSuggestions([]);
             } else {
                 showMessage(result.message || 'Failed to record rate difference.', 'error');
             }
@@ -208,35 +250,128 @@ const PurchaseRateDifference = () => {
         return sum + diff;
     }, 0);
 
+    // Inline Message Component
+    const InlineMessage = ({ message, type }) => {
+        if (!message) return null;
+
+        const colors = {
+            success: { bg: '#d4edda', text: '#155724', border: '#c3e6cb', icon: '✅' },
+            error: { bg: '#fdecea', text: '#dc3545', border: '#f5c6cb', icon: '⚠️' }
+        };
+
+        const style = colors[type] || colors.error;
+
+        return (
+            <div ref={messageRef} style={{
+                padding: '12px 16px',
+                marginBottom: '20px',
+                borderRadius: '6px',
+                backgroundColor: style.bg,
+                color: style.text,
+                border: `1px solid ${style.border}`,
+                fontSize: '14px',
+                fontWeight: 500,
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center'
+            }}>
+                <span>{style.icon} {message}</span>
+                <button
+                    onClick={() => setMessage({ text: '', type: '' })}
+                    style={{
+                        background: 'none',
+                        border: 'none',
+                        cursor: 'pointer',
+                        fontSize: '20px',
+                        color: 'inherit',
+                        lineHeight: '1'
+                    }}
+                >
+                    ×
+                </button>
+            </div>
+        );
+    };
+
     return (
-        <div className="add-purchase-wrapper" style={{ width: '95%',marginBottom:'90px' }}>
-            <MessagePopup message={message.text} type={message.type} onClose={() => setMessage({ text: '', type: '' })} />
+        <div className="add-purchase-wrapper" style={{ width: '100%', marginBottom: '90px' }}>
+
+            {/* Inline Message */}
+            {message.text && <InlineMessage message={message.text} type={message.type} />}
 
             <div style={{ textAlign: 'center', alignItems: 'center' }} className="po-header">
-                <h2>Purchase Rate Difference</h2>
+                <h2 style={{ fontSize: '22px',fontWeight:'400px', color: '#3e576c', fontFamily: 'times new roman' }}>Purchase Rate Difference</h2>
+
             </div>
 
-            <div className="card" style={{ position: 'relative' }}>
+            <div className="card" style={{ position: 'relative', zIndex: 1000 }}>
                 <div style={{ display: 'flex', gap: '10px', position: 'relative' }}>
-                    <div style={{ flex: 1, position: 'relative' }}>
+                    <div style={{ flex: 1, position: 'relative' }} ref={searchWrapperRef}>
                         <input
                             type="text"
                             autoComplete="off"
                             placeholder="Search Invoice Number... (e.g. PU-1)"
                             value={searchInvoiceNumber}
-                            onChange={(e) => { setSearchInvoiceNumber(e.target.value.toUpperCase()); setShowSuggestions(e.target.value.trim() !== ''); }}
-                            onFocus={() => { if (searchInvoiceNumber.trim()) setShowSuggestions(true); }}
+                            onChange={(e) => {
+                                const val = e.target.value.toUpperCase();
+                                setSearchInvoiceNumber(val);
+                                if (val.trim() !== '') {
+                                    const filtered = availableInvoiceNumbers.filter(num =>
+                                        num.toLowerCase().includes(val.toLowerCase())
+                                    );
+                                    setFilteredSuggestions(filtered);
+                                    setShowSuggestions(filtered.length > 0);
+                                } else {
+                                    setShowSuggestions(false);
+                                    setFilteredSuggestions([]);
+                                    setHighlightedIndex(-1);
+                                }
+                            }}
+                            onFocus={() => {
+                                if (searchInvoiceNumber.trim() && filteredSuggestions.length > 0) {
+                                    setShowSuggestions(true);
+                                }
+                            }}
                             onKeyDown={handleKeyDown}
                             style={{ width: '100%', padding: '12px 14px', border: '1px solid #ccc', borderRadius: '4px', outline: 'none' }}
                         />
                         {showSuggestions && filteredSuggestions.length > 0 && (
-                            <div style={{ position: 'absolute', top: '100%', left: 0, textAlign: 'left', fontSize: '12px', right: 0, backgroundColor: 'white', border: '1px solid #ccc', borderTop: 'none', borderRadius: '0 0 4px 4px', maxHeight: '200px', overflowY: 'auto', zIndex: 1000, boxShadow: '0 4px 8px rgba(0,0,0,0.1)' }}>
+                            <div style={{
+                                position: 'absolute',
+                                top: '100%',
+                                left: 0,
+                                right: 0,
+                                backgroundColor: 'white',
+                                border: '1px solid #ccc',
+                                borderTop: 'none',
+                                borderRadius: '0 0 4px 4px',
+                                maxHeight: '200px',
+                                overflowY: 'auto',
+                                zIndex: 9999,
+                                boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                                textAlign: 'left',
+                                fontSize: '12px'
+                            }}>
                                 {filteredSuggestions.map((num, index) => (
                                     <div
                                         key={index}
-                                        onClick={() => { setSearchInvoiceNumber(num); setShowSuggestions(false); handleSearch(num); }}
+                                        id={`invoice-item-${index}`}
+                                        onClick={() => {
+                                            setSearchInvoiceNumber(num);
+                                            setShowSuggestions(false);
+                                            setFilteredSuggestions([]);
+                                            setHighlightedIndex(-1);
+                                            handleSearch(num);
+                                        }}
                                         onMouseEnter={() => setHighlightedIndex(index)}
-                                        style={{ padding: '10px 14px', cursor: 'pointer', backgroundColor: index === highlightedIndex ? '#e8f4fd' : 'white', color: index === highlightedIndex ? '#007bff' : '#333', borderBottom: '1px solid #f0f0f0' }}
+                                        style={{
+                                            padding: '5px 14px',
+                                            cursor: 'pointer',
+                                            backgroundColor: index === highlightedIndex ? '#e8f4fd' : 'white',
+                                            color: index === highlightedIndex ? '#007bff' : '#333',
+                                            borderBottom: index < filteredSuggestions.length - 1 ? '1px solid #f0f0f0' : 'none',
+                                            fontWeight: index === highlightedIndex ? '600' : '400'
+                                        }}
                                     >
                                         {num}
                                     </div>
@@ -254,13 +389,13 @@ const PurchaseRateDifference = () => {
                 )}
             </div>
 
-            <div className="card table-section" style={{ marginTop: '20px' }}>
+            <div className="card table-section" style={{ marginTop: '20px', position: 'relative', zIndex: 1 }}>
                 <table className="po-table">
                     <thead>
                         <tr>
-                            <th style={{ width: '18%' }}>Product</th>
-                            <th style={{ width: '11%' }}>Prev Rate</th>
-                            <th style={{ width: '11%' }}>New Rate</th>
+                            <th style={{ width: '15%' }}>Product</th>
+                            <th style={{ width: '12%' }}>Prev Rate</th>
+                            <th style={{ width: '12%' }}>New Rate</th>
                             <th style={{ width: '9%' }}>Qty</th>
                             <th style={{ width: '13%' }}>Prev Total</th>
                             <th style={{ width: '13%' }}>New Total</th>
@@ -292,6 +427,12 @@ const PurchaseRateDifference = () => {
                                                 onChange={(e) => {
                                                     const val = e.target.value;
                                                     setLineItems(prev => prev.map(r => r.productId === row.productId ? { ...r, newRate: val } : r));
+                                                }}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter' && totalAmount !== 0) {
+                                                        e.preventDefault();
+                                                        openConfirmDialog(`Submit net rate difference of Rs ${totalAmount.toFixed(2)}?`, handleCompleteDifference);
+                                                    }
                                                 }}
                                                 style={{ width: '90%', padding: '6px', border: '1px solid #ccc', borderRadius: '4px' }}
                                             />
@@ -354,8 +495,8 @@ const PurchaseRateDifference = () => {
                         </h3>
                         <p style={{ color: '#555', fontSize: '15px', lineHeight: '1.6', margin: '16px 0 24px 0' }}>{confirmDialog.message}</p>
                         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
-                            <button onClick={closeConfirmDialog} style={{ padding: '10px 24px', backgroundColor: '#f1f1f1', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: '600', color: '#333' }}>Cancel</button>
-                            <button onClick={() => confirmDialog.onConfirm && confirmDialog.onConfirm()} style={{ padding: '10px 24px', backgroundColor: '#1f6b3a', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: '600' }}>Yes, Submit</button>
+                            <button onClick={closeConfirmDialog} style={{ padding: '10px 24px', backgroundColor: '#f1f1f1', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: '600', color: '#333' }}>Cancel (Esc)</button>
+                            <button ref={confirmButtonRef} onClick={() => confirmDialog.onConfirm && confirmDialog.onConfirm()} style={{ padding: '10px 24px', backgroundColor: '#1f6b3a', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: '600' }}>Yes, Submit (Enter)</button>
                         </div>
                     </div>
                 </div>

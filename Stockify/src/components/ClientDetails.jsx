@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import './supplier.css'
 
 const API_BASE = 'http://localhost:5000/api';
 
@@ -161,9 +162,9 @@ const ClientDetails = () => {
                 </div>
             )}
 
-            <div style={styles.headerArea}>
+            <div className='roles-container' style={styles.headerArea}>
                 <div>
-                    <h2 style={styles.pageTitle}>Business / Client Details</h2>
+                    <h4 style={styles.pageTitle}>Business / Client Details</h4>
                     <p style={styles.pageSubtitle}>Manage your main business information and logo.</p>
                 </div>
                 <button
@@ -346,9 +347,8 @@ const styles = {
         gap: '16px'
     },
     pageTitle: {
-        fontSize: '24px',
-        fontWeight: '700',
-        color: '#0f172a',
+         color: '#3e576c', fontSize: '20px',
+         fontWeight: '700',
         margin: '0 0 6px 0',
     },
     pageSubtitle: {
@@ -374,7 +374,7 @@ const styles = {
         display: 'flex',
         alignItems: 'center',
         gap: '8px',
-        backgroundColor: '#cbd5e1',
+        backgroundColor: '#9aa1a8',
         color: '#ffffff',
         border: 'none',
         padding: '10px 20px',
