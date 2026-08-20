@@ -1,11 +1,10 @@
 import { useState, useEffect, useMemo } from 'react';
 import * as XLSX from 'xlsx';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faPrint, faFileExcel, faFilter } from '@fortawesome/free-solid-svg-icons';
+import { faPrint, faFileExcel } from '@fortawesome/free-solid-svg-icons';
 
 const API_BASE_URL = 'http://localhost:5000';
 
-// Define the tabs for navigation
 const TABS = [
   { key: 'customer', label: 'Customers' },
   { key: 'supplier', label: 'Suppliers' },
@@ -17,15 +16,12 @@ function PayableReceivable() {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
   
-  // Balance type filter (All, Payable, Receivable)
   const [filterType, setFilterType] = useState('All'); 
 
-  // Fetch balances on component mount
   useEffect(() => {
     fetchBalances();
   }, []);
 
-  // Reset the balance type filter when the tab changes
   useEffect(() => {
     setFilterType('All');
   }, [activeTab]);
@@ -33,7 +29,12 @@ function PayableReceivable() {
   const fetchBalances = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/api/reports/balances`);
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${API_BASE_URL}/api/reports/balances`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
       const json = await res.json();
       if (json.success) {
         setData(json.data);
@@ -50,12 +51,10 @@ function PayableReceivable() {
     return n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   };
 
-  // ================= FILTERS LOGIC =================
+  // CORE ARCHITECTURE: Aggregates and filters cross-entity financial balances for unified payable and receivable reporting.
   const filteredData = useMemo(() => {
-    // 1. Filter by Active Tab (Customer, Supplier, or Employee)
     let filtered = data.filter(d => d.entityGroup.toLowerCase() === activeTab);
     
-    // 2. Filter by Balance Type (Payable or Receivable)
     if (filterType === 'Payable') {
       filtered = filtered.filter(d => d.payable > 0);
     } else if (filterType === 'Receivable') {
@@ -65,11 +64,9 @@ function PayableReceivable() {
     return filtered;
   }, [data, activeTab, filterType]);
 
-  // ================= TOTALS =================
   const totalPayable = filteredData.reduce((sum, row) => sum + row.payable, 0);
   const totalReceivable = filteredData.reduce((sum, row) => sum + row.receivable, 0);
 
-  // Dynamic column header based on the active tab
   const getDesignationLabel = () => {
     if (activeTab === 'customer') return 'Customer Type';
     if (activeTab === 'supplier') return 'Company';
@@ -78,7 +75,7 @@ function PayableReceivable() {
 
   const activeTabLabel = TABS.find(t => t.key === activeTab)?.label || '';
 
-  // ================= PRINT =================
+  // DATA EXPORT ENGINE: Dynamically generates structured Excel sheets and printable HTML documents based on the active tab and applied filters.
   const handlePrint = () => {
     const iframe = document.createElement('iframe');
     iframe.style.position = 'fixed';
@@ -155,7 +152,6 @@ function PayableReceivable() {
     }, 300);
   };
 
-  // ================= EXCEL EXPORT =================
   const handleExportExcel = () => {
     const excelRows = filteredData.map((row, idx) => ({
       'Sr#': idx + 1,
@@ -167,13 +163,12 @@ function PayableReceivable() {
 
     const worksheet = XLSX.utils.json_to_sheet(excelRows);
     
-    // Setting optimal column widths
     worksheet['!cols'] = [
-      { wch: 8 },  // Sr#
-      { wch: 30 }, // Name
-      { wch: 25 }, // Designation/Type
-      { wch: 20 }, // Payable
-      { wch: 20 }  // Receivable
+      { wch: 8 },  
+      { wch: 30 }, 
+      { wch: 25 }, 
+      { wch: 20 }, 
+      { wch: 20 }  
     ];
 
     const workbook = XLSX.utils.book_new();
@@ -182,76 +177,78 @@ function PayableReceivable() {
   };
 
   return (
-    <div style={styles.page}>
+    <div className="dashboard-wrapper">
       
-      {/* ==================== TABS & HEADER ACTIONS ==================== */}
-      <div style={styles.headerRow}>
-        <div style={styles.tabContainer}>
+      {/* TABS & HEADER ACTIONS */}
+      <div className="card" style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: '16px' }}>
+        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
           {TABS.map(t => (
             <button
               key={t.key}
-              style={activeTab === t.key ? styles.activeTab : styles.tab}
+              className={`btn ${activeTab === t.key ? 'btn-primary' : 'btn-secondary'}`}
               onClick={() => setActiveTab(t.key)}
             >
               {t.label}
             </button>
           ))}
+        </div>
 
-          <button style={{ ...styles.actionBtn, backgroundColor: '#334155', marginLeft: 'auto' }} onClick={handlePrint} disabled={loading || filteredData.length === 0}>
+        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+          <button className="btn btn-secondary" onClick={handlePrint} disabled={loading || filteredData.length === 0}>
             <FontAwesomeIcon icon={faPrint} /> Print
           </button>
-          <button style={{ ...styles.actionBtn, backgroundColor: '#15803d' }} onClick={handleExportExcel} disabled={loading || filteredData.length === 0}>
+          <button className="btn btn-secondary" onClick={handleExportExcel} disabled={loading || filteredData.length === 0}>
             <FontAwesomeIcon icon={faFileExcel} /> Excel
           </button>
         </div>
       </div>
 
-      {/* ==================== FILTERS ==================== */}
-      <div style={styles.filterRow}>
-        <div style={styles.filterGroup}>
-          <label style={styles.filterLabel}> Balance Type</label>
-          <select style={styles.filterInput} value={filterType} onChange={e => setFilterType(e.target.value)}>
+      {/* FILTERS */}
+      <div className="card" style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', alignItems: 'flex-end' }}>
+        <div className="form-group" style={{ marginBottom: 0, flex: '1 1 200px' }}>
+          <label className="form-label">Balance Type</label>
+          <select className="form-input" value={filterType} onChange={e => setFilterType(e.target.value)}>
             <option value="All">All Balances</option>
-            <option value="Payable">Payables  </option>
-            <option value="Receivable">Receivables  </option>
+            <option value="Payable">Payables</option>
+            <option value="Receivable">Receivables</option>
           </select>
         </div>
-          <div style={{ fontSize: '13px', color: '#64748b', fontWeight: 400, textAlign: 'right',marginLeft:'60%' }}>
-        Showing {filteredData.length} record(s)
-      </div>
       </div>
 
-    
+      {/* DATA TABLE */}
+      <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+        <div style={{ padding: '16px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'flex-end' }}>
+          <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
+            Showing {filteredData.length} record(s)
+          </span>
+        </div>
 
-      {/* ==================== DATA TABLE ==================== */}
-      <div style={styles.tableWrapper}>
-        <div style={{ overflowX: 'auto' }}>
-          <table style={styles.table}>
+        <div style={{ overflowX: 'auto', width: '100%' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '800px' }}>
             <thead>
-              <tr>
-                <th style={{ ...styles.th, textAlign: 'left', width: '60px' }}>Sr#</th>
-                <th style={{ ...styles.th, textAlign: 'left', width: '25%' }}>Name</th>
-                <th style={{ ...styles.th, textAlign: 'left', width: '25%' }}>{getDesignationLabel()}</th>
-                <th style={{ ...styles.th, textAlign: 'left', width: '20%'  }}>Payable (Rs)</th>
-                <th style={{ ...styles.th, textAlign: 'left', width: '20%'  }}>Receivable (Rs)</th>
+              <tr style={{ backgroundColor: 'var(--header)' }}>
+                <th style={{ padding: '12px 16px', color: 'white', textAlign: 'center', fontSize: '13px', fontWeight: '600', width: '60px' }}>Sr#</th>
+                <th style={{ padding: '12px 16px', color: 'white', textAlign: 'left', fontSize: '13px', fontWeight: '600', width: '25%' }}>Name</th>
+                <th style={{ padding: '12px 16px', color: 'white', textAlign: 'left', fontSize: '13px', fontWeight: '600', width: '25%' }}>{getDesignationLabel()}</th>
+                <th style={{ padding: '12px 16px', color: 'white', textAlign: 'left', fontSize: '13px', fontWeight: '600', width: '20%' }}>Payable (Rs)</th>
+                <th style={{ padding: '12px 16px', color: 'white', textAlign: 'left', fontSize: '13px', fontWeight: '600', width: '20%' }}>Receivable (Rs)</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={5} style={styles.emptyCell}>Loading Balances...</td></tr>
+                <tr><td colSpan={5} style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '14px' }}>Loading Balances...</td></tr>
               ) : filteredData.length === 0 ? (
-                <tr><td colSpan={5} style={styles.emptyCell}>No records found for the selected filters.</td></tr>
+                <tr><td colSpan={5} style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '14px' }}>No records found for the selected filters.</td></tr>
               ) : (
                 filteredData.map((row, idx) => (
-                  <tr key={row.id} style={idx % 2 === 1 ? styles.altRow : null}>
-                    <td style={{ ...styles.td, textAlign: 'center' }}>{idx + 1}</td>
-                    <td style={{ ...styles.td, fontWeight: 600 }}>{row.name}</td>
-                    <td style={styles.td}>{row.designation || '-'}</td>
-                    
-                    <td style={{ ...styles.td, textAlign: 'left', fontWeight: 'bold', color: '#dc2626' }}>
+                  <tr key={row.id} style={{ borderBottom: '1px solid var(--border-color)', transition: 'background-color 0.2s' }} onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--bg-app)'} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}>
+                    <td style={{ padding: '10px 16px', fontSize: '13px', color: 'var(--text-main)', textAlign: 'center' }}>{idx + 1}</td>
+                    <td style={{ padding: '10px 16px', fontSize: '13px', color: 'var(--text-main)', fontWeight: '500', textAlign: 'left' }}>{row.name}</td>
+                    <td style={{ padding: '10px 16px', fontSize: '13px', color: 'var(--text-main)', textAlign: 'left' }}>{row.designation || '-'}</td>
+                    <td style={{ padding: '10px 16px', fontSize: '13px', color: 'var(--danger)', fontWeight: 'bold', textAlign: 'left' }}>
                       {row.payable > 0 ? formatCurrency(row.payable) : '0'}
                     </td>
-                    <td style={{ ...styles.td, textAlign: 'left', fontWeight: 'bold', color: '#15803d' }}>
+                    <td style={{ padding: '10px 16px', fontSize: '13px', color: 'var(--success)', fontWeight: 'bold', textAlign: 'left' }}>
                       {row.receivable > 0 ? formatCurrency(row.receivable) : '0'}
                     </td>
                   </tr>
@@ -259,17 +256,16 @@ function PayableReceivable() {
               )}
             </tbody>
             
-            {/* TOTALS FOOTER */}
             {filteredData.length > 0 && (
               <tfoot>
-                <tr style={{ backgroundColor: '#f1f5f9', borderTop: '2px solid #94a3b8' }}>
-                  <td colSpan={3} style={{ ...styles.td, textAlign: 'left', fontWeight: 700, color: '#0f172a', fontSize: '15px' }}>
+                <tr style={{ backgroundColor: 'var(--bg-app)', borderTop: '2px solid var(--border-color)' }}>
+                  <td colSpan={3} style={{ padding: '12px 16px', fontSize: '14px', fontWeight: '700', color: 'var(--text-main)', textAlign: 'left' }}>
                     Grand Total:
                   </td>
-                  <td style={{ ...styles.td, textAlign: 'left', fontWeight: 700, color: '#dc2626', fontSize: '15px' }}>
+                  <td style={{ padding: '12px 16px', fontSize: '14px', fontWeight: '700', color: 'var(--danger)', textAlign: 'left' }}>
                     {formatCurrency(totalPayable)}
                   </td>
-                  <td style={{ ...styles.td, textAlign: 'left', fontWeight: 700, color: '#15803d', fontSize: '15px' }}>
+                  <td style={{ padding: '12px 16px', fontSize: '14px', fontWeight: '700', color: 'var(--success)', textAlign: 'left' }}>
                     {formatCurrency(totalReceivable)}
                   </td>
                 </tr>
@@ -281,28 +277,5 @@ function PayableReceivable() {
     </div>
   );
 }
-
-// Styling matches the AccountReport structure
-const styles = {
-  page: { padding: '24px 16px', width: '100%', boxSizing: 'border-box', background: '#f8fafc', minHeight: '100vh', marginBottom: '60px' },
-  headerRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', flexWrap: 'wrap', gap: '10px' },
-  actionBtn: { color: '#fff', border: 'none', padding: '9px 16px', borderRadius: '8px', cursor: 'pointer', fontWeight: 600, fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px' },
-
-  tabContainer: { display: 'flex', gap: '10px', flexWrap: 'wrap', width: '100%', alignItems: 'center' },
-  tab: { padding: '10px 18px', borderRadius: '6px', border: '1px solid #cbd5e1', backgroundColor: '#fff', color: '#475569', fontWeight: 600, cursor: 'pointer', fontSize: '13px', transition: 'all 0.2s ease-in-out' },
-  activeTab: { padding: '10px 18px', borderRadius: '6px', border: '1px solid #3c4e6b', backgroundColor: '#3c4e6b', color: '#fff', fontWeight: 600, cursor: 'pointer', fontSize: '13px', transition: 'all 0.2s ease-in-out' },
-
-  filterRow: { marginTop: '15px', display: 'flex', gap: '16px', alignItems: 'flex-end', flexWrap: 'wrap' },
-  filterGroup: { display: 'flex', flexDirection: 'column', minWidth: '70px', maxWidth: '220px', flex: 1 },
-  filterLabel: { fontSize: '11px', fontWeight: 500, color: '#475569', textAlign: 'left' },
-  filterInput: { color: '#343a42', padding: '8px 12px', borderRadius: '4px', border: '1px solid #cbd5e1', fontSize: '13px', backgroundColor: '#fff', outline: 'none', width: '100%', boxSizing: 'border-box' },
-
-  tableWrapper: { marginTop: '25px', background: '#fff', borderRadius: '8px', border: '1px solid #cbd5e1', overflowX: 'auto', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', width: '100%' },
-  table: { width: '100%', borderCollapse: 'collapse', tableLayout: 'auto' },
-  th: { padding: '12px 14px', background: '#303d52', fontSize: '12px', color: '#fefefe', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', borderBottom: '2px solid #94a3b8', whiteSpace: 'nowrap' },
-  td: { padding: '7px 14px', fontSize: '13.5px', borderBottom: '1px solid #e2e8f0', borderRight: '1px solid #e2e8f0', color: '#334155', whiteSpace: 'nowrap',textAlign:'left' },
-  altRow: { backgroundColor: '#f8fafc' },
-  emptyCell: { textAlign: 'center', padding: '40px 0', color: '#94a3b8', fontSize: '14px' },
-};
 
 export default PayableReceivable;

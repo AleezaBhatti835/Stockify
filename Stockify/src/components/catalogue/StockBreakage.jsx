@@ -10,34 +10,26 @@ function StockBreakage() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [products, setProducts] = useState([]);
 
-  // ================= VIEW MODE STATE (Abstract vs Product) =================
-  const [viewMode, setViewMode] = useState('summary'); 
+  const [viewMode, setViewMode] = useState('summary');
 
-  // ================= FILTER STATES =================
   const [fromDate, setFromDate] = useState(todayStr());
   const [toDate, setToDate] = useState(todayStr());
 
-  // Search + selection + Remarks
   const [searchTerm, setSearchTerm] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [quantity, setQuantity] = useState(1);
-  const [remarks, setRemarks] = useState(''); 
-  
-  // Keyboard navigation state
+  const [remarks, setRemarks] = useState('');
+
   const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(-1);
 
-  // Cart of items added in this batch
   const [cartItems, setCartItems] = useState([]);
   const [submitting, setSubmitting] = useState(false);
-  
-  // Inline message state - no popups
+
   const [message, setMessage] = useState({ text: '', type: '' });
 
-  // ================= VIEW MODAL STATES =================
   const [viewModalData, setViewModalData] = useState(null);
 
-  // ================= PAGINATION STATES =================
   const [currentPage, setCurrentPage] = useState(1);
   const rowsPerPage = 10;
 
@@ -49,7 +41,6 @@ function StockBreakage() {
     fetchRecords();
   }, []);
 
-  // PAGE RESET: Jab bhi viewMode ya dates change hon
   useEffect(() => {
     setCurrentPage(1);
   }, [viewMode, fromDate, toDate]);
@@ -65,7 +56,6 @@ function StockBreakage() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Keyboard shortcut handler for modals
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key === 'Escape') {
@@ -87,7 +77,6 @@ function StockBreakage() {
 
       if (e.key === 'Enter') {
         if (isAddModalOpen && !submitting && cartItems.length > 0) {
-          // Ctrl+Enter for submit
           if (e.ctrlKey) {
             e.preventDefault();
             handleSubmitBreakage();
@@ -100,21 +89,23 @@ function StockBreakage() {
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [isAddModalOpen, viewModalData, submitting, cartItems]);
 
+  // CORE ARCHITECTURE: Grouping and flattening breakage records for dynamic Abstract and Detailed view modes.
   const fetchRecords = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/api/stock-breakage`);
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${API_BASE_URL}/api/stock-breakage`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
       const data = await res.json();
-      
+
       const groups = {};
       const flatList = [];
 
       if (Array.isArray(data)) {
         data.forEach(r => {
-          // Flat list setup for Detailed View
           flatList.push(r);
 
-          // Grouping logic for Abstract View
           const key = r.invoiceNumber || Math.floor(new Date(r.createdAt || r.date).getTime() / 5000);
           if (!groups[key]) {
             groups[key] = {
@@ -130,7 +121,7 @@ function StockBreakage() {
           }
           groups[key].items.push({
             _id: r._id,
-            product: r.product, 
+            product: r.product,
             productName: r.product?.name || 'Unknown',
             quantity: r.quantity,
             previousQuantity: r.previousQuantity,
@@ -139,18 +130,17 @@ function StockBreakage() {
           });
           groups[key].itemCount += 1;
           groups[key].totalBrokenQty += r.quantity;
-          
+
           const pName = r.product?.name || 'Unknown';
           if (!groups[key].productNames.includes(pName)) {
             groups[key].productNames.push(pName);
           }
         });
       }
-      
-      const sortedGroups = Object.values(groups).sort((a, b) => new Date(b.date) - new Date(a.date)); // Newest first
+
+      const sortedGroups = Object.values(groups).sort((a, b) => new Date(b.date) - new Date(a.date));
       const sortedFlat = flatList.sort((a, b) => new Date(b.createdAt || b.date) - new Date(a.createdAt || a.date));
 
-      // Store BOTH raw data types to filter them based on viewMode later
       setRecords({ groups: sortedGroups, flat: sortedFlat });
       setCurrentPage(1);
     } catch (err) {
@@ -162,7 +152,10 @@ function StockBreakage() {
 
   const fetchProducts = async () => {
     try {
-      const res = await fetch(`${API_BASE_URL}/api/products`);
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${API_BASE_URL}/api/products`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
       const data = await res.json();
       setProducts(Array.isArray(data) ? data : []);
     } catch (err) {
@@ -170,7 +163,6 @@ function StockBreakage() {
     }
   };
 
-  // 🔥 FAST FILTERING WITH USEMEMO (Prevents Crash)
   const filteredRecords = React.useMemo(() => {
     if (!records.groups) return [];
 
@@ -181,16 +173,15 @@ function StockBreakage() {
       const from = new Date(fromDate);
       const to = new Date(toDate);
       to.setHours(23, 59, 59, 999);
-      
+
       filtered = filtered.filter(record => {
         const recordDate = new Date(record.date || record.createdAt);
         return recordDate >= from && recordDate <= to;
       });
     }
-    
+
     return filtered;
   }, [records, viewMode, fromDate, toDate]);
-
 
   const openAddModal = () => {
     fetchProducts();
@@ -253,31 +244,21 @@ function StockBreakage() {
 
   const handleKeyDown = (e) => {
     const availableProducts = filteredProducts.filter(p => p.quantity > 0);
-    
+
     if (e.key === 'ArrowDown') {
       e.preventDefault();
-      setSelectedSuggestionIndex(prev => 
-        prev < availableProducts.length - 1 ? prev + 1 : prev
-      );
+      setSelectedSuggestionIndex(prev => prev < availableProducts.length - 1 ? prev + 1 : prev);
       const selectedElement = document.querySelector(`[data-index="${selectedSuggestionIndex + 1}"]`);
-      if (selectedElement) {
-        selectedElement.scrollIntoView({ block: 'nearest' });
-      }
+      if (selectedElement) selectedElement.scrollIntoView({ block: 'nearest' });
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
-      setSelectedSuggestionIndex(prev => 
-        prev > 0 ? prev - 1 : -1
-      );
+      setSelectedSuggestionIndex(prev => prev > 0 ? prev - 1 : -1);
       const selectedElement = document.querySelector(`[data-index="${selectedSuggestionIndex - 1}"]`);
-      if (selectedElement) {
-        selectedElement.scrollIntoView({ block: 'nearest' });
-      }
+      if (selectedElement) selectedElement.scrollIntoView({ block: 'nearest' });
     } else if (e.key === 'Enter' && selectedSuggestionIndex >= 0) {
       e.preventDefault();
       const selectedProduct = availableProducts[selectedSuggestionIndex];
-      if (selectedProduct) {
-        handleProductSelect(selectedProduct);
-      }
+      if (selectedProduct) handleProductSelect(selectedProduct);
     } else if (e.key === 'Escape') {
       setShowSuggestions(false);
       setSelectedSuggestionIndex(-1);
@@ -321,9 +302,7 @@ function StockBreakage() {
     setSelectedSuggestionIndex(-1);
     setMessage({ text: '', type: '' });
     setTimeout(() => {
-      if (searchInputRef.current) {
-        searchInputRef.current.focus();
-      }
+      if (searchInputRef.current) searchInputRef.current.focus();
     }, 0);
   };
 
@@ -331,7 +310,7 @@ function StockBreakage() {
     setCartItems(prev => prev.filter(c => c.productId !== productId));
   };
 
- const handleSubmitBreakage = async () => {
+  const handleSubmitBreakage = async () => {
     if (cartItems.length === 0) {
       showMessage('Please add at least one product.', 'error');
       return;
@@ -339,36 +318,39 @@ function StockBreakage() {
 
     setSubmitting(true);
     try {
+      const token = localStorage.getItem('token');
       const invoiceNumber = `BRK-${Date.now()}`;
-      
+
       const payload = {
         invoiceNumber: invoiceNumber,
         notes: remarks,
-        items: cartItems.map((c, idx) => ({ 
+        items: cartItems.map((c, idx) => ({
           product: c.productId,
           productId: c.productId,
-          quantity: Number(c.quantity), 
+          quantity: Number(c.quantity),
           previousQuantity: Number(c.availableQty),
           newQuantity: Number(c.availableQty) - Number(c.quantity),
           reason: 'Damage/Breakage',
           notes: remarks,
-          invoiceNumber: invoiceNumber, 
-          breakageNumber: `${invoiceNumber}-${idx + 1}` 
+          invoiceNumber: invoiceNumber,
+          breakageNumber: `${invoiceNumber}-${idx + 1}`
         }))
       };
 
       const res = await fetch(`${API_BASE_URL}/api/stock-breakage/batch`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify(payload)
       });
-      
+
       const text = await res.text();
       let data;
       try {
         data = JSON.parse(text);
       } catch (e) {
-        console.error("Non-JSON response from server:", text);
         showMessage('Server returned an invalid response.', 'error');
         setSubmitting(false);
         return;
@@ -385,11 +367,9 @@ function StockBreakage() {
         }, 500);
       } else {
         showMessage(data.message || 'Failed to record broken stock.', 'error');
-        console.error("Backend Error:", data);
       }
     } catch (err) {
       showMessage('Server error while saving broken stock.', 'error');
-      console.error("Catch Error:", err);
     } finally {
       setSubmitting(false);
     }
@@ -400,10 +380,9 @@ function StockBreakage() {
     setToDate(todayStr());
   };
 
-  // ================= A4 PRINT LOGIC =================
+  // PRINT ENGINE: Generates an isolated iframe document to render a clean, unstyled professional A4 breakage receipt.
   const handlePrintBreakage = () => {
-    const contentEl = document.getElementById('breakage-receipt-content');
-    if (!contentEl || !viewModalData) return;
+    if (!viewModalData) return;
 
     const iframe = document.createElement('iframe');
     iframe.style.position = 'fixed';
@@ -484,166 +463,121 @@ function StockBreakage() {
     }, 300);
   };
 
-  // ================= PAGINATION LOGIC =================
   const indexOfLastRow = currentPage * rowsPerPage;
   const indexOfFirstRow = indexOfLastRow - rowsPerPage;
   const currentRecords = filteredRecords.slice(indexOfFirstRow, indexOfLastRow);
   const totalPages = Math.ceil(filteredRecords.length / rowsPerPage);
 
-  // Inline Message Component
   const InlineMessage = ({ message, type }) => {
     if (!message) return null;
-    
     const colors = {
-      success: { bg: '#d4edda', text: '#155724', border: '#c3e6cb', icon: '✅' },
-      error: { bg: '#fdecea', text: '#dc3545', border: '#f5c6cb', icon: '⚠️' }
+      success: { bg: 'var(--success-bg)', text: 'var(--success)', border: 'var(--success)', icon: '✅' },
+      error: { bg: 'var(--danger-bg)', text: 'var(--danger)', border: 'var(--danger)', icon: '⚠️' }
     };
-
     const style = colors[type] || colors.error;
 
     return (
-      <div style={{
-        padding: '10px 14px',
-        marginBottom: '12px',
-        borderRadius: '6px',
-        backgroundColor: style.bg,
-        color: style.text,
-        border: `1px solid ${style.border}`,
-        fontSize: '13px',
-        fontWeight: 500
-      }}>
+      <div style={{ padding: '10px 14px', marginBottom: '16px', borderRadius: 'var(--radius-sm)', backgroundColor: style.bg, color: style.text, border: `1px solid ${style.border}`, fontSize: '13px', fontWeight: 500 }}>
         {style.icon} {message}
       </div>
     );
   };
 
   return (
-    <div style={styles.wrapper}>
-      {/* ==================== MAIN LIST ==================== */}
-      <div style={{ ...styles.card, padding: 0, overflow: 'hidden' }}>
+    <div className="dashboard-wrapper">
 
-        {/* ==================== FILTERS ==================== */}
-        <div style={styles.filterContainer}>
-          <div style={styles.filterRow}>
+      <InlineMessage message={message.text} type={message.type} />
 
-            {/* VIEW MODE RADIO BUTTONS */}
-            <div style={{ width: 'auto',textAlign:'left' }}>
-              <label style={styles.filterLabel}>View Mode</label>
-              <div style={{ display: 'flex', gap: '12px', alignItems: 'left', padding: '7px 12px', border: '1px solid #cbd5e1', borderRadius: '4px', backgroundColor: '#fff', boxSizing: 'border-box', height: '37px' }}>
-                <label style={{ fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', color: '#475569', fontWeight: 500 }}>
-                  <input 
-                    type="radio" 
-                    name="viewMode" 
-                    value="summary" 
-                    checked={viewMode === 'summary'} 
-                    onChange={(e) => setViewMode(e.target.value)} 
-                  />
-                  Abstract
-                </label>
-                <label style={{ fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', color: '#475569', fontWeight: 500 }}>
-                  <input 
-                    type="radio" 
-                    name="viewMode" 
-                    value="detailed" 
-                    checked={viewMode === 'detailed'} 
-                    onChange={(e) => setViewMode(e.target.value)} 
-                  />
-                  Product
-                </label>
-              </div>
-            </div>
+      {/* FILTER BAR */}
+      <div className="card" style={{ display: 'flex', gap: '16px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
 
-            <div style={styles.filterGroup}>
-              <label style={styles.filterLabel}>From Date</label>
-              <input
-                type="date"
-                style={styles.filterInput}
-                value={fromDate}
-                onChange={(e) => setFromDate(e.target.value)}
-              />
-            </div>
-
-            <div style={styles.filterGroup}>
-              <label style={styles.filterLabel}>To Date</label>
-              <input
-                type="date"
-                style={styles.filterInput}
-                value={toDate}
-                onChange={(e) => setToDate(e.target.value)}
-              />
-            </div>
-
-            <button style={styles.clearFilterBtn} onClick={clearFilters}>
-              Clear Filters
-            </button>
-            <button style={styles.addBtn} onClick={openAddModal}>+ Add Breakage</button>
-          </div>
-
-          <div style={styles.filterStats}>
-            <span>Showing {filteredRecords.length} {viewMode === 'summary' ? 'invoice(s)' : 'item(s)'}</span>
+        <div className="form-group" style={{ marginBottom: 0, flex: '1 1 200px' }}>
+          <label className="form-label">View Mode</label>
+          <div style={{ display: 'flex', gap: '12px', alignItems: 'center', padding: '6px 12px', border: '1px solid #eaeaea', borderRadius: 'var(--radius-sm)', backgroundColor: 'var(--bg-surface)' }}>
+            <label style={{ fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', color: 'var(--text-main)', fontWeight: 500 }}>
+              <input type="radio" name="viewMode" value="summary" checked={viewMode === 'summary'} onChange={(e) => setViewMode(e.target.value)} />
+              Abstract
+            </label>
+            <label style={{ fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', color: 'var(--text-main)', fontWeight: 500 }}>
+              <input type="radio" name="viewMode" value="detailed" checked={viewMode === 'detailed'} onChange={(e) => setViewMode(e.target.value)} />
+              Product
+            </label>
           </div>
         </div>
 
-        {/* ==================== TABLE ==================== */}
-        <div style={{ width:'96%', marginLeft:'2%', paddingBottom: '20px' }}>
-          <table style={styles.table}>
+        <div className="form-group" style={{ marginBottom: 0, flex: '1 1 150px' }}>
+          <label className="form-label">From Date</label>
+          <input type="date" className="form-input" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
+        </div>
+
+        <div className="form-group" style={{ marginBottom: 0, flex: '1 1 150px' }}>
+          <label className="form-label">To Date</label>
+          <input type="date" className="form-input" value={toDate} onChange={(e) => setToDate(e.target.value)} />
+        </div>
+
+        <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+          <button className="btn btn-secondary" onClick={clearFilters}>Reset to Today </button>
+          <button className="btn btn-primary" onClick={openAddModal}>+ Add Breakage</button>
+        </div>
+
+      </div>
+
+      {/* TABLE */}
+      <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+
+        <div style={{ overflowX: 'auto', width: '100%' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '800px' }}>
             <thead>
               <tr>
-                <th style={{ ...styles.th, width: '10%', textAlign: 'left' }}>Sr#</th>
-                <th style={{ ...styles.th, width: '15%' }}>Date</th>
-                <th style={{ ...styles.th, width: '20%' }}>Breakage / Invoice #</th>
-                
+                <th style={{ backgroundColor: 'var(--header)', color: 'white', padding: '12px 16px', textAlign: 'left', fontSize: '13px', fontWeight: '600' }}>Sr#</th>
+                <th style={{ backgroundColor: 'var(--header)', color: 'white', padding: '12px 16px', textAlign: 'left', fontSize: '13px', fontWeight: '600' }}>Date</th>
+                <th style={{ backgroundColor: 'var(--header)', color: 'white', padding: '12px 16px', textAlign: 'left', fontSize: '13px', fontWeight: '600' }}>Breakage / Invoice #</th>
                 {viewMode === 'summary' ? (
-                  <th style={{ ...styles.th, width: '35%' }}>Summary</th>
+                  <th style={{ backgroundColor: 'var(--header)', color: 'white', padding: '12px 16px', textAlign: 'left', fontSize: '13px', fontWeight: '600' }}>Summary</th>
                 ) : (
                   <>
-                    <th style={{ ...styles.th, width: '25%', textAlign: 'left' }}>Product</th>
-                    <th style={{ ...styles.th, width: '10%', textAlign: 'center' }}>Qty</th>
+                    <th style={{ backgroundColor: 'var(--header)', color: 'white', padding: '12px 16px', textAlign: 'left', fontSize: '13px', fontWeight: '600' }}>Product</th>
+                    <th style={{ backgroundColor: 'var(--header)', color: 'white', padding: '12px 16px', textAlign: 'center', fontSize: '13px', fontWeight: '600' }}>Qty</th>
                   </>
                 )}
-                
-                <th style={{ ...styles.th, width: '20%', textAlign: 'center' }}>Action</th>
+                <th style={{ backgroundColor: 'var(--header)', color: 'white', padding: '12px 16px', textAlign: 'center', fontSize: '13px', fontWeight: '600' }}>Action</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={viewMode === 'summary' ? 5 : 6} style={styles.emptyCell}>Loading...</td></tr>
+                <tr><td colSpan={viewMode === 'summary' ? 5 : 6} style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>Loading...</td></tr>
               ) : filteredRecords.length === 0 ? (
-                <tr><td colSpan={viewMode === 'summary' ? 5 : 6} style={styles.emptyCell}>No records found.</td></tr>
+                <tr><td colSpan={viewMode === 'summary' ? 5 : 6} style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>No records found.</td></tr>
               ) : currentRecords.length === 0 ? (
-                <tr><td colSpan={viewMode === 'summary' ? 5 : 6} style={styles.emptyCell}>No records found on this page.</td></tr>
+                <tr><td colSpan={viewMode === 'summary' ? 5 : 6} style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>No records found on this page.</td></tr>
               ) : (
                 currentRecords.map((item, index) => {
                   const srNum = indexOfFirstRow + index + 1;
-                  
+
                   if (viewMode === 'summary') {
                     const group = item;
                     return (
-                      <tr key={group.id}>
-                        <td style={{ ...styles.td, textAlign: 'left' }}>{srNum}</td>
-                        <td style={styles.td}>{new Date(group.date).toLocaleDateString()}</td>
-                        <td style={{ ...styles.td, fontWeight: 700, color: '#0f172a' }}>{group.invoiceNumber}</td>
-                        
-                        <td style={{ padding: '7px' }}>
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', justifyContent: 'center' }}>
-                              <span style={{ fontWeight: '600', color: '#2b3a4a', fontSize: '13px' }}>
-                                {group.itemCount} Item{group.itemCount !== 1 ? 's' : ''}
-                              </span>
-                              <div style={{ display: 'flex', gap: '6px' }}>
-                                <span style={{ backgroundColor: '#fff5f5', color: '#dc3545', border: '1px solid #f5c6cb', padding: '2px 8px', borderRadius: '12px', fontSize: '11px', fontWeight: 'bold', display: 'flex', alignItems: 'center' }}>
-                                  <span style={{ fontSize: '12px', marginRight: '3px' }}>↓</span> {group.totalBrokenQty} broken
-                                </span>
-                              </div>
-                            </div>
-                           
+                      <tr key={group.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                        <td style={{ padding: '10px 16px', fontSize: '14px', color: 'var(--text-main)', textAlign: 'left' }}>{srNum}</td>
+                        <td style={{ padding: '10px 16px', fontSize: '14px', color: 'var(--text-main)' }}>{new Date(group.date).toLocaleDateString()}</td>
+                        <td style={{ padding: '10px 16px', fontSize: '14px', color: 'var(--text-main)', fontWeight: '600' }}>{group.invoiceNumber}</td>
+                        <td style={{ padding: '10px 16px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                            <span style={{ fontWeight: '600', color: 'var(--text-main)', fontSize: '13px' }}>
+                              {group.itemCount} Item{group.itemCount !== 1 ? 's' : ''}
+                            </span>
+                            <span style={{ backgroundColor: 'var(--danger-bg)', color: 'var(--danger)', border: '1px solid var(--danger)', padding: '2px 8px', borderRadius: '12px', fontSize: '11px', fontWeight: 'bold' }}>
+                              ↓ {group.totalBrokenQty} broken
+                            </span>
                           </div>
                         </td>
-
-                        <td style={{ ...styles.td, textAlign: 'center' }}>
+                        <td style={{ padding: '10px 16px', textAlign: 'center' }}>
                           <button
                             onClick={() => setViewModalData(group)}
-                            style={styles.iconBtnView}
+                            style={{
+                              backgroundColor: 'var(--view)',
+                              color: 'var(--success)', border: 'none', padding: '6px 12px', borderRadius: 'var(--radius-sm)', cursor: 'pointer', transition: '0.2s'
+                            }}
                             title="View Invoice"
                           >
                             <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
@@ -657,13 +591,13 @@ function StockBreakage() {
                   } else {
                     const row = item;
                     return (
-                      <tr key={row._id}>
-                        <td style={{ ...styles.td, textAlign: 'left' }}>{srNum}</td>
-                        <td style={styles.td}>{new Date(row.createdAt || row.date).toLocaleDateString()}</td>
-                        <td style={{ ...styles.td, fontWeight: 700, color: '#0f172a' }}>{row.invoiceNumber || row.breakageNumber}</td>
-                        <td style={{ ...styles.td, textAlign: 'left', fontWeight: 600 }}>{row.product?.name || 'Unknown'}</td>
-                        <td style={{ ...styles.td, textAlign: 'center', color: '#ef4444', fontWeight: 'bold' }}>{row.quantity}</td>
-                        <td style={{ ...styles.td, textAlign: 'center' }}>
+                      <tr key={row._id} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                        <td style={{ padding: '10px 16px', fontSize: '14px', color: 'var(--text-main)', textAlign: 'left' }}>{srNum}</td>
+                        <td style={{ padding: '10px 16px', fontSize: '14px', color: 'var(--text-main)' }}>{new Date(row.createdAt || row.date).toLocaleDateString()}</td>
+                        <td style={{ padding: '10px 16px', fontSize: '14px', color: 'var(--text-main)' }}>{row.invoiceNumber || row.breakageNumber}</td>
+                        <td style={{ padding: '10px 16px', fontSize: '14px', color: 'var(--text-main)' }}>{row.product?.name || 'Unknown'}</td>
+                        <td style={{ padding: '10px 16px', fontSize: '14px', color: 'var(--danger)', fontWeight: 'bold', textAlign: 'center' }}>{row.quantity}</td>
+                        <td style={{ padding: '10px 16px', textAlign: 'center' }}>
                           <button
                             onClick={() => {
                               setViewModalData({
@@ -680,7 +614,8 @@ function StockBreakage() {
                                 }]
                               });
                             }}
-                            style={styles.iconBtnView}
+                            style={{  backgroundColor: 'var(--view)',
+    color: 'var(--success)',border: 'none', padding: '6px 12px', borderRadius: 'var(--radius-sm)', cursor: 'pointer', transition: '0.2s' }}
                             title="View Detail"
                           >
                             <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
@@ -698,53 +633,34 @@ function StockBreakage() {
           </table>
         </div>
 
-        {/* ==================== PAGINATION CONTROLS ==================== */}
         {filteredRecords.length > rowsPerPage && (
-          <div style={styles.paginationContainer}>
-            <button 
-              disabled={currentPage === 1} 
-              onClick={() => setCurrentPage(prev => prev - 1)}
-              style={{
-                ...styles.paginationButton,
-                backgroundColor: currentPage === 1 ? '#e9ecef' : '#3c4e6b',
-                color: currentPage === 1 ? '#6c757d' : 'white',
-                cursor: currentPage === 1 ? 'not-allowed' : 'pointer'
-              }}
-            >
-              ← Previous
+          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '16px', padding: '16px' }}>
+            <button className="btn btn-secondary" disabled={currentPage === 1} onClick={() => setCurrentPage(prev => prev - 1)} style={{ padding: '6px 12px' }}>
+              ←
             </button>
-            <span style={styles.paginationInfo}>
+            <span style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-muted)' }}>
               Page {currentPage} of {totalPages || 1}
             </span>
-            <button 
-              disabled={currentPage >= totalPages} 
-              onClick={() => setCurrentPage(prev => prev + 1)}
-              style={{
-                ...styles.paginationButton,
-                backgroundColor: currentPage >= totalPages ? '#e9ecef' : '#3c4e6b',
-                color: currentPage >= totalPages ? '#6c757d' : 'white',
-                cursor: currentPage >= totalPages ? 'not-allowed' : 'pointer'
-              }}
-            >
-              Next →
+            <button className="btn btn-secondary" disabled={currentPage >= totalPages} onClick={() => setCurrentPage(prev => prev + 1)} style={{ padding: '6px 12px' }}>
+              →
             </button>
           </div>
         )}
       </div>
 
-      {/* ==================== VIEW MODAL (INVOICE LIKE) ==================== */}
+      {/* VIEW MODAL (INVOICE LIKE) */}
       {viewModalData && (
-        <div style={styles.receiptOverlay} onClick={() => setViewModalData(null)}>
-          <div style={styles.receiptContainer} onClick={(e) => e.stopPropagation()}>
-            <div style={styles.receiptHeader}>
-              <h3 style={{ margin: 0, color: '#000' }}>CAPOBIZ</h3>
-              <div style={styles.receiptActions}>
-                <button style={styles.printReceiptBtn} onClick={handlePrintBreakage}>🖨️ Print</button>
-                <button style={styles.closeReceiptBtn} onClick={() => setViewModalData(null)}>✕ Close</button>
+        <div className="modal-overlay" onClick={() => setViewModalData(null)}>
+          <div className="modal-container modal-container-wide" onClick={(e) => e.stopPropagation()} style={{ display: 'flex', flexDirection: 'column', maxHeight: '90vh' }}>
+            <div className="modal-header" style={{ backgroundColor: 'var(--bg-app)' }}>
+              <h3 style={{ margin: 0, color: 'var(--text-main)' }}>CAPOBIZ</h3>
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <button className="btn btn-primary" onClick={handlePrintBreakage}>🖨️ Print</button>
+                <button className="btn btn-secondary" onClick={() => setViewModalData(null)}>✕ Close</button>
               </div>
             </div>
 
-            <div id="breakage-receipt-content" style={styles.receiptBody}>
+            <div className="modal-body" style={{ overflowY: 'auto' }}>
               <div style={{ textAlign: 'center', marginBottom: '20px' }}>
                 <h4 style={{ margin: '0 0 8px 0', fontSize: '18px', textDecoration: 'underline' }}>
                   STOCK BREAKAGE RECEIPT {viewModalData.isSingleItemView ? '(SINGLE ITEM)' : ''}
@@ -754,31 +670,31 @@ function StockBreakage() {
                 {viewModalData.remarks && <p style={{ margin: '4px 0', fontSize: '14px' }}>Remarks: {viewModalData.remarks}</p>}
               </div>
 
-              <div style={styles.receiptDivider}></div>
+              <div style={{ borderTop: '2px dashed var(--border-color)', margin: '20px 0' }}></div>
 
-              <table style={styles.receiptTable}>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
                   <tr>
-                    <th style={{ ...styles.receiptTh, width: '20%' }}>Product Name</th>
-                    <th style={{ ...styles.receiptTh, textAlign: 'center', width: '20%' }}>Qty Broken</th>
-                    <th style={{ ...styles.receiptTh, textAlign: 'center', width: '20%' }}>Prev Stock</th>
-                    <th style={{ ...styles.receiptTh, textAlign: 'center', width: '20%' }}>New Stock</th>
+                    <th style={{ textAlign: 'left', padding: '10px',color:'#fff', backgroundColor: 'var(--header)', borderBottom: '2px solid var(--border-color)', fontSize: '13px' }}>Product Name</th>
+                    <th style={{ textAlign: 'center', padding: '10px',color:'#fff', backgroundColor: 'var(--header)', borderBottom: '2px solid var(--border-color)', fontSize: '13px' }}>Qty Broken</th>
+                    <th style={{ textAlign: 'center', padding: '10px',color:'#fff', backgroundColor: 'var(--header)', borderBottom: '2px solid var(--border-color)', fontSize: '13px' }}>Prev Stock</th>
+                    <th style={{ textAlign: 'center', padding: '10px',color:'#fff', backgroundColor: 'var(--header)', borderBottom: '2px solid var(--border-color)', fontSize: '13px' }}>New Stock</th>
                   </tr>
                 </thead>
                 <tbody>
                   {viewModalData.items.map((item, idx) => (
                     <tr key={idx}>
-                      <td style={styles.receiptTd}>{item.product?.name || item.productName || 'Unknown Product'}</td>
-                      <td style={{ ...styles.receiptTd, textAlign: 'center', color: '#ef4444', fontWeight: 600 }}>{item.quantity}</td>
-                      <td style={{ ...styles.receiptTd, textAlign: 'center' }}>{item.previousQuantity || '-'}</td>
-                      <td style={{ ...styles.receiptTd, textAlign: 'center' }}>{item.newQuantity || '-'}</td>
+                      <td style={{ padding: '10px', borderBottom: '1px solid var(--border-color)', fontSize: '14px' }}>{item.product?.name || item.productName || 'Unknown Product'}</td>
+                      <td style={{ padding: '10px', borderBottom: '1px solid var(--border-color)', fontSize: '14px', textAlign: 'center', color: 'var(--danger)', fontWeight: '600' }}>{item.quantity}</td>
+                      <td style={{ padding: '10px', borderBottom: '1px solid var(--border-color)', fontSize: '14px', textAlign: 'center' }}>{item.previousQuantity || '-'}</td>
+                      <td style={{ padding: '10px', borderBottom: '1px solid var(--border-color)', fontSize: '14px', textAlign: 'center' }}>{item.newQuantity || '-'}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
 
-              <div style={styles.receiptDivider}></div>
-              <div style={{ textAlign: 'center', marginTop: '20px', color: '#555', fontSize: '13px' }}>
+              <div style={{ borderTop: '2px dashed var(--border-color)', margin: '30px 0 16px 0' }}></div>
+              <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>
                 <p>Inventory has been updated successfully.</p>
               </div>
             </div>
@@ -786,159 +702,157 @@ function StockBreakage() {
         </div>
       )}
 
-      {/* ==================== ADD BROKEN STOCK MODAL ==================== */}
+      {/* ADD BROKEN STOCK MODAL */}
       {isAddModalOpen && (
-        <div style={styles.modalOverlay} onClick={() => setIsAddModalOpen(false)}>
-          <div style={styles.addModalContent} onClick={(e) => e.stopPropagation()}>
-            <div style={styles.modalHeader}>
-              <h3 style={{ margin: 0, color: '#0f172a', fontSize: '20px' }}>Add Broken Stock</h3>
-              <button style={styles.closeBtn} onClick={() => setIsAddModalOpen(false)}>×</button>
+        <div className="modal-overlay" onClick={() => setIsAddModalOpen(false)}>
+          <div className="modal-container modal-container-wide" onClick={(e) => e.stopPropagation()} style={{ maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}>
+            <div className="modal-header">
+              <h2 className="modal-title">Add Broken Stock</h2>
+              <button className="modal-close" onClick={() => setIsAddModalOpen(false)}>×</button>
             </div>
 
-            {/* Inline Message - No Popup */}
-            <InlineMessage message={message.text} type={message.type} />
+            <div className="modal-body" style={{ overflowY: 'auto' }}>
+              <InlineMessage message={message.text} type={message.type} />
 
-           
-
-            {/* Top Form Grid */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginTop: '16px' }}>
-              
-              {/* Product Search */}
-              <div style={{ position: 'relative' }} ref={searchRef}>
-                <label style={styles.label}>Search Product *</label>
-                <input
-                  ref={searchInputRef}
-                  type="text"
-                  style={styles.input}
-                  placeholder="Search product..."
-                  value={searchTerm}
-                  onChange={(e) => { 
-                    setSearchTerm(e.target.value); 
-                    setShowSuggestions(true);
-                    setSelectedSuggestionIndex(-1);
-                    setMessage({ text: '', type: '' });
-                  }}
-                  onFocus={() => setShowSuggestions(true)}
-                  onKeyDown={handleKeyDown}
-                />
-                {showSuggestions && searchTerm && (
-                  <ul style={styles.suggestionsList}>
-                    {filteredProducts.length > 0 ? (
-                      filteredProducts.map((p, index) => {
-                        const isDisabled = p.quantity <= 0;
-                        const isSelected = index === selectedSuggestionIndex;
-                        return (
-                          <li
-                            key={p._id}
-                            data-index={index}
-                            style={{
-                              ...styles.suggestionItem,
-                              color: isDisabled ? '#94a3b8' : '#0f172a',
-                              background: isSelected ? '#e2e8f0' : 'transparent',
-                              cursor: isDisabled ? 'not-allowed' : 'pointer',
-                              opacity: isDisabled ? 0.6 : 1
-                            }}
-                            onClick={() => !isDisabled && handleProductSelect(p)}
-                            onMouseEnter={() => setSelectedSuggestionIndex(index)}
-                          >
-                            <div>{p.name}</div>
-                            <div style={{ fontSize: '11px' }}>Stock: {p.quantity}</div>
-                          </li>
-                        );
-                      })
-                    ) : (
-                      <li style={styles.suggestionItem}>No products found</li>
-                    )}
-                  </ul>
-                )}
-              </div>
-
-              {/* Remarks Field */}
-              <div>
-                <label style={styles.label}>Remarks / Notes</label>
-                <input
-                  type="text"
-                  style={styles.input}
-                  placeholder="Optional notes..."
-                  value={remarks}
-                  onChange={(e) => setRemarks(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && selectedProduct) {
-                      e.preventDefault();
-                      handleAddToList();
-                    }
-                  }}
-                />
-              </div>
-            </div>
-
-            {selectedProduct && (
-              <div style={{ marginTop: '20px', padding: '16px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '4px' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '10px', marginBottom: '16px' }}>
-                  <div style={styles.infoRowCol}><span>Product</span><strong>{selectedProduct.name}</strong></div>
-                  <div style={styles.infoRowCol}><span>Category</span><strong>{getCategoryName(selectedProduct)}</strong></div>
-                  <div style={styles.infoRowCol}><span>UOM</span><strong>{getUomName(selectedProduct)}</strong></div>
-                  <div style={styles.infoRowCol}><span>Stock</span><strong style={{ color:'#10b981' }}>{selectedProduct.quantity}</strong></div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                <div className="form-group" style={{ position: 'relative' }} ref={searchRef}>
+                  <label className="form-label">Search Product *</label>
+                  <input
+                    ref={searchInputRef}
+                    type="text"
+                    className="form-input"
+                    placeholder="Search product..."
+                    value={searchTerm}
+                    onChange={(e) => {
+                      setSearchTerm(e.target.value);
+                      setShowSuggestions(true);
+                      setSelectedSuggestionIndex(-1);
+                      setMessage({ text: '', type: '' });
+                    }}
+                    onFocus={() => setShowSuggestions(true)}
+                    onKeyDown={handleKeyDown}
+                  />
+                  {showSuggestions && searchTerm && (
+                    <ul style={{ position: 'absolute', top: '100%', left: 0, right: 0, backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', maxHeight: '200px', overflowY: 'auto', margin: 0, padding: 0, listStyle: 'none', zIndex: 20, boxShadow: 'var(--shadow-md)' }}>
+                      {filteredProducts.length > 0 ? (
+                        filteredProducts.map((p, index) => {
+                          const isDisabled = p.quantity <= 0;
+                          const isSelected = index === selectedSuggestionIndex;
+                          return (
+                            <li
+                              key={p._id}
+                              data-index={index}
+                              style={{
+                                padding: '10px 14px',
+                                borderBottom: '1px solid var(--border-color)',
+                                fontSize: '13px',
+                                color: isDisabled ? 'var(--text-light)' : 'var(--text-main)',
+                                backgroundColor: isSelected ? 'var(--bg-app)' : 'transparent',
+                                cursor: isDisabled ? 'not-allowed' : 'pointer',
+                                opacity: isDisabled ? 0.6 : 1
+                              }}
+                              onClick={() => !isDisabled && handleProductSelect(p)}
+                              onMouseEnter={() => setSelectedSuggestionIndex(index)}
+                            >
+                              <div>{p.name}</div>
+                              <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Stock: {p.quantity}</div>
+                            </li>
+                          );
+                        })
+                      ) : (
+                        <li style={{ padding: '10px 14px', fontSize: '13px', color: 'var(--text-muted)' }}>No products found</li>
+                      )}
+                    </ul>
+                  )}
                 </div>
 
-                <div style={{ display: 'flex', gap: '15px', alignItems: 'flex-end' }}>
-                  <div style={{ flex: 1 }}>
-                    <label style={styles.label}>Broken Quantity *</label>
-                    <input
-                      ref={qtyInputRef}
-                      type="number" min="1" max={selectedProduct.quantity}
-                      style={{...styles.input, fontWeight: 'bold'}}
-                      value={quantity}
-                      onChange={(e) => {
-                        let val = e.target.value.replace(/^0+/, ''); 
-                        setQuantity(val);
-                      }}
-                      onKeyDown={(e) => { if (e.key === 'Enter') handleAddToList(); }}
-                    />
+                <div className="form-group">
+                  <label className="form-label">Remarks / Notes</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    placeholder="Optional notes..."
+                    value={remarks}
+                    onChange={(e) => setRemarks(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && selectedProduct) {
+                        e.preventDefault();
+                        handleAddToList();
+                      }
+                    }}
+                  />
+                </div>
+              </div>
+
+              {selectedProduct && (
+                <div style={{ marginTop: '16px', padding: '16px', backgroundColor: 'var(--bg-app)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '10px', marginBottom: '16px' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '13px', color: 'var(--text-muted)' }}><span>Product</span><strong style={{ color: 'var(--text-main)' }}>{selectedProduct.name}</strong></div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '13px', color: 'var(--text-muted)' }}><span>Category</span><strong style={{ color: 'var(--text-main)' }}>{getCategoryName(selectedProduct)}</strong></div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '13px', color: 'var(--text-muted)' }}><span>UOM</span><strong style={{ color: 'var(--text-main)' }}>{getUomName(selectedProduct)}</strong></div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '13px', color: 'var(--text-muted)' }}><span>Stock</span><strong style={{ color: 'var(--success)' }}>{selectedProduct.quantity}</strong></div>
                   </div>
-                  <button style={{...styles.addToListBtn, width: '150px'}} onClick={handleAddToList}>+ Add to List</button>
-                </div>
-              </div>
-            )}
 
-            <div style={{ marginTop: '24px' }}>
-              <label style={styles.label}>Items to Mark as Broken</label>
-              <div style={{ border: '1px solid #e2e8f0', borderRadius: '4px', overflow: 'hidden', minHeight: '150px' }}>
-                <table style={styles.table}>
-                  <thead>
-                    <tr>
-                      <th style={{ ...styles.th, textAlign: 'left' }}>Product</th>
-                      <th style={{ ...styles.th, textAlign: 'center' }}>Prev Stock</th>
-                      <th style={{ ...styles.th, textAlign: 'center' }}>Broken Qty</th>
-                      <th style={{ ...styles.th, textAlign: 'center' }}>New Stock</th>
-                      <th style={{ ...styles.th, textAlign: 'center' }}>Action</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {cartItems.length === 0 ? (
-                      <tr><td colSpan="5" style={styles.emptyCell}>No items added yet. Search a product to begin.</td></tr>
-                    ) : (
-                      cartItems.map(item => (
-                        <tr key={item.productId}>
-                          <td style={{ ...styles.td, textAlign: 'left', fontWeight: 600 }}>{item.name}</td>
-                          <td style={{ ...styles.td, textAlign: 'center' }}>{item.availableQty}</td>
-                          <td style={{ ...styles.td, textAlign: 'center', color: '#ef4444', fontWeight: 'bold' }}>{item.quantity}</td>
-                          <td style={{ ...styles.td, textAlign: 'center' }}>{item.availableQty - item.quantity}</td>
-                          <td style={{ ...styles.td, textAlign: 'center' }}>
-                            <button style={styles.removeBtn} onClick={() => removeFromCart(item.productId)}>✕ </button>
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
+                  <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-end' }}>
+                    <div className="form-group" style={{ marginBottom: 0, flex: 1 }}>
+                      <label className="form-label">Broken Quantity *</label>
+                      <input
+                        ref={qtyInputRef}
+                        type="number" min="1" max={selectedProduct.quantity}
+                        className="form-input"
+                        style={{ fontWeight: 'bold' }}
+                        value={quantity}
+                        onChange={(e) => {
+                          let val = e.target.value.replace(/^0+/, '');
+                          setQuantity(val);
+                        }}
+                        onKeyDown={(e) => { if (e.key === 'Enter') handleAddToList(); }}
+                      />
+                    </div>
+                    <button className="btn btn-secondary" style={{ backgroundColor: 'var(--primary)', color: 'white' }} onClick={handleAddToList}>+ Add to List</button>
+                  </div>
+                </div>
+              )}
+
+              <div style={{ marginTop: '24px' }}>
+                <label className="form-label">Items to Mark as Broken</label>
+                <div style={{ border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', overflow: 'hidden', minHeight: '150px' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                    <thead>
+                      <tr>
+                        <th style={{ backgroundColor: 'var(--header)', color: 'white', padding: '12px 16px', textAlign: 'left', fontSize: '13px' }}>Product</th>
+                        <th style={{ backgroundColor: 'var(--header)', color: 'white', padding: '12px 16px', textAlign: 'center', fontSize: '13px' }}>Prev Stock</th>
+                        <th style={{ backgroundColor: 'var(--header)', color: 'white', padding: '12px 16px', textAlign: 'center', fontSize: '13px' }}>Broken Qty</th>
+                        <th style={{ backgroundColor: 'var(--header)', color: 'white', padding: '12px 16px', textAlign: 'center', fontSize: '13px' }}>New Stock</th>
+                        <th style={{ backgroundColor: 'var(--header)', color: 'white', padding: '12px 16px', textAlign: 'center', fontSize: '13px' }}>Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {cartItems.length === 0 ? (
+                        <tr><td colSpan="5" style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '14px' }}>No items added yet. Search a product to begin.</td></tr>
+                      ) : (
+                        cartItems.map(item => (
+                          <tr key={item.productId} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                            <td style={{ padding: '10px 16px', fontSize: '14px', color: 'var(--text-main)', fontWeight: '600' }}>{item.name}</td>
+                            <td style={{ padding: '10px 16px', fontSize: '14px', color: 'var(--text-main)', textAlign: 'center' }}>{item.availableQty}</td>
+                            <td style={{ padding: '10px 16px', fontSize: '14px', color: 'var(--danger)', fontWeight: 'bold', textAlign: 'center' }}>{item.quantity}</td>
+                            <td style={{ padding: '10px 16px', fontSize: '14px', color: 'var(--text-main)', textAlign: 'center' }}>{item.availableQty - item.quantity}</td>
+                            <td style={{ padding: '10px 16px', textAlign: 'center' }}>
+                              <button style={{ backgroundColor: 'var(--danger-bg)', color: 'var(--danger)', border: '1px solid var(--danger)', padding: '6px 12px', borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold' }} onClick={() => removeFromCart(item.productId)}>✕</button>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
 
-            <div style={{ marginTop: '24px', display: 'flex', gap: '12px', justifyContent: 'flex-end', borderTop: '1px solid #e2e8f0', paddingTop: '16px' }}>
-              <button style={styles.cancelBtn} onClick={() => setIsAddModalOpen(false)}>Cancel</button>
+            <div className="modal-footer">
+              <button className="btn btn-secondary" onClick={() => setIsAddModalOpen(false)}>Cancel</button>
               <button
-                style={{ ...styles.saveBtn, opacity: submitting || cartItems.length === 0 ? 0.6 : 1, padding: '12px 30px' }}
+                className="btn btn-primary"
                 onClick={handleSubmitBreakage}
                 disabled={submitting || cartItems.length === 0}
               >
@@ -951,82 +865,5 @@ function StockBreakage() {
     </div>
   );
 }
-
-const styles = {
-  wrapper: { display: 'flex', flexDirection: 'column', gap: '16px' },
-  card: { width: '100%', background: '#ffffff', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' },
-  addBtn: { background: '#5aa7ef', color: '#fff', border: 'none', padding: '10px 18px', borderRadius: '4px', cursor: 'pointer', fontWeight: 600, fontSize: '14px', marginLeft: 'auto' },
-  table: { width: '100%', borderCollapse: 'collapse', marginTop: '0px' },
-  th: { textAlign: 'center', padding: '12px 16px', background: '#253247', fontSize: '12px', color: '#fff', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' },
-  td: { padding: '10px 16px', textAlign: 'center', fontSize: '14px', borderBottom: '1px solid #f1f5f9', color: '#334155' },
-  emptyCell: { padding: '40px 0', textAlign: 'center', color: '#94a3b8', fontSize: '14px' },
-  label: { fontSize: '12px', fontWeight: 700, color: '#475569', marginBottom: '6px', display: 'block', textAlign: 'left' },
-  input: { width: '100%', padding: '12px 14px', borderRadius: '4px', border: '1px solid #cbd5e1', fontSize: '14px', background: '#fff', outline: 'none', boxSizing: 'border-box' },
-  
-  actionGroup: {
-    display: 'flex',
-    justifyContent: 'center',
-    gap: '19px',
-  },
-  iconBtnView: {
-    background: '#f0fdf4',
-    color: '#264b61',
-    border: '1px solid #ddecf5',
-    padding: '6px 12px',
-    borderRadius: '6px',
-    cursor: 'pointer',
-    display: 'inline-flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    transition: 'all 0.2s',
-    backgroundColor: '#ebf5fc',
-    margin: '0 auto'
-  },
-  
-  suggestionsList: {
-    position: 'absolute', top: '100%', left: 0, right: 0, backgroundColor: '#fff',
-    border: '1px solid #cbd5e1', borderTop: 'none', borderRadius: '0 0 8px 8px',
-    maxHeight: '200px', overflowY: 'auto', margin: 0, padding: 0, listStyle: 'none',
-    zIndex: 20, boxShadow: '0 10px 20px rgba(0,0,0,0.1)', textAlign: 'left'
-  },
-  suggestionItem: { padding: '12px 16px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9', fontSize: '14px' },
-  
-  infoRowCol: { display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '13px', color: '#475569' },
-  addToListBtn: { background: '#223747', color: '#fff', border: 'none', padding: '12px 18px', borderRadius: '4px', cursor: 'pointer', fontWeight: 600, whiteSpace: 'nowrap' },
-  removeBtn: { background: '#fef2f2', color: '#ef4444', border: '1px solid #fecaca', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', fontSize: '12px', fontWeight: 700 },
-  
-  modalOverlay: { position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999999, backdropFilter: 'blur(4px)' },
-  addModalContent: { background: '#fff', padding: '30px', borderRadius: '14px', width: '100%', maxWidth: '800px', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 25px 50px rgba(0,0,0,0.25)' },
-  
-  modalHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e2e8f0', paddingBottom: '16px' },
-  closeBtn: { background: 'none', border: 'none', fontSize: '28px', color: '#64748b', cursor: 'pointer', lineHeight: 1 },
-  cancelBtn: { padding: '12px 24px', background: '#f1f5f9', color: '#475569', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 600, fontSize: '14px' },
-  saveBtn: { padding: '12px 24px', background: '#5aa7ef', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 600, fontSize: '14px' },
-  
-  paginationContainer: { marginTop: '10px', display: 'flex', gap: '15px', justifyContent: 'center', alignItems: 'center', padding: '15px 0', borderTop: '1px solid #e2e8f0' },
-  paginationButton: { padding: '8px 16px', border: 'none', borderRadius: '4px', fontWeight: '600', fontSize: '13px', transition: 'all 0.2s' },
-  paginationInfo: { fontSize: '13px', fontWeight: '600', color: '#475569', textAlign: 'center' },
-  
-  filterContainer: { padding: '20px 24px', backgroundColor: '#ffffff' },
-  filterRow: { display: 'flex', gap: '16px', alignItems: 'flex-end', flexWrap: 'wrap' },
-  filterGroup: { display: 'flex', flexDirection: 'column', flex: '1', minWidth: '150px' },
-  filterLabel: { fontSize: '12px', fontWeight: 500, color: '#475569', textAlign: 'left' },
-  filterInput: { padding: '9px 14px', borderRadius: '4px', border: '1px solid #cbd5e1', fontSize: '13px', backgroundColor: '#fff', outline: 'none', width: '100%', boxSizing: 'border-box' },
-  clearFilterBtn: {padding: '10px 20px', backgroundColor: '#6c757d', color: '#fff', border: '1px solid #cfcece', borderRadius: '4px', cursor: 'pointer'  },
-  filterStats: { marginTop: '16px', fontSize: '13px', color: '#64748b', textAlign: 'right', fontWeight: '400' },
-
-  // Receipt Modal Styles
-  receiptOverlay: { position: 'fixed', inset: 0, background: 'rgba(0, 0, 0, 0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000, padding: '20px' },
-  receiptContainer: { width:'30%',background: '#ffffff', borderRadius: '12px', border: '1px solid #000', width: '100%', maxWidth: '850px', maxHeight: '92vh', display: 'flex', flexDirection: 'column', boxShadow: '0 25px 80px rgba(0,0,0,0.3)', overflow: 'hidden' },
-  receiptHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 24px', borderBottom: '2px solid #000', background: '#f8fafc', flexShrink: 0 },
-  receiptActions: { display: 'flex', gap: '12px' },
-  printReceiptBtn: { background: '#252f47', color: '#fff', border: '1px solid #000', padding: '8px 18px', borderRadius: '6px', cursor: 'pointer', fontWeight: 600, fontSize: '14px', whiteSpace: 'nowrap' },
-  closeReceiptBtn: { background: '#fff', color: '#000', border: '1px solid #000', padding: '8px 18px', borderRadius: '6px', cursor: 'pointer', fontWeight: 600, fontSize: '14px', whiteSpace: 'nowrap' },
-  receiptBody: { overflowY: 'auto', overflowX: 'hidden', flex: 1, padding: '30px', color: '#000' },
-  receiptDivider: { borderTop: '2px dashed #000', margin: '20px 0' },
-  receiptTable: { width: '100%', tableLayout: 'fixed', borderCollapse: 'collapse', marginBottom: '12px' },
-  receiptTh: { textAlign: 'left', padding: '12px 10px', backgroundColor: '#253548', borderBottom: '2px solid #000', fontSize: '13px', fontWeight: 600, color: '#ffffff', textTransform: 'uppercase' },
-  receiptTd: { textAlign: 'left', padding: '12px 10px', borderBottom: '1px solid #ccc', fontSize: '14px', color: '#000' }
-};
 
 export default StockBreakage;

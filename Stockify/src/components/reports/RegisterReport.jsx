@@ -19,10 +19,16 @@ function RegisterReport() {
     fetchRegisters();
   }, []);
 
+  // ================= FETCH REGISTERS (WITH TOKEN) =================
   const fetchRegisters = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/api/cash-register/history`);
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${API_BASE_URL}/api/cash-register/history`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
       const data = await res.json();
       // Sort ascending by createdAt (oldest first)
       const sortedData = data.success ? [...data.registers].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt)) : [];
@@ -35,7 +41,6 @@ function RegisterReport() {
     }
   };
 
-  const formatDate = (d) => d ? new Date(d).toLocaleDateString('en-GB') : '—';
   const formatDateTime = (d) => d ? new Date(d).toLocaleString('en-GB') : '—';
 
   // Live closing amount calc for still-open registers
@@ -108,7 +113,7 @@ function RegisterReport() {
             p { margin: 0; color: #64748b; font-size: 11px; }
             table { width: 100%; border-collapse: collapse; font-size: 10px; table-layout: fixed; }
             th, td { border: 1px solid #cbd5e1; padding: 8px 6px; text-align: left; word-wrap: break-word; }
-            th { background: #f1f5f9; color: #334155; text-transform: uppercase; font-size: 9px; font-weight: 700; border-bottom: 2px solid #94a3b8; }
+            th { background: #0c514b; color: #ffffff; text-transform: uppercase; font-size: 9px; font-weight: 700; border-bottom: 2px solid #94a3b8; }
             tr:nth-child(even) { background-color: #f8fafc; }
             tfoot td { font-weight: bold; border-top: 2px solid #000; }
           </style>
@@ -176,8 +181,8 @@ function RegisterReport() {
       body: registers.map((r, idx) => getRow(r, idx)),
       foot: [['', '', '', 'Totals', totals.opening.toFixed(2), totals.sales.toFixed(2), totals.returns.toFixed(2), totals.purchases.toFixed(2), totals.purchaseReturns.toFixed(2), totals.closing.toFixed(2)]],
       styles: { fontSize: 8, cellPadding: 4, lineColor: [203, 213, 225], lineWidth: 0.1 },
-      headStyles: { fillColor: [241, 245, 249], textColor: [51, 65, 85], fontStyle: 'bold' },
-      footStyles: { fillColor: [241, 245, 249], textColor: [15, 23, 42], fontStyle: 'bold' },
+      headStyles: { fillColor: [12, 81, 75], textColor: [255, 255, 255], fontStyle: 'bold' },
+      footStyles: { fillColor: [204, 251, 241], textColor: [12, 81, 75], fontStyle: 'bold' },
       alternateRowStyles: { fillColor: [248, 250, 252] },
     });
     doc.save(`register-report-${new Date().toISOString().slice(0, 10)}.pdf`);
@@ -224,16 +229,16 @@ function RegisterReport() {
     const ws = XLSX.utils.aoa_to_sheet(data);
 
     ws['!cols'] = [
-      { wch: 5 },  // Sr#
-      { wch: 22 }, // Date Opened
-      { wch: 22 }, // Date Closed
-      { wch: 10 }, // Status
-      { wch: 12 }, // Opening
-      { wch: 12 }, // Sales
-      { wch: 15 }, // Sale Returns
-      { wch: 12 }, // Purchases
-      { wch: 18 }, // Purchase Returns
-      { wch: 15 }, // Closing
+      { wch: 5 },  
+      { wch: 22 }, 
+      { wch: 22 }, 
+      { wch: 10 }, 
+      { wch: 12 }, 
+      { wch: 12 }, 
+      { wch: 15 }, 
+      { wch: 12 }, 
+      { wch: 18 }, 
+      { wch: 15 }, 
     ];
 
     XLSX.utils.book_append_sheet(wb, ws, 'Register');
@@ -247,137 +252,159 @@ function RegisterReport() {
   const totalPages = Math.ceil(registers.length / itemsPerPage);
 
   return (
-    <div style={styles.page}>
-      <div style={styles.headerRow}>
-        <div style={{ ...styles.actions, marginLeft: 'auto' }}>
-          <button style={{ ...styles.actionBtn, backgroundColor: '#409fb0' }} onClick={handlePrint}><FontAwesomeIcon icon={faPrint} /> Print</button>
-          <button style={{ ...styles.actionBtn, backgroundColor: '#d66336' }} onClick={handleExportPDF}><FontAwesomeIcon icon={faFilePdf} /> PDF</button>
-          <button style={{ ...styles.actionBtn, backgroundColor: '#296f3f' }} onClick={handleExportExcel}><FontAwesomeIcon icon={faFileExcel} /> Excel</button>
+    <div className="dashboard-wrapper">
+      
+      {/* HEADER & ACTIONS */}
+      <div className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 'var(--space-md)' }}>
+        <h4 style={{ margin: 0, color: 'var(--text-main)', fontSize: '20px' }}>Register Report</h4>
+        <div style={{ display: 'flex', gap: 'var(--space-sm)' }}>
+          <button className="btn btn-secondary" onClick={handlePrint}>
+            <FontAwesomeIcon icon={faPrint} /> Print
+          </button>
+          <button className="btn btn-secondary"  onClick={handleExportPDF}>
+            <FontAwesomeIcon icon={faFilePdf} /> PDF
+          </button>
+          <button className="btn btn-secondary"  onClick={handleExportExcel}>
+            <FontAwesomeIcon icon={faFileExcel} /> Excel
+          </button>
         </div>
       </div>
 
-      {/* ==================== TABLE ==================== */}
-      <div style={styles.tableWrapper}>
-        <table style={styles.table}>
-          <thead>
-            <tr>
-              <th style={{ ...styles.th, width: '5%', textAlign: 'center' }}>Sr#</th>
-              <th style={{ ...styles.th, width: '13%' }}>Date Opened</th>
-              <th style={{ ...styles.th, width: '13%' }}>Date Closed</th>
-              <th style={{ ...styles.th, width: '8%' }}>Status</th>
-              <th style={{ ...styles.th, width: '9%', textAlign: 'left' }}>Opening</th>
-              <th style={{ ...styles.th, width: '9%', textAlign: 'left' }}>Sales</th>
-              <th style={{ ...styles.th, width: '10%', textAlign: 'left' }}>Sale Returns</th>
-              <th style={{ ...styles.th, width: '10%', textAlign: 'left' }}>Purchases</th>
-              <th style={{ ...styles.th, width: '12%', textAlign: 'left' }}>Pur-Returns</th>
-              <th style={{ ...styles.th, width: '11%', textAlign: 'left' }}>Closing</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <tr><td colSpan="10" style={styles.emptyCell}>Loading...</td></tr>
-            ) : currentRows.length === 0 ? (
-              <tr><td colSpan="10" style={styles.emptyCell}>No register sessions found.</td></tr>
-            ) : (
-              currentRows.map((r, idx) => {
-                const serialNumber = (currentPage - 1) * itemsPerPage + idx + 1;
-                const closing = computeClosingAmount(r);
-                return (
-                  <tr key={r._id} style={idx % 2 === 1 ? styles.altRow : null}>
-                    <td style={{ ...styles.td, textAlign: 'center' }}>{serialNumber}</td>
-                    <td style={styles.td} title={formatDateTime(r.createdAt)}>{formatDateTime(r.createdAt)}</td>
-                    <td style={styles.td} title={r.closingDate ? formatDateTime(r.closingDate) : '—'}>{r.closingDate ? formatDateTime(r.closingDate) : '—'}</td>
-                    <td style={styles.td}>
-                      <span style={{
-                        padding: '4px 10px', borderRadius: '999px', fontSize: '11px', fontWeight: 500, border: '1px solid #dddedf',
-                        background: r.closingDate ? '#f1f5f9' : '#ecfdf5',
-                        color: r.closingDate ? '#475569' : '#10b981'
-                      }}>
-                        {r.closingDate ? 'Closed' : 'Open'}
-                      </span>
-                    </td>
-                    <td style={{ ...styles.td, textAlign: 'left' }}>{(r.openingAmount || 0).toFixed(2)}</td>
-                    <td style={{ ...styles.td, textAlign: 'left', color: '#10b981', fontWeight: 600 }}>{(r.salesAmount || 0).toFixed(2)}</td>
-                    <td style={{ ...styles.td, textAlign: 'left', color: '#ef4444' }}>{(r.totalReturn || 0).toFixed(2)}</td>
-                    <td style={{ ...styles.td, textAlign: 'left', color: '#ef4444' }}>{(r.purchaseAmount || 0).toFixed(2)}</td>
-                    <td style={{ ...styles.td, textAlign: 'left', color: '#10b981' }}>{(r.purchaseReturnAmount || 0).toFixed(2)}</td>
-                    <td style={{ ...styles.td, textAlign: 'left', fontWeight: 700, color: closing < 0 ? '#ef4444' : '#0f172a' }}>
-                      {closing.toFixed(2)}
-                    </td>
-                  </tr>
-                );
-              })
+      {/* ==================== TABLE SECTION ==================== */}
+      <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+        
+        <div style={{ padding: 'var(--space-sm) var(--space-md)', textAlign: 'right', fontSize: '13px', color: 'var(--text-muted)', borderBottom: '1px solid var(--border-color)' }}>
+          Showing {currentRows.length} of {registers.length} record(s)
+        </div>
+
+        <div style={{ overflowX: 'auto', width: '100%' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '900px' }}>
+            <thead>
+              <tr>
+                <th style={{ ...tableStyles.th, width: '1%', textAlign: 'center' }}>Sr#</th>
+                <th style={{ ...tableStyles.th, width: '8%' }}>Opened</th>
+                <th style={{ ...tableStyles.th, width: '8%' }}> Closed</th>
+                <th style={{ ...tableStyles.th, width: '10%', textAlign: 'center' }}>Status</th>
+                <th style={{ ...tableStyles.th, width: '5%', textAlign: 'left' }}>Opening</th>
+                <th style={{ ...tableStyles.th, width: '5%', textAlign: 'left' }}>Sales</th>
+                <th style={{ ...tableStyles.th, width: '10%', textAlign: 'left' }}>Sale Returns</th>
+                <th style={{ ...tableStyles.th, width: '10%', textAlign: 'left' }}>Purchases</th>
+                <th style={{ ...tableStyles.th, width: '10%', textAlign: 'left' }}>Pur-Returns</th>
+                <th style={{ ...tableStyles.th, width: '8%', textAlign: 'left' }}>Closing</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr><td colSpan="10" style={tableStyles.emptyCell}>Loading...</td></tr>
+              ) : currentRows.length === 0 ? (
+                <tr><td colSpan="10" style={tableStyles.emptyCell}>No register sessions found.</td></tr>
+              ) : (
+                currentRows.map((r, idx) => {
+                  const serialNumber = (currentPage - 1) * itemsPerPage + idx + 1;
+                  const closing = computeClosingAmount(r);
+                  return (
+                    <tr 
+                      key={r._id} 
+                      style={{ borderBottom: '1px solid var(--border-color)', transition: 'background-color 0.2s' }}
+                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--bg-app)'}
+                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                    >
+                      <td style={{ ...tableStyles.td, textAlign: 'center', color: 'var(--text-muted)', fontWeight: 500 }}>{serialNumber}</td>
+                      <td style={tableStyles.td} title={formatDateTime(r.createdAt)}>{formatDateTime(r.createdAt)}</td>
+                      <td style={tableStyles.td} title={r.closingDate ? formatDateTime(r.closingDate) : '—'}>{r.closingDate ? formatDateTime(r.closingDate) : '—'}</td>
+                      <td style={{ ...tableStyles.td, textAlign: 'center' }}>
+                        <span style={{
+                          padding: '4px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: 600,
+                          backgroundColor: r.closingDate ? 'var(--bg-app)' : 'var(--success-bg)',
+                          color: r.closingDate ? 'var(--text-muted)' : 'var(--success)',
+                          border: `1px solid ${r.closingDate ? 'var(--border-color)' : 'var(--success)'}`
+                        }}>
+                          {r.closingDate ? 'Closed' : 'Open'}
+                        </span>
+                      </td>
+                      <td style={{ ...tableStyles.td, textAlign: 'left' }}>{(r.openingAmount || 0).toFixed(2)}</td>
+                      <td style={{ ...tableStyles.td, textAlign: 'left', color: 'var(--success)', fontWeight: 600 }}>{(r.salesAmount || 0).toFixed(2)}</td>
+                      <td style={{ ...tableStyles.td, textAlign: 'left', color: 'var(--danger)' }}>{(r.totalReturn || 0).toFixed(2)}</td>
+                      <td style={{ ...tableStyles.td, textAlign: 'left', color: 'var(--danger)' }}>{(r.purchaseAmount || 0).toFixed(2)}</td>
+                      <td style={{ ...tableStyles.td, textAlign: 'left', color: 'var(--success)' }}>{(r.purchaseReturnAmount || 0).toFixed(2)}</td>
+                      <td style={{ ...tableStyles.td, textAlign: 'left', fontWeight: 700, color: closing < 0 ? 'var(--danger)' : 'var(--text-main)' }}>
+                        {closing.toFixed(2)}
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+            
+            {/* Totals Footer */}
+            {currentRows.length > 0 && (
+              <tfoot>
+                <tr style={{ backgroundColor: 'var(--primary-light)', borderTop: '2px solid var(--border-color)' }}>
+                  <td colSpan="4" style={{ ...tableStyles.td, textAlign: 'right', fontWeight: 700 }}>Totals</td>
+                  <td style={{ ...tableStyles.td, fontWeight: 700 }}>{totals.opening.toFixed(2)}</td>
+                  <td style={{ ...tableStyles.td, fontWeight: 700, color: 'var(--success)' }}>{totals.sales.toFixed(2)}</td>
+                  <td style={{ ...tableStyles.td, fontWeight: 700, color: 'var(--danger)' }}>{totals.returns.toFixed(2)}</td>
+                  <td style={{ ...tableStyles.td, fontWeight: 700, color: 'var(--danger)' }}>{totals.purchases.toFixed(2)}</td>
+                  <td style={{ ...tableStyles.td, fontWeight: 700, color: 'var(--success)' }}>{totals.purchaseReturns.toFixed(2)}</td>
+                  <td style={{ ...tableStyles.td, fontWeight: 800 }}>{totals.closing.toFixed(2)}</td>
+                </tr>
+              </tfoot>
             )}
-          </tbody>
-        </table>
+          </table>
+        </div>
+
+        {/* ==================== PAGINATION CONTROLS ==================== */}
+        {registers.length > itemsPerPage && (
+          <div style={{ display: 'flex', gap: 'var(--space-md)', justifyContent: 'center', alignItems: 'center', padding: 'var(--space-md)' }}>
+            <button
+              className="btn btn-secondary"
+              disabled={currentPage <= 1}
+              onClick={() => setCurrentPage(prev => prev - 1)}
+              style={{ padding: '6px 12px' }}
+            >
+              ←
+            </button>
+            <span style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-muted)' }}>
+              Page {currentPage} of {totalPages || 1}
+            </span>
+            <button
+              className="btn btn-secondary"
+              disabled={currentPage >= totalPages || totalPages === 0}
+              onClick={() => setCurrentPage(prev => prev + 1)}
+              style={{ padding: '6px 12px' }}
+            >
+              →
+            </button>
+          </div>
+        )}
       </div>
 
-      {/* ==================== PAGINATION CONTROLS ==================== */}
-      {registers.length > itemsPerPage && (
-        <div style={{ marginTop: '20px', display: 'flex', gap: '15px', justifyContent: 'center', alignItems: 'center', paddingBottom: '20px' }}>
-          <button
-            disabled={currentPage <= 1}
-            onClick={() => setCurrentPage(prev => prev - 1)}
-            style={{
-              padding: '8px 16px',
-              backgroundColor: currentPage <= 1 ? '#e9ecef' : '#5aa7ef',
-              color: currentPage <= 1 ? '#6c757d' : 'white',
-              border: 'none', borderRadius: '4px',
-              cursor: currentPage <= 1 ? 'not-allowed' : 'pointer', fontWeight: '600'
-            }}
-          >
-            ←
-          </button>
-          <span style={{ fontSize: '13px', fontWeight: '600', color: '#475569' }}>
-            Page {currentPage} of {totalPages || 1}
-          </span>
-          <button
-            disabled={currentPage >= totalPages || totalPages === 0}
-            onClick={() => setCurrentPage(prev => prev + 1)}
-            style={{
-              padding: '8px 16px',
-              backgroundColor: (currentPage >= totalPages || totalPages === 0) ? '#e9ecef' : '#5aa7ef',
-              color: (currentPage >= totalPages || totalPages === 0) ? '#6c757d' : 'white',
-              border: 'none', borderRadius: '4px',
-              cursor: (currentPage >= totalPages || totalPages === 0) ? 'not-allowed' : 'pointer', fontWeight: '600'
-            }}
-          >
-            →
-          </button>
-        </div>
-      )}
     </div>
   );
 }
 
-const styles = {
-  page: {
-    padding: '24px 16px',
-    width: '100%',
-    boxSizing: 'border-box',
-    background: '#f8fafc',
-    minHeight: '100vh',
-    marginBottom: '60px'
+// Strict Table Styles Rule
+const tableStyles = {
+  th: {
+    padding: '12px 16px',
+    backgroundColor: 'var(--header)',
+    color: '#ffffff',
+    fontWeight: '600',
+    fontSize: '13px',
+    textAlign: 'left'
   },
-  headerRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px', flexWrap: 'wrap', gap: '10px' },
-  title: { margin: 0, fontSize: '20px', fontWeight: 700, color: '#0f172a' },
-  actions: { display: 'flex', gap: '10px' },
-  actionBtn: { color: '#fff', border: 'none', padding: '9px 16px', borderRadius: '8px', cursor: 'pointer', fontWeight: 600, fontSize: '13px' },
-
-  tableWrapper: {
-    marginTop: '5px',
-    background: '#fff',
-    borderRadius: '8px',
-    border: '1px solid #cbd5e1',
-    overflowX: 'auto',
-    boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
-    width: '100%'
+  td: {
+    padding: '8px 16px',
+    color: 'var(--text-main)',
+    fontSize: '13px',
+    textAlign: 'left'
   },
-  table: { width: '100%', borderCollapse: 'collapse', tableLayout: 'auto' },
-  th: { textAlign: 'left', padding: '10px 10px', background: '#3c4e6b', fontSize: '11px', color: '#fefefe', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', borderBottom: '2px solid #94a3b8', borderRight: '1px solid #44576e', whiteSpace: 'nowrap' },
-  td: { padding: '9px 10px', textAlign: 'left', fontSize: '12.5px', borderBottom: '1px solid #e2e8f0', borderRight: '1px solid #e2e8f0', color: '#334155', whiteSpace: 'nowrap' },
-  altRow: { backgroundColor: '#f8fafc' },
-  emptyCell: { textAlign: 'center', padding: '40px 0', color: '#94a3b8', fontSize: '14px' },
+  emptyCell: {
+    padding: '40px',
+    textAlign: 'center',
+    color: 'var(--text-muted)',
+    fontSize: '14px'
+  }
 };
 
 export default RegisterReport;

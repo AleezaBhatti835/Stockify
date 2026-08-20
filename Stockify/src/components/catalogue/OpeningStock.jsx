@@ -1,23 +1,52 @@
 import React, { useState, useEffect, useRef } from 'react';
-import '../roles.css';
 
-// Message Popup Component (Moved outside to prevent re-mounting glitches)
+// Message Popup Component styled with global CSS variables
 function MessagePopup({ message, onClose }) {
     if (!message.text) return null;
 
+    const isError = message.type === 'error';
+
     return (
-        <div className="message-popup-overlay" onClick={onClose}>
-            <div className={`message-popup ${message.type}`} onClick={(e) => e.stopPropagation()}>
-                <button className="message-popup-close" onClick={onClose}>×</button>
-                <div className="message-popup-content">
-                    <span className="message-popup-icon">
-                        {message.type === 'error' ? '⚠️' : '✅'}
+        <div className="modal-overlay" onClick={onClose} style={{ zIndex: 999999 }}>
+            <div 
+                className="card" 
+                onClick={(e) => e.stopPropagation()} 
+                style={{
+                    minWidth: '320px',
+                    maxWidth: '90%',
+                    padding: 'var(--space-md)',
+                    borderLeft: `4px solid ${isError ? 'var(--danger)' : 'var(--success)'}`,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: 'var(--space-md)',
+                    boxShadow: 'var(--shadow-modal)'
+                }}
+            >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-sm)' }}>
+                    <span style={{ fontSize: '20px' }}>
+                        {isError ? '⚠️' : '✅'}
                     </span>
-                    <div className="message-popup-text">
-                        <strong>{message.type === 'error' ? 'Error!' : 'Success!'}</strong>
+                    <div style={{ fontSize: '14px', color: 'var(--text-main)' }}>
+                        <strong style={{ color: isError ? 'var(--danger)' : 'var(--success)' }}>
+                            {isError ? 'Error! ' : 'Success! '}
+                        </strong>
                         {message.text}
                     </div>
                 </div>
+                <button 
+                    onClick={onClose} 
+                    style={{
+                        background: 'none',
+                        border: 'none',
+                        fontSize: '20px',
+                        color: 'var(--text-muted)',
+                        cursor: 'pointer',
+                        lineHeight: 1
+                    }}
+                >
+                    &times;
+                </button>
             </div>
         </div>
     );
@@ -38,13 +67,11 @@ const OpeningStock = () => {
     const dropdownRef = useRef(null);
     const inputRef = useRef(null);
     const quantityRef = useRef(null);
-    const timerRef = useRef(null); // Ref to keep track of message timeout
+    const timerRef = useRef(null);
 
-    // Fetch products on mount
     useEffect(() => {
         fetchProducts();
 
-        // Click outside handler to close dropdown
         const handleClickOutside = (event) => {
             if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
                 setIsDropdownOpen(false);
@@ -58,7 +85,6 @@ const OpeningStock = () => {
         };
     }, []);
 
-    // Keyboard navigation
     useEffect(() => {
         const handleKeyDown = (e) => {
             if (!isDropdownOpen || filteredProducts.length === 0) {
@@ -74,14 +100,10 @@ const OpeningStock = () => {
             switch (e.key) {
                 case 'ArrowDown':
                     e.preventDefault();
-                    setHighlightedIndex(prev =>
-                        prev < filteredProducts.length - 1 ? prev + 1 : prev
-                    );
+                    setHighlightedIndex(prev => prev < filteredProducts.length - 1 ? prev + 1 : prev);
                     setTimeout(() => {
                         const highlightedElement = document.querySelector(`[data-index="${highlightedIndex + 1}"]`);
-                        if (highlightedElement) {
-                            highlightedElement.scrollIntoView({ block: 'nearest' });
-                        }
+                        if (highlightedElement) highlightedElement.scrollIntoView({ block: 'nearest' });
                     }, 50);
                     break;
 
@@ -90,9 +112,7 @@ const OpeningStock = () => {
                     setHighlightedIndex(prev => prev > 0 ? prev - 1 : -1);
                     setTimeout(() => {
                         const highlightedElement = document.querySelector(`[data-index="${highlightedIndex - 1}"]`);
-                        if (highlightedElement) {
-                            highlightedElement.scrollIntoView({ block: 'nearest' });
-                        }
+                        if (highlightedElement) highlightedElement.scrollIntoView({ block: 'nearest' });
                     }, 50);
                     break;
 
@@ -101,9 +121,7 @@ const OpeningStock = () => {
                     if (highlightedIndex >= 0 && highlightedIndex < filteredProducts.length) {
                         selectProduct(filteredProducts[highlightedIndex]);
                         setTimeout(() => {
-                            if (quantityRef.current) {
-                                quantityRef.current.focus();
-                            }
+                            if (quantityRef.current) quantityRef.current.focus();
                         }, 100);
                     }
                     break;
@@ -112,9 +130,7 @@ const OpeningStock = () => {
                     e.preventDefault();
                     setIsDropdownOpen(false);
                     setHighlightedIndex(-1);
-                    if (inputRef.current) {
-                        inputRef.current.blur();
-                    }
+                    if (inputRef.current) inputRef.current.blur();
                     break;
 
                 default:
@@ -126,7 +142,6 @@ const OpeningStock = () => {
         return () => document.removeEventListener('keydown', handleKeyDown);
     }, [isDropdownOpen, filteredProducts, highlightedIndex, products]);
 
-    // Global keyboard shortcuts for ESC and Enter on form
     useEffect(() => {
         const handleGlobalKeyDown = (e) => {
             if (isDropdownOpen) return;
@@ -139,9 +154,7 @@ const OpeningStock = () => {
                     setFilteredProducts(products);
                     setQuantity('');
                     clearMessage();
-                    if (inputRef.current) {
-                        inputRef.current.focus();
-                    }
+                    if (inputRef.current) inputRef.current.focus();
                 }
             }
 
@@ -162,7 +175,10 @@ const OpeningStock = () => {
 
     const fetchProducts = async () => {
         try {
-            const res = await fetch('http://localhost:5000/api/products');
+            const token = localStorage.getItem('token');
+            const res = await fetch('http://localhost:5000/api/products', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
             const data = await res.json();
             const sortedData = Array.isArray(data) ? [...data].sort((a, b) => a.name.localeCompare(b.name)) : [];
             setProducts(sortedData);
@@ -173,13 +189,10 @@ const OpeningStock = () => {
         }
     };
 
-    // Helper function to show messages with safe timeout handling
     const showMessage = (text, type) => {
         if (timerRef.current) clearTimeout(timerRef.current);
-        
         setMessage({ text, type });
         const duration = type === 'error' ? 4000 : 2500;
-        
         timerRef.current = setTimeout(() => {
             setMessage({ text: '', type: '' });
         }, duration);
@@ -190,7 +203,6 @@ const OpeningStock = () => {
         setMessage({ text: '', type: '' });
     };
 
-    // Handle Search Input
     const handleSearchChange = (e) => {
         const value = e.target.value;
         setSearchTerm(value);
@@ -201,17 +213,12 @@ const OpeningStock = () => {
             setFilteredProducts(products);
             setSelectedProduct(null);
         } else {
-            const filtered = products.filter(p =>
-                p.name.toLowerCase().includes(value.toLowerCase())
-            );
+            const filtered = products.filter(p => p.name.toLowerCase().includes(value.toLowerCase()));
             setFilteredProducts(filtered);
-            if (filtered.length > 0) {
-                setHighlightedIndex(0);
-            }
+            if (filtered.length > 0) setHighlightedIndex(0);
         }
     };
 
-    // Handle Product Selection
     const selectProduct = (product) => {
         setSelectedProduct(product);
         setSearchTerm(product.name);
@@ -219,13 +226,10 @@ const OpeningStock = () => {
         setHighlightedIndex(-1);
         clearMessage();
         setTimeout(() => {
-            if (quantityRef.current) {
-                quantityRef.current.focus();
-            }
+            if (quantityRef.current) quantityRef.current.focus();
         }, 100);
     };
 
-    // Handle Form Submission
     const handleSubmit = async (e) => {
         if (e) e.preventDefault();
         clearMessage();
@@ -243,9 +247,13 @@ const OpeningStock = () => {
 
         setLoading(true);
         try {
+            const token = localStorage.getItem('token');
             const res = await fetch(`http://localhost:5000/api/products/${selectedProduct._id}/opening-stocks`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
                 body: JSON.stringify({ quantity: Number(quantity) })
             });
 
@@ -253,16 +261,13 @@ const OpeningStock = () => {
 
             if (res.ok && result.success) {
                 showMessage(`Opening stock added successfully! ${quantity} units added to "${selectedProduct.name}".`, 'success');
-                // Reset form
                 setSelectedProduct(null);
                 setSearchTerm('');
                 setQuantity('');
                 setFilteredProducts(products);
                 setHighlightedIndex(-1);
                 setTimeout(() => {
-                    if (inputRef.current) {
-                        inputRef.current.focus();
-                    }
+                    if (inputRef.current) inputRef.current.focus();
                 }, 300);
             } else {
                 showMessage(result.message || 'Failed to add opening stock.', 'error');
@@ -276,22 +281,24 @@ const OpeningStock = () => {
     };
 
     return (
-        <div className="panel" style={{ width: '90%', padding: '25px', borderRadius: '8px', backgroundColor: '#fff', margin: '0 auto' }}>
+        <div className="dashboard-wrapper">
             <MessagePopup message={message} onClose={clearMessage} />
 
-            <div style={{ textAlign: 'center', marginBottom: '20px' }}>
-                <h2>Add Opening Stock</h2>
-            </div>
+            <div className="card" style={{padding:'50px 20px', maxWidth: '800px', margin: '2% auto', width: '100%',border:'1px solid #c8efec' }}>
+                <div style={{ textAlign: 'center', marginBottom: 'var(--space-lg)' }}>
+                    {/* Using var(--header) for the title as requested */}
+                    <h2 style={{ color: 'var(--primary)', fontSize: '24px', fontWeight: '700' }}>
+                        Add Opening Stock
+                    </h2>
+                </div>
 
-            <form onSubmit={handleSubmit}>
-                <div>
-                    <div style={{ marginBottom: '15px', position: 'relative' }} ref={dropdownRef}>
-                        <label style={{ textAlign: 'left', display: 'block', fontSize: '13px', fontWeight: '600', color: '#555', marginBottom: '6px' }}>
-                            Product Name *
-                        </label>
+                <form onSubmit={handleSubmit}>
+                    <div className="form-group" style={{ position: 'relative' }} ref={dropdownRef}>
+                        <label className="form-label">Product Name *</label>
                         <input
                             ref={inputRef}
                             type="text"
+                            className="form-input"
                             value={searchTerm}
                             onChange={handleSearchChange}
                             onFocus={() => {
@@ -302,14 +309,6 @@ const OpeningStock = () => {
                                 }
                             }}
                             placeholder="Search or click to select product..."
-                            style={{
-                                width: '100%',
-                                padding: '10px 12px',
-                                borderRadius: '4px',
-                                border: '1px solid #ced4da',
-                                backgroundColor: 'white',
-                                fontSize: '14px'
-                            }}
                         />
 
                         {/* Custom Dropdown Suggestions */}
@@ -319,18 +318,17 @@ const OpeningStock = () => {
                                 top: '100%',
                                 left: 0,
                                 right: 0,
-                                backgroundColor: 'white',
-                                border: '1px solid #ddd',
-                                borderRadius: '4px',
+                                backgroundColor: 'var(--bg-surface)',
+                                border: '1px solid var(--border-color)',
+                                borderRadius: 'var(--radius-md)',
                                 maxHeight: '200px',
                                 overflowY: 'auto',
-                                textAlign: 'left',
-                                color: 'black',
+                                zIndex: 1000,
+                                boxShadow: 'var(--shadow-md)',
                                 margin: 0,
                                 padding: 0,
                                 listStyle: 'none',
-                                zIndex: 1000,
-                                boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
+                                marginTop: 'var(--space-xs)'
                             }}>
                                 {filteredProducts.length > 0 ? (
                                     filteredProducts.map((product, index) => (
@@ -341,70 +339,63 @@ const OpeningStock = () => {
                                             style={{
                                                 padding: '10px 12px',
                                                 cursor: 'pointer',
-                                                borderBottom: '1px solid #f0f0f0',
+                                                borderBottom: '1px solid var(--border-color)',
                                                 fontSize: '14px',
-                                                backgroundColor: highlightedIndex === index ? '#e3f2fd' : '#fff',
-                                                borderLeft: highlightedIndex === index ? '3px solid #5aa7ef' : '3px solid transparent',
-                                                transition: 'all 0.1s ease'
+                                                backgroundColor: highlightedIndex === index ? 'var(--primary-light)' : 'var(--bg-surface)',
+                                                borderLeft: highlightedIndex === index ? '3px solid var(--primary)' : '3px solid transparent',
+                                                transition: 'all 0.1s ease',
+                                                color: 'var(--text-main)'
                                             }}
                                             onMouseEnter={() => setHighlightedIndex(index)}
                                             onMouseLeave={() => setHighlightedIndex(-1)}
                                         >
                                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                                <span>{product.name}</span>
+                                                <span style={{ fontWeight: highlightedIndex === index ? '600' : '400' }}>
+                                                    {product.name}
+                                                </span>
                                             </div>
-                                            <div style={{ fontSize: '11px', color: '#397aac', marginTop: '2px' }}>
+                                            <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
                                                 Stock: {product.quantity || 0} units
                                             </div>
                                         </li>
                                     ))
                                 ) : (
-                                    <li style={{ padding: '10px 12px', color: '#777', fontSize: '14px' }}>No products found</li>
+                                    <li style={{ padding: '10px 12px', color: 'var(--text-muted)', fontSize: '14px' }}>
+                                        No products found
+                                    </li>
                                 )}
                             </ul>
                         )}
                     </div>
 
                     {/* Read-only Prices */}
-                    <div style={{ display: 'flex', width: '100%', alignItems: 'center', textAlign: 'center', gap: '35px', marginBottom: '15px' }}>
-                        <div style={{ alignItems: 'center', textAlign: 'center', flex: 1 }}>
-                            <label style={{ textAlign: 'left', display: 'block', fontSize: '13px', fontWeight: '600', color: '#555', marginBottom: '6px' }}>
-                                Cost Price
-                            </label>
+                    <div style={{ display: 'flex', gap: 'var(--space-md)', marginBottom: 'var(--space-md)' }}>
+                        <div className="form-group" style={{ flex: 1, marginBottom: 0 }}>
+                            <label className="form-label">Cost Price</label>
                             <input
                                 type="text"
+                                className="form-input"
                                 readOnly
                                 value={selectedProduct ? selectedProduct.costPrice : ''}
                                 placeholder="Auto-loaded"
                                 style={{
-                                    width: '100%',
-                                    padding: '10px 12px',
-                                    borderRadius: '4px',
-                                    border: '1px solid #ced4da',
-                                    backgroundColor: '#ffffff',
-                                    color: '#495057',
-                                    fontSize: '14px',
+                                    backgroundColor: 'var(--bg-app)',
+                                    color: 'var(--text-muted)',
                                     cursor: 'not-allowed'
                                 }}
                             />
                         </div>
-                        <div style={{ alignItems: 'center', textAlign: 'center', flex: 1 }}>
-                            <label style={{ textAlign: 'left', display: 'block', fontSize: '13px', fontWeight: '600', color: '#555', marginBottom: '6px' }}>
-                                Retail Price
-                            </label>
+                        <div className="form-group" style={{ flex: 1, marginBottom: 0 }}>
+                            <label className="form-label">Retail Price</label>
                             <input
                                 type="text"
+                                className="form-input"
                                 readOnly
                                 value={selectedProduct ? selectedProduct.retailPrice : ''}
                                 placeholder="Auto-loaded"
                                 style={{
-                                    width: '100%',
-                                    padding: '10px 12px',
-                                    borderRadius: '4px',
-                                    border: '1px solid #ced4da',
-                                    backgroundColor: '#ffffff',
-                                    color: '#495057',
-                                    fontSize: '14px',
+                                    backgroundColor: 'var(--bg-app)',
+                                    color: 'var(--text-muted)',
                                     cursor: 'not-allowed'
                                 }}
                             />
@@ -414,16 +405,14 @@ const OpeningStock = () => {
                     {/* Current Stock Display */}
                     {selectedProduct && (
                         <div style={{
-                            marginBottom: '15px',
-                            padding: '10px',
-                            backgroundColor: '#eaf7f3',
-                            borderRadius: '4px',
-                            border: '1px dashed #205a4e',
-                            width: '70%',
-                            alignItems: 'center',
-                            marginLeft: '15%'
+                            marginBottom: 'var(--space-md)',
+                            padding: 'var(--space-md)',
+                            backgroundColor: 'var(--primary-light)',
+                            borderRadius: 'var(--radius-md)',
+                            border: '1px dashed var(--btn-border)', // Using the requested --btn-border
+                            textAlign: 'center'
                         }}>
-                            <span style={{ fontSize: '13px', color: '#555' }}>
+                            <span style={{ fontSize: '14px', color: 'var(--text-main)' }}>
                                 <strong>Current Stock:</strong> {selectedProduct.quantity || 0} units
                                 {selectedProduct.openingStockQuantity !== undefined && (
                                     <span style={{ marginLeft: '15px' }}>
@@ -435,13 +424,12 @@ const OpeningStock = () => {
                     )}
 
                     {/* Quantity Input */}
-                    <div style={{ marginBottom: '25px' }}>
-                        <label style={{ textAlign: 'left', display: 'block', fontSize: '13px', fontWeight: '600', color: '#555', marginBottom: '6px' }}>
-                            Opening Quantity *
-                        </label>
+                    <div className="form-group" style={{ marginBottom: 'var(--space-lg)' }}>
+                        <label className="form-label">Opening Quantity *</label>
                         <input
                             ref={quantityRef}
                             type="number"
+                            className="form-input"
                             min="1"
                             value={quantity}
                             onChange={(e) => setQuantity(e.target.value)}
@@ -453,36 +441,20 @@ const OpeningStock = () => {
                             }}
                             placeholder="Enter quantity..."
                             required
-                            style={{
-                                width: '100%',
-                                padding: '10px 12px',
-                                backgroundColor: 'white',
-                                borderRadius: '4px',
-                                border: '1px solid #ced4da',
-                                fontSize: '14px'
-                            }}
                         />
                     </div>
-                </div>
-                {/* Submit Button */}
-                <button
-                    type="submit"
-                    disabled={loading}
-                    style={{
-                        width: '25%',
-                        padding: '12px',
-                        backgroundColor: '#2b3a4a',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '4px',
-                        cursor: loading ? 'not-allowed' : 'pointer',
-                        fontWeight: 'bold',
-                        fontSize: '15px'
-                    }}
-                >
-                    {loading ? 'Saving...' : 'Save Opening Stock'}
-                </button>
-            </form>
+
+                    {/* Submit Button */}
+                    <button
+                        type="submit"
+                        className="btn btn-primary"
+                        disabled={loading}
+                        style={{ width: '25%', minWidth: '150px' }}
+                    >
+                        {loading ? 'Saving...' : 'Save Opening Stock'}
+                    </button>
+                </form>
+            </div>
         </div>
     );
 };

@@ -13,12 +13,10 @@ function StockReport() {
   const [uoms, setUoms] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // ================= FILTER STATES =================
-  const [stockStatus, setStockStatus] = useState(''); // '', 'in_stock', 'reorder', 'expired'
+  const [stockStatus, setStockStatus] = useState(''); 
   const [selectedCategory, setSelectedCategory] = useState('');
   const [selectedUom, setSelectedUom] = useState('');
 
-  // ================= PAGINATION STATES =================
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(15);
 
@@ -26,13 +24,17 @@ function StockReport() {
     fetchData();
   }, []);
 
+  // CORE ARCHITECTURE: Concurrent asynchronous retrieval of inventory products, categories, and UOM catalogs for advanced stock state reporting.
   const fetchData = async () => {
     setLoading(true);
     try {
+      const token = localStorage.getItem('token');
+      const headers = { 'Authorization': `Bearer ${token}` };
+
       const [prodRes, catRes, uomRes] = await Promise.all([
-        fetch(`${API_BASE_URL}/api/products`),
-        fetch(`${API_BASE_URL}/api/categories`),
-        fetch(`${API_BASE_URL}/api/uoms`),
+        fetch(`${API_BASE_URL}/api/products`, { headers }),
+        fetch(`${API_BASE_URL}/api/categories`, { headers }),
+        fetch(`${API_BASE_URL}/api/uoms`, { headers }),
       ]);
       
       const prodData = await prodRes.json();
@@ -49,7 +51,6 @@ function StockReport() {
     }
   };
 
-  // ================= HELPERS =================
   const formatDate = (dateString) => {
     if (!dateString) return '—';
     return new Date(dateString).toLocaleDateString('en-GB');
@@ -79,11 +80,9 @@ function StockReport() {
     return typeof u === 'object' ? (u._id || u.id || '') : u;
   };
 
-  // ================= FILTER LOGIC =================
   const filtered = useMemo(() => {
     let result = [...products];
 
-    // 1. Stock Status Filter
     if (stockStatus) {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
@@ -113,12 +112,10 @@ function StockReport() {
       }
     }
 
-    // 2. Category Filter
     if (selectedCategory) {
       result = result.filter(p => getCategoryId(p) === selectedCategory);
     }
 
-    // 3. UOM Filter
     if (selectedUom) {
       result = result.filter(p => getUomId(p) === selectedUom);
     }
@@ -126,7 +123,6 @@ function StockReport() {
     return result;
   }, [products, stockStatus, selectedCategory, selectedUom]);
 
-  // Reset to page 1 whenever filters change
   useEffect(() => {
     setCurrentPage(1);
   }, [stockStatus, selectedCategory, selectedUom]);
@@ -149,7 +145,7 @@ function StockReport() {
     formatDate(p.expiryDate)
   ];
 
-  // ==================== PRINT ====================
+  // DATA EXPORT ENGINE: Automated document generation logic rendering structured print buffers, custom PDF vectors, and formatted spreadsheets.
   const handlePrint = () => {
     const rowsHtml = filtered.map((p, idx) => {
       const qty = p.quantity || p.stockQuantity || 0;
@@ -158,7 +154,7 @@ function StockReport() {
 
       let expiryStyle = '';
       if (p.expiryDate && new Date(p.expiryDate) < new Date()) {
-        expiryStyle = 'color: #ef4444; font-weight: bold;';
+        expiryStyle = 'color: var(--danger); font-weight: bold;';
       }
 
       return `
@@ -168,7 +164,7 @@ function StockReport() {
         <td style="width: 150px; font-weight: bold;">${p.name || '—'}</td>
         <td style="width: 100px;">${getCategoryName(p)}</td>
         <td style="width: 60px;">${getUOM(p)}</td>
-        <td style="width: 90px; font-weight: bold; color: ${isLowStock ? '#ef4444' : '#16a34a'};">${qty}</td>
+        <td style="width: 90px; font-weight: bold; color: ${isLowStock ? 'var(--danger)' : 'var(--success)'};">${qty}</td>
         <td style="width: 90px;">${reorderLvl}</td>
         <td style="width: 90px; ${expiryStyle}">${formatDate(p.expiryDate)}</td>
       </tr>
@@ -231,7 +227,6 @@ function StockReport() {
     }, 300);
   };
 
-  // ==================== PDF EXPORT ====================
   const handleExportPDF = () => {
     const doc = new jsPDF({ orientation: 'landscape' });
     doc.setFontSize(14);
@@ -263,7 +258,6 @@ function StockReport() {
     doc.save(`stock-report-${new Date().toISOString().slice(0, 10)}.pdf`);
   };
 
-  // ==================== EXCEL EXPORT ====================
   const handleExportExcel = () => {
     const rows = filtered.map((p, idx) => ({
       'Sr#': idx + 1,
@@ -278,16 +272,15 @@ function StockReport() {
 
     const worksheet = XLSX.utils.json_to_sheet(rows);
 
-    // Set manual column widths
     worksheet['!cols'] = [
-      { wch: 5 },   // Sr#
-      { wch: 12 },  // Date
-      { wch: 30 },  // Product Name
-      { wch: 20 },  // Category
-      { wch: 15 },  // UOM
-      { wch: 15 },  // Qty Available
-      { wch: 15 },  // Reorder Level
-      { wch: 15 },  // Expiry Date
+      { wch: 5 },  
+      { wch: 12 }, 
+      { wch: 30 }, 
+      { wch: 20 }, 
+      { wch: 15 }, 
+      { wch: 15 }, 
+      { wch: 15 }, 
+      { wch: 15 }, 
     ];
 
     const workbook = XLSX.utils.book_new();
@@ -295,40 +288,43 @@ function StockReport() {
     XLSX.writeFile(workbook, `stock-report-${new Date().toISOString().slice(0, 10)}.xlsx`);
   };
 
-  // ================= PAGINATION LOGIC =================
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
   const currentProducts = filtered.slice(indexOfFirstItem, indexOfLastItem);
   const totalPages = Math.ceil(filtered.length / itemsPerPage);
 
   return (
-    <div style={styles.page}>
-      <div style={styles.headerRow}>
-        <div style={styles.tabContainer}>
-          <button style={stockStatus === '' ? styles.activeTab : styles.tab} onClick={() => setStockStatus('')}>
+    <div className="dashboard-wrapper">
+      
+      {/* TABS & EXPORTS TOP BAR */}
+      <div className="card" style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: '16px' }}>
+        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+          <button className={`btn ${stockStatus === '' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setStockStatus('')}>
             All Stock
           </button>
-          <button style={stockStatus === 'in_stock' ? styles.activeTab : styles.tab} onClick={() => setStockStatus('in_stock')}>
+          <button className={`btn ${stockStatus === 'in_stock' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setStockStatus('in_stock')}>
             Available Stock
           </button>
-          <button style={stockStatus === 'reorder' ? styles.activeTab : styles.tab} onClick={() => setStockStatus('reorder')}>
+          <button className={`btn ${stockStatus === 'reorder' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setStockStatus('reorder')}>
             Reorder Stock
           </button>
-          <button style={stockStatus === 'expired' ? styles.activeTab : styles.tab} onClick={() => setStockStatus('expired')}>
+          <button className={`btn ${stockStatus === 'expired' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setStockStatus('expired')}>
             Expired Stock
           </button>
+        </div>
 
-          <button style={{ ...styles.actionBtn, backgroundColor: '#409fb0', marginLeft: 'auto' }} onClick={handlePrint}><FontAwesomeIcon icon={faPrint} /> Print</button>
-          <button style={{ ...styles.actionBtn, backgroundColor: '#d66336' }} onClick={handleExportPDF}><FontAwesomeIcon icon={faFilePdf} /> PDF</button>
-          <button style={{ ...styles.actionBtn, backgroundColor: '#296f3f' }} onClick={handleExportExcel}><FontAwesomeIcon icon={faFileExcel} /> Excel</button>
+        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+          <button className="btn btn-secondary" onClick={handlePrint} disabled={loading || filtered.length === 0}><FontAwesomeIcon icon={faPrint} /> Print</button>
+          <button className="btn btn-secondary" onClick={handleExportPDF} disabled={loading || filtered.length === 0}><FontAwesomeIcon icon={faFilePdf} /> PDF</button>
+          <button className="btn btn-secondary" onClick={handleExportExcel} disabled={loading || filtered.length === 0}><FontAwesomeIcon icon={faFileExcel} /> Excel</button>
         </div>
       </div>
 
-      {/* ==================== FILTERS ==================== */}
-      <div style={styles.filterRow}>
-        <div style={styles.filterGroup}>
-          <label style={styles.filterLabel}>Category</label>
-          <select style={styles.filterInput} value={selectedCategory} onChange={(e) => setSelectedCategory(e.target.value)}>
+      {/* FILTER BAR */}
+      <div className="card" style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', alignItems: 'flex-end' }}>
+        <div className="form-group" style={{ marginBottom: 0, flex: '1 1 200px' }}>
+          <label className="form-label">Category</label>
+          <select className="form-input" value={selectedCategory} onChange={(e) => setSelectedCategory(e.target.value)}>
             <option value="">All Categories</option>
             {categories.map(cat => (
               <option key={cat._id || cat.id} value={cat._id || cat.id}>{cat.name}</option>
@@ -336,9 +332,9 @@ function StockReport() {
           </select>
         </div>
 
-        <div style={styles.filterGroup}>
-          <label style={styles.filterLabel}>UOM</label>
-          <select style={styles.filterInput} value={selectedUom} onChange={(e) => setSelectedUom(e.target.value)}>
+        <div className="form-group" style={{ marginBottom: 0, flex: '1 1 200px' }}>
+          <label className="form-label">UOM</label>
+          <select className="form-input" value={selectedUom} onChange={(e) => setSelectedUom(e.target.value)}>
             <option value="">All UOMs</option>
             {uoms.map(uom => (
               <option key={uom._id || uom.id} value={uom._id || uom.id}>{uom.name || uom.abbreviation}</option>
@@ -346,134 +342,91 @@ function StockReport() {
           </select>
         </div>
 
-      
-        <div style={styles.filterStats}>
-          Showing {currentProducts.length} of {filtered.length} record(s)
-        </div>
+        <button className="btn btn-secondary" onClick={clearFilters}>Clear Filters</button>
       </div>
 
-      {/* ==================== TABLE ==================== */}
-      <div style={styles.tableWrapper}>
-        <table style={styles.table}>
-          <thead>
-            <tr>
-              <th style={{ ...styles.th, width: '50px', textAlign: 'center' }}>Sr#</th>
-              <th style={{ ...styles.th, width: '100px' }}>Date</th>
-              <th style={{ ...styles.th, width: '150px' }}>Product Name</th>
-              <th style={{ ...styles.th, width: '120px' }}>Category</th>
-              <th style={{ ...styles.th, width: '110px' }}>UOM</th>
-              <th style={{ ...styles.th, width: '110px' }}>Qty Available</th>
-              <th style={{ ...styles.th, width: '110px' }}>Reorder Level</th>
-              <th style={{ ...styles.th, width: '110px' }}>Expiry Date</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <tr><td colSpan="9" style={styles.emptyCell}>Loading...</td></tr>
-            ) : currentProducts.length === 0 ? (
-              <tr><td colSpan="9" style={styles.emptyCell}>No stock records found matching your filters.</td></tr>
-            ) : (
-              currentProducts.map((p, idx) => {
-                const qty = p.quantity || p.stockQuantity || 0;
-                const reorderLvl = p.reorderLevel || 0;
-                const isLowStock = qty <= reorderLvl;
-
-                let isExpired = false;
-                if (p.expiryDate && new Date(p.expiryDate) < new Date()) {
-                  isExpired = true;
-                }
-
-                const serialNumber = (currentPage - 1) * itemsPerPage + idx + 1;
-
-                return (
-                  <tr key={p._id || idx} style={idx % 2 === 1 ? styles.altRow : null}>
-                    <td style={{ ...styles.td, textAlign: 'center' }}>{serialNumber}</td>
-                    <td style={{ ...styles.td, fontWeight: 600 }}>{formatDate(p.createdAt || p.date)}</td>
-                    <td style={{ ...styles.td, fontWeight: 600 }}>{p.name || '—'}</td>
-                    <td style={styles.td}>{getCategoryName(p)}</td>
-                    <td style={styles.td}>{getUOM(p)}</td>
-                    <td style={{ ...styles.td, fontWeight: 'bold', color: isLowStock ? '#ef4444' : '#16a34a' }}>
-                      {qty}
-                    </td>
-                    <td style={styles.td}>{reorderLvl}</td>
-                    <td style={{ ...styles.td, color: isExpired ? '#ef4444' : '#334155', fontWeight: isExpired ? 'bold' : 'normal' }}>
-                      {formatDate(p.expiryDate)}
-                    </td>
-                  </tr>
-                );
-              })
-            )}
-          </tbody>
-        </table>
-      </div>
-
-      {/* ==================== PAGINATION CONTROLS ==================== */}
-      {filtered.length > itemsPerPage && (
-        <div style={{ marginTop: '20px', display: 'flex', gap: '15px', justifyContent: 'center', alignItems: 'center', paddingBottom: '20px' }}>
-          <button
-            disabled={currentPage <= 1}
-            onClick={() => setCurrentPage(prev => prev - 1)}
-            style={{
-              padding: '8px 16px',
-              backgroundColor: currentPage <= 1 ? '#e9ecef' : '#5aa7ef',
-              color: currentPage <= 1 ? '#6c757d' : 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: currentPage <= 1 ? 'not-allowed' : 'pointer',
-              fontWeight: '600'
-            }}
-          >
-            ←
-          </button>
-          <span style={{ fontSize: '12px', fontWeight: '400', color: '#868484' }}>
-            Page {currentPage} of {totalPages || 1}
+      {/* DATA TABLE */}
+      <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+        <div style={{ padding: '16px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'flex-end' }}>
+          <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
+            Showing {currentProducts.length} of {filtered.length} record(s)
           </span>
-          <button
-            disabled={currentPage >= totalPages || totalPages === 0}
-            onClick={() => setCurrentPage(prev => prev + 1)}
-            style={{
-              padding: '8px 16px',
-              backgroundColor: (currentPage >= totalPages || totalPages === 0) ? '#e9ecef' : '#5aa7ef',
-              color: (currentPage >= totalPages || totalPages === 0) ? '#6c757d' : 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: (currentPage >= totalPages || totalPages === 0) ? 'not-allowed' : 'pointer',
-              fontWeight: '600'
-            }}
-          >
-            →
-          </button>
         </div>
-      )}
+
+        <div style={{ overflowX: 'auto', width: '100%' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '900px' }}>
+            <thead>
+              <tr style={{ backgroundColor: 'var(--header)' }}>
+                {columns.map((c, i) => (
+                  <th key={i} style={{ padding: '12px 16px', color: 'white', textAlign: i === 0 ? 'center' : 'left', fontSize: '13px', fontWeight: '600', width: i === 0 ? '60px' : 'auto' }}>
+                    {c}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr><td colSpan={columns.length} style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '14px' }}>Loading...</td></tr>
+              ) : currentProducts.length === 0 ? (
+                <tr><td colSpan={columns.length} style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '14px' }}>No stock records found matching your filters.</td></tr>
+              ) : (
+                currentProducts.map((p, idx) => {
+                  const qty = p.quantity || p.stockQuantity || 0;
+                  const reorderLvl = p.reorderLevel || 0;
+                  const isLowStock = qty <= reorderLvl;
+
+                  let isExpired = false;
+                  if (p.expiryDate && new Date(p.expiryDate) < new Date()) {
+                    isExpired = true;
+                  }
+
+                  const serialNumber = (currentPage - 1) * itemsPerPage + idx + 1;
+
+                  return (
+                    <tr 
+                      key={p._id || idx} 
+                      style={{ borderBottom: '1px solid var(--border-color)', transition: 'background-color 0.2s' }}
+                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--bg-app)'}
+                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                    >
+                      <td style={{ padding: '10px 16px', fontSize: '13px', color: 'var(--text-main)', textAlign: 'center' }}>{serialNumber}</td>
+                      <td style={{ padding: '10px 16px', fontSize: '13px', color: 'var(--text-muted)' }}>{formatDate(p.createdAt || p.date)}</td>
+                      <td style={{ padding: '10px 16px', fontSize: '13px', color: 'var(--text-main)', fontWeight: '500' }}>{p.name || '—'}</td>
+                      <td style={{ padding: '10px 16px', fontSize: '13px', color: 'var(--text-main)' }}>{getCategoryName(p)}</td>
+                      <td style={{ padding: '10px 16px', fontSize: '13px', color: 'var(--text-main)' }}>{getUOM(p)}</td>
+                      <td style={{ padding: '10px 16px', fontSize: '13px', color: isLowStock ? 'var(--danger)' : 'var(--success)', fontWeight: 'bold' }}>
+                        {qty}
+                      </td>
+                      <td style={{ padding: '10px 16px', fontSize: '13px', color: 'var(--text-main)' }}>{reorderLvl}</td>
+                      <td style={{ padding: '10px 16px', fontSize: '13px', color: isExpired ? 'var(--danger)' : 'var(--text-main)', fontWeight: isExpired ? 'bold' : 'normal' }}>
+                        {formatDate(p.expiryDate)}
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {/* PAGINATION */}
+        {filtered.length > itemsPerPage && (
+          <div style={{ display: 'flex', gap: '15px', justifyContent: 'center', alignItems: 'center', padding: '16px' }}>
+            <button className="btn btn-secondary" disabled={currentPage <= 1} onClick={() => setCurrentPage(prev => prev - 1)} style={{ padding: '6px 12px' }}>
+              ←
+            </button>
+            <span style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-muted)' }}>
+              Page {currentPage} of {totalPages || 1}
+            </span>
+            <button className="btn btn-secondary" disabled={currentPage >= totalPages || totalPages === 0} onClick={() => setCurrentPage(prev => prev + 1)} style={{ padding: '6px 12px' }}>
+              →
+            </button>
+          </div>
+        )}
+      </div>
+
     </div>
   );
 }
-
-const styles = {
-  page: { padding: '25px 15px', background: '#f8fafc', minHeight: '100%', marginBottom: '60px' },
-  headerRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' },
-  actions: { display: 'flex', gap: '10px' },
-  actionBtn: { color: '#fff', border: 'none', padding: '9px 16px', borderRadius: '6px', cursor: 'pointer', fontWeight: 600, fontSize: '13px' },
-
-  // Tab styles
-  tabContainer: { display: 'flex', gap: '10px', marginBottom: '10px', flexWrap: 'wrap', width: '100%' },
-  tab: { padding: '5px 10px', borderRadius: '6px', border: '1px solid #cbd5e1', backgroundColor: '#fff', color: '#475569', fontWeight: 600, cursor: 'pointer', fontSize: '13px', transition: 'all 0.2s ease-in-out' },
-  activeTab: { padding: '10px 18px', borderRadius: '6px', border: '1px solid #3c4e6b', backgroundColor: '#3c4e6b', color: '#fff', fontWeight: 600, cursor: 'pointer', fontSize: '13px', transition: 'all 0.2s ease-in-out' },
-
-  // Filter styles
-  filterRow: { display: 'flex', gap: '16px', alignItems: 'flex-end', flexWrap: 'wrap' },
-  filterGroup: { display: 'flex', flexDirection: 'column', minWidth: '180px', maxWidth: '220px' },
-  filterLabel: { fontSize: '11px', fontWeight: 500, color: '#475569', textAlign: 'left' },
-  filterInput: { padding: '6.4px 12px', borderRadius: '4px', border: '1px solid #cbd5e1', fontSize: '14px', backgroundColor: '#fff', outline: 'none', width: '100%', boxSizing: 'border-box' },
-  clearFilterBtn: { padding: '10px 18px', background: '#6c757d', color: '#f9f9f9', border: '1px solid #cfcece', borderRadius: '4px', cursor: 'pointer', fontWeight: 600, fontSize: '13px', whiteSpace: 'nowrap' },
-  filterStats: { marginLeft: 'auto', fontSize: '13px', color: '#64748b', textAlign: 'right' },
-
-  tableWrapper: { marginTop: '15px', background: '#fff', borderRadius: '8px', border: '1px solid #cbd5e1', overflowX: 'auto', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' },
-  table: { width: '100%', borderCollapse: 'collapse', tableLayout: 'auto' },
-  th: { textAlign: 'left', padding: '12px 14px', background: '#3c4e6b', fontSize: '11px', color: '#fefefe', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', borderBottom: '2px solid #94a3b8', borderRight: '1px solid #44576e', whiteSpace: 'nowrap' },
-  td: { padding: '10px 14px', textAlign: 'left', fontSize: '13px', borderBottom: '1px solid #e2e8f0', borderRight: '1px solid #e2e8f0', color: '#334155', whiteSpace: 'nowrap' },
-  altRow: { backgroundColor: '#f8fafc' },
-  emptyCell: { textAlign: 'center', padding: '40px 0', color: '#94a3b8', fontSize: '14px' },
-};
 
 export default StockReport;

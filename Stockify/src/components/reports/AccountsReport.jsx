@@ -17,43 +17,47 @@ function AccountReport() {
   const [activeTab, setActiveTab] = useState('customer');
 
   const [ledgerData, setLedgerData] = useState([]);
-  const [dropdownList, setDropdownList] = useState([]); // Holds full account objects (Customers/Suppliers/Employees)
+  const [dropdownList, setDropdownList] = useState([]); 
   const [customerTypes, setCustomerTypes] = useState([]);
   const [designations, setDesignations] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  // ================= FILTER STATES =================
   const [selectedAccountId, setSelectedAccountId] = useState('');
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
   
-  // New Relative Filters
   const [transactionType, setTransactionType] = useState('');
   const [selectedCustomerType, setSelectedCustomerType] = useState('');
   const [selectedDesignation, setSelectedDesignation] = useState('');
 
-  // ================= PAGINATION =================
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(15);
 
-  // Fetch static relative lists once
   useEffect(() => {
-    fetch(`${API_BASE_URL}/api/customer-types`)
+    const token = localStorage.getItem('token');
+    fetch(`${API_BASE_URL}/api/customer-types`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    })
       .then(res => res.json())
       .then(data => setCustomerTypes(Array.isArray(data) ? data : []))
       .catch(err => console.error(err));
 
-    fetch(`${API_BASE_URL}/api/designations`)
+    fetch(`${API_BASE_URL}/api/designations`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    })
       .then(res => res.json())
       .then(data => setDesignations(Array.isArray(data) ? data : []))
       .catch(err => console.error(err));
   }, []);
 
-  // Fetch dropdown list when tab changes
+  // CORE ARCHITECTURE: Dynamic ledger aggregation and cross-collection relation mapping for contextual account reporting.
   useEffect(() => {
     const fetchDropdowns = async () => {
       try {
-        const res = await fetch(`${API_BASE_URL}/api/${activeTab}s`);
+        const token = localStorage.getItem('token');
+        const res = await fetch(`${API_BASE_URL}/api/${activeTab}s`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
         const data = await res.json();
         setDropdownList(Array.isArray(data) ? data : (data.employees || []));
       } catch (err) {
@@ -61,12 +65,9 @@ function AccountReport() {
       }
     };
     fetchDropdowns();
-    
-    // Reset filters on tab change
     clearFilters();
   }, [activeTab]);
 
-  // Fetch ledger data whenever tab or basic filters change
   useEffect(() => {
     fetchLedgerData();
     setCurrentPage(1);
@@ -76,6 +77,7 @@ function AccountReport() {
   const fetchLedgerData = async () => {
     setLoading(true);
     try {
+      const token = localStorage.getItem('token');
       const params = new URLSearchParams();
       if (selectedAccountId) {
         params.append(`${activeTab}Id`, selectedAccountId);
@@ -83,7 +85,9 @@ function AccountReport() {
       if (fromDate) params.append('fromDate', fromDate);
       if (toDate) params.append('toDate', toDate);
 
-      const res = await fetch(`${API_BASE_URL}/api/${activeTab}-ledger?${params.toString()}`);
+      const res = await fetch(`${API_BASE_URL}/api/${activeTab}-ledger?${params.toString()}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
       const data = await res.json();
       
       if (data.success) {
@@ -99,7 +103,6 @@ function AccountReport() {
     }
   };
 
-  // ================= HELPERS =================
   const formatDate = (dateString) => {
     if (!dateString) return '—';
     return new Date(dateString).toLocaleDateString('en-GB');
@@ -119,19 +122,15 @@ function AccountReport() {
     setCurrentPage(1);
   };
 
-  // Extract unique transaction types for the dropdown
   const uniqueTransactionTypes = useMemo(() => {
     const types = new Set(ledgerData.map(r => r.transactionType).filter(Boolean));
     return Array.from(types);
   }, [ledgerData]);
 
-  // Apply relative frontend filters (Transaction Type, Customer Type, Designation)
   const filteredLedger = useMemo(() => {
     return ledgerData.filter(row => {
-      // 1. Transaction Type Filter
       if (transactionType && row.transactionType !== transactionType) return false;
 
-      // Map to full account details to check relations
       let accountId = '';
       if (activeTab === 'customer') accountId = row.customer?._id || row.customer;
       else if (activeTab === 'supplier') accountId = row.supplier?._id || row.supplier;
@@ -139,13 +138,11 @@ function AccountReport() {
 
       const fullAccount = dropdownList.find(acc => acc._id === accountId);
 
-      // 2. Customer Type Filter
       if (activeTab === 'customer' && selectedCustomerType) {
         const cTypeId = fullAccount?.customerTypeId?._id || fullAccount?.customerTypeId;
         if (cTypeId !== selectedCustomerType) return false;
       }
 
-      // 3. Designation Filter
       if (activeTab === 'employee' && selectedDesignation) {
         const desigId = fullAccount?.designation?._id || fullAccount?.designation;
         if (desigId !== selectedDesignation) return false;
@@ -167,7 +164,6 @@ function AccountReport() {
     let accName = '—';
     let extraCol = '—';
 
-    // Extract names and relations matching the dropdownList
     if (activeTab === 'customer') {
       accountId = row.customer?._id || row.customer;
       const fullAcc = dropdownList.find(acc => acc._id === accountId);
@@ -200,7 +196,7 @@ function AccountReport() {
 
   const activeTabLabel = TABS.find(t => t.key === activeTab)?.label || '';
 
-  // ==================== PRINT ====================
+  // DATA EXPORT ENGINE: Multi-format document generation mapping complex JSON aggregates to printable iframe strings, binary Excel data, and vector PDFs.
   const handlePrint = () => {
     const rowsHtml = filteredLedger.map((item, idx) => {
       const row = getRow(item, idx);
@@ -275,7 +271,6 @@ function AccountReport() {
     }, 300);
   };
 
-  // ==================== PDF EXPORT ====================
   const handleExportPDF = () => {
     const doc = new jsPDF({ orientation: 'landscape' });
     doc.setFontSize(14);
@@ -302,7 +297,6 @@ function AccountReport() {
     doc.save(`${activeTab}-ledger-${new Date().toISOString().slice(0, 10)}.pdf`);
   };
 
-  // ==================== EXCEL EXPORT ====================
   const handleExportExcel = () => {
     const rows = filteredLedger.map((item, idx) => {
       const obj = {};
@@ -312,18 +306,9 @@ function AccountReport() {
     });
 
     const worksheet = XLSX.utils.json_to_sheet(rows);
-
-    // Setting optimal column widths
     worksheet['!cols'] = [
-      { wch: 6 },   // Sr#
-      { wch: 12 },  // Date
-      { wch: 15 },  // Ref No
-      { wch: 25 },  // Account Name
-      { wch: 20 },  // Extra Col (Type/Company/Designation)
-      { wch: 20 },  // Transaction Type
-      { wch: 15 },  // Debit
-      { wch: 15 },  // Credit
-      { wch: 18 }   // Balance
+      { wch: 6 },  { wch: 12 }, { wch: 15 }, { wch: 25 }, { wch: 20 }, 
+      { wch: 20 }, { wch: 15 }, { wch: 15 }, { wch: 18 }
     ];
 
     const workbook = XLSX.utils.book_new();
@@ -331,42 +316,39 @@ function AccountReport() {
     XLSX.writeFile(workbook, `${activeTab}-ledger-${new Date().toISOString().slice(0, 10)}.xlsx`);
   };
 
-  // ================= PAGINATION =================
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
   const currentRows = filteredLedger.slice(indexOfFirstItem, indexOfLastItem);
   const totalPages = Math.ceil(filteredLedger.length / itemsPerPage);
 
   return (
-    <div style={styles.page}>
-      <div style={styles.headerRow}>
-        <div style={styles.tabContainer}>
+    <div className="dashboard-wrapper">
+      
+      {/* TABS & EXPORTS TOP BAR */}
+      <div className="card" style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: '16px' }}>
+        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
           {TABS.map(t => (
             <button
               key={t.key}
-              style={activeTab === t.key ? styles.activeTab : styles.tab}
+              className={`btn ${activeTab === t.key ? 'btn-primary' : 'btn-secondary'}`}
               onClick={() => setActiveTab(t.key)}
             >
               {t.label}
             </button>
           ))}
-
-          <button style={{ ...styles.actionBtn, backgroundColor: '#409fb0', marginLeft: 'auto' }} onClick={handlePrint}><FontAwesomeIcon icon={faPrint} /> Print</button>
-          <button style={{ ...styles.actionBtn, backgroundColor: '#d66336' }} onClick={handleExportPDF}><FontAwesomeIcon icon={faFilePdf} /> PDF</button>
-          <button style={{ ...styles.actionBtn, backgroundColor: '#296f3f' }} onClick={handleExportExcel}><FontAwesomeIcon icon={faFileExcel} /> Excel</button>
+        </div>
+        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+          <button className="btn btn-secondary" onClick={handlePrint}><FontAwesomeIcon icon={faPrint} /> Print</button>
+          <button className="btn btn-secondary" onClick={handleExportPDF}><FontAwesomeIcon icon={faFilePdf} /> PDF</button>
+          <button className="btn btn-secondary" onClick={handleExportExcel}><FontAwesomeIcon icon={faFileExcel} /> Excel</button>
         </div>
       </div>
 
-      {/* ==================== FILTERS ==================== */}
-      <div style={styles.filterRow}>
-        {/* Universal Filters */}
-        <div style={styles.filterGroup}>
-          <label style={styles.filterLabel}>Select Account</label>
-          <select 
-            style={styles.filterInput} 
-            value={selectedAccountId} 
-            onChange={(e) => setSelectedAccountId(e.target.value)}
-          >
+      {/* FILTER BAR */}
+      <div className="card" style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', alignItems: 'flex-end' }}>
+        <div className="form-group" style={{ marginBottom: 0, flex: '1 1 130px' }}>
+          <label className="form-label">Select Account</label>
+          <select className="form-input" value={selectedAccountId} onChange={(e) => setSelectedAccountId(e.target.value)}>
             <option value="">All Accounts</option>
             {dropdownList.map(item => {
                let label = '';
@@ -378,13 +360,9 @@ function AccountReport() {
           </select>
         </div>
 
-        <div style={styles.filterGroup}>
-          <label style={styles.filterLabel}>Transaction Type</label>
-          <select 
-            style={styles.filterInput} 
-            value={transactionType} 
-            onChange={(e) => setTransactionType(e.target.value)}
-          >
+        <div className="form-group" style={{ marginBottom: 0, flex: '1 1 130px' }}>
+          <label className="form-label">Transaction Type</label>
+          <select className="form-input" value={transactionType} onChange={(e) => setTransactionType(e.target.value)}>
             <option value="">All Types</option>
             {uniqueTransactionTypes.map((type, i) => (
                <option key={i} value={type}>{type}</option>
@@ -392,15 +370,10 @@ function AccountReport() {
           </select>
         </div>
 
-        {/* Relative Filter: Customer Type */}
         {activeTab === 'customer' && (
-          <div style={styles.filterGroup}>
-            <label style={styles.filterLabel}>Customer Type</label>
-            <select 
-              style={styles.filterInput} 
-              value={selectedCustomerType} 
-              onChange={(e) => setSelectedCustomerType(e.target.value)}
-            >
+          <div className="form-group" style={{ marginBottom: 0, flex: '1 1 150px' }}>
+            <label className="form-label">Customer Type</label>
+            <select className="form-input" value={selectedCustomerType} onChange={(e) => setSelectedCustomerType(e.target.value)}>
               <option value="">All Customer Types</option>
               {customerTypes.map(type => (
                  <option key={type._id} value={type._id}>{type.name}</option>
@@ -409,15 +382,10 @@ function AccountReport() {
           </div>
         )}
 
-        {/* Relative Filter: Employee Designation */}
         {activeTab === 'employee' && (
-          <div style={styles.filterGroup}>
-            <label style={styles.filterLabel}>Designation</label>
-            <select 
-              style={styles.filterInput} 
-              value={selectedDesignation} 
-              onChange={(e) => setSelectedDesignation(e.target.value)}
-            >
+          <div className="form-group" style={{ marginBottom: 0, flex: '1 1 180px' }}>
+            <label className="form-label">Designation</label>
+            <select className="form-input" value={selectedDesignation} onChange={(e) => setSelectedDesignation(e.target.value)}>
               <option value="">All Designations</option>
               {designations.map(desig => (
                  <option key={desig._id} value={desig._id}>{desig.designation || desig.name}</option>
@@ -426,122 +394,93 @@ function AccountReport() {
           </div>
         )}
 
-        {/* Date Filters */}
-        <div style={styles.filterGroup}>
-          <label style={styles.filterLabel}>From Date</label>
-          <input type="date" style={styles.filterInput} value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
+        <div className="form-group" style={{ marginBottom: 0, flex: '1 1 150px' }}>
+          <label className="form-label">From Date</label>
+          <input type="date" className="form-input" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
         </div>
 
-        <div style={styles.filterGroup}>
-          <label style={styles.filterLabel}>To Date</label>
-          <input type="date" style={styles.filterInput} value={toDate} onChange={(e) => setToDate(e.target.value)} />
+        <div className="form-group" style={{ marginBottom: 0, flex: '1 1 150px' }}>
+          <label className="form-label">To Date</label>
+          <input type="date" className="form-input" value={toDate} onChange={(e) => setToDate(e.target.value)} />
         </div>
 
-        <button style={styles.clearFilterBtn} onClick={clearFilters}>Clear Filters</button>
+        <button className="btn btn-secondary" onClick={clearFilters}>Clear Filters</button>
       </div>
 
-      <div style={{ fontSize: '13px', color: '#64748b', fontWeight: 400, textAlign: 'right', marginTop: '10px' }}>
-        Showing {currentRows.length} of {filteredLedger.length} transaction(s)
-      </div>
-
-      {/* ==================== TABLE ==================== */}
-      <div style={styles.tableWrapper}>
-        <table style={styles.table}>
-          <thead>
-            <tr>
-              {columns.map((c, i) => (
-                <th key={i} style={{ ...styles.th, textAlign: i === 0 ? 'center' : (i >= 6 ? 'left' : 'left'), width: i === 0 ? '50px' : 'auto' }}>{c}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <tr><td colSpan={columns.length} style={styles.emptyCell}>Loading ledger data...</td></tr>
-            ) : currentRows.length === 0 ? (
-              <tr><td colSpan={columns.length} style={styles.emptyCell}>No transactions found for the selected filters.</td></tr>
-            ) : (
-              currentRows.map((item, idx) => {
-                const serialNumber = (currentPage - 1) * itemsPerPage + idx + 1;
-                const row = getRow(item, idx);
-                row[0] = serialNumber;
-
-                return (
-                  <tr key={item._id || idx} style={idx % 2 === 1 ? styles.altRow : null}>
-                    {row.map((cell, colIdx) => {
-                      let cellStyle = { ...styles.td, textAlign: colIdx === 0 ? 'center' : (colIdx >= 6 ? 'left' : 'left') };
-                      if (colIdx === 6) cellStyle = { ...cellStyle, fontWeight: 600 };
-                      if (colIdx === 6 && item.debit > 0) cellStyle = { ...cellStyle, color: '#ef4444' }; // Red Debit
-                      if (colIdx === 9 && item.credit > 0) cellStyle = { ...cellStyle, color: '#16a34a' }; // Green Credit
-                      if (colIdx === 9) cellStyle = { ...cellStyle, fontWeight: 'bold', color: '#0f172a' }; // Bold Balance
-                      return <td key={colIdx} style={cellStyle}>{cell}</td>;
-                    })}
-                  </tr>
-                );
-              })
-            )}
-          </tbody>
-        </table>
-      </div>
-
-      {/* ==================== PAGINATION ==================== */}
-      {filteredLedger.length > itemsPerPage && (
-        <div style={{ marginTop: '20px', display: 'flex', gap: '15px', justifyContent: 'center', alignItems: 'center', paddingBottom: '20px' }}>
-          <button
-            disabled={currentPage <= 1}
-            onClick={() => setCurrentPage(prev => prev - 1)}
-            style={{
-              padding: '8px 16px',
-              backgroundColor: currentPage <= 1 ? '#e9ecef' : '#3c4e6b',
-              color: currentPage <= 1 ? '#6c757d' : 'white',
-              border: 'none', borderRadius: '4px',
-              cursor: currentPage <= 1 ? 'not-allowed' : 'pointer', fontWeight: '600'
-            }}
-          >
-            ←
-          </button>
-          <span style={{ fontSize: '13px', fontWeight: '600', color: '#475569' }}>
-            Page {currentPage} of {totalPages || 1}
+      {/* TABLE SECTION */}
+      <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+        <div style={{ padding: '16px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'flex-end' }}>
+          <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
+            Showing {currentRows.length} of {filteredLedger.length} transaction(s)
           </span>
-          <button
-            disabled={currentPage >= totalPages || totalPages === 0}
-            onClick={() => setCurrentPage(prev => prev + 1)}
-            style={{
-              padding: '8px 16px',
-              backgroundColor: (currentPage >= totalPages || totalPages === 0) ? '#e9ecef' : '#3c4e6b',
-              color: (currentPage >= totalPages || totalPages === 0) ? '#6c757d' : 'white',
-              border: 'none', borderRadius: '4px',
-              cursor: (currentPage >= totalPages || totalPages === 0) ? 'not-allowed' : 'pointer', fontWeight: '600'
-            }}
-          >
-            →
-          </button>
         </div>
-      )}
+
+        <div style={{ overflowX: 'auto', width: '100%' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '1000px' }}>
+            <thead>
+              <tr style={{ backgroundColor: 'var(--header)' }}>
+                {columns.map((c, i) => (
+                  <th key={i} style={{ padding: '12px 16px', color: 'white', textAlign: i === 0 ? 'center' : 'left', fontSize: '13px', fontWeight: '600' }}>
+                    {c}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr><td colSpan={columns.length} style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '14px' }}>Loading ledger data...</td></tr>
+              ) : currentRows.length === 0 ? (
+                <tr><td colSpan={columns.length} style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '14px' }}>No transactions found for the selected filters.</td></tr>
+              ) : (
+                currentRows.map((item, idx) => {
+                  const serialNumber = indexOfFirstItem + idx + 1;
+                  const row = getRow(item, idx);
+                  row[0] = serialNumber;
+
+                  return (
+                    <tr 
+                      key={item._id || idx} 
+                      style={{ borderBottom: '1px solid var(--border-color)', transition: 'background-color 0.2s' }}
+                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--bg-app)'}
+                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                    >
+                      {row.map((cell, colIdx) => (
+                        <td 
+                          key={colIdx} 
+                          style={{ 
+                            padding: '10px 16px', 
+                            fontSize: '13px', 
+                            color: colIdx === 6 && item.debit > 0 ? 'var(--danger)' : (colIdx === 7 && item.credit > 0 ? 'var(--success)' : (colIdx === 8 ? 'var(--text-main)' : 'var(--text-main)')),
+                            fontWeight: colIdx === 8 ? '700' : (colIdx === 6 || colIdx === 7 ? '600' : '400'),
+                            textAlign: colIdx === 0 ? 'center' : 'left'
+                          }}
+                        >
+                          {cell}
+                        </td>
+                      ))}
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {filteredLedger.length > itemsPerPage && (
+          <div style={{ display: 'flex', gap: '15px', justifyContent: 'center', alignItems: 'center', padding: '16px' }}>
+            <button className="btn btn-secondary" disabled={currentPage === 1} onClick={() => setCurrentPage(prev => prev - 1)} style={{ padding: '6px 12px' }}>
+              ←
+            </button>
+            <span style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-muted)' }}>Page {currentPage} of {totalPages || 1}</span>
+            <button className="btn btn-secondary" disabled={currentPage >= totalPages || totalPages === 0} onClick={() => setCurrentPage(prev => prev + 1)} style={{ padding: '6px 12px' }}>
+              →
+            </button>
+          </div>
+        )}
+      </div>
+
     </div>
   );
 }
-
-const styles = {
-  page: { padding: '24px 6px', width: '100%', boxSizing: 'border-box', background: '#f8fafc', minHeight: '100vh', marginBottom: '60px' },
-  headerRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', flexWrap: 'wrap', gap: '10px' },
-  actionBtn: { color: '#fff', border: 'none', padding: '9px 16px', borderRadius: '8px', cursor: 'pointer', fontWeight: 600, fontSize: '13px' },
-
-  tabContainer: { display: 'flex', gap: '10px', flexWrap: 'wrap', width: '100%', alignItems: 'center' },
-  tab: { padding: '10px 18px', borderRadius: '6px', border: '1px solid #cbd5e1', backgroundColor: '#fff', color: '#475569', fontWeight: 600, cursor: 'pointer', fontSize: '13px', transition: 'all 0.2s ease-in-out' },
-  activeTab: { padding: '10px 18px', borderRadius: '6px', border: '1px solid #3c4e6b', backgroundColor: '#3c4e6b', color: '#fff', fontWeight: 600, cursor: 'pointer', fontSize: '13px', transition: 'all 0.2s ease-in-out' },
-
-  filterRow: { marginTop: '10px', display: 'flex', gap: '16px', alignItems: 'flex-end', flexWrap: 'wrap' },
-  filterGroup: { display: 'flex', flexDirection: 'column', minWidth: '70px', maxWidth: '220px', flex: 1 },
-  filterLabel: { fontSize: '11px', fontWeight: 500, color: '#475569', textAlign: 'left' },
-  filterInput: { color: '#343a42', padding: '6.4px 12px', borderRadius: '4px', border: '1px solid #cbd5e1', fontSize: '14px', backgroundColor: '#fff', outline: 'none', width: '100%', boxSizing: 'border-box' },
-  clearFilterBtn: { padding: '10px 18px', background: '#6c757d', color: '#f9f9f9', border: '1px solid #cfcece', borderRadius: '8px', cursor: 'pointer', fontWeight: 600, fontSize: '13px', whiteSpace: 'nowrap' },
-
-  tableWrapper: { marginTop: '10px', background: '#fff', borderRadius: '8px', border: '1px solid #cbd5e1', overflowX: 'auto', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', width: '100%' },
-  table: { width: '95%', borderCollapse: 'collapse', tableLayout: 'auto' },
-  th: { padding: '12px 14px', background: '#3c4e6b', fontSize: '11px', color: '#fefefe', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', borderBottom: '2px solid #94a3b8', borderRight: '1px solid #44576e', whiteSpace: 'nowrap' },
-  td: { padding: '10px 14px', fontSize: '13px', borderBottom: '1px solid #e2e8f0', borderRight: '1px solid #e2e8f0', color: '#334155', whiteSpace: 'nowrap' },
-  altRow: { backgroundColor: '#f8fafc' },
-  emptyCell: { textAlign: 'center', padding: '40px 0', color: '#94a3b8', fontSize: '14px' },
-};
 
 export default AccountReport;

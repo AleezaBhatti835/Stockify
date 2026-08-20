@@ -1,8 +1,4 @@
-// Category.js
 import { useState, useEffect } from 'react';
-import './catalogue.css';
-import '../roles.css';
-import '../customer.css';
 
 function Category() {
   const [categories, setCategories] = useState([]);
@@ -13,19 +9,16 @@ function Category() {
   const [deleteTargetId, setDeleteTargetId] = useState(null);
   const [viewCategory, setViewCategory] = useState(null);
 
-  // Pagination states
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
 
   const [newCategory, setNewCategory] = useState({ name: '', description: '' });
   const [editCategory, setEditCategory] = useState({ id: '', name: '', description: '' });
 
-  // Inline message states for each modal
   const [addMessage, setAddMessage] = useState({ text: '', type: '' });
   const [editMessage, setEditMessage] = useState({ text: '', type: '' });
   const [deleteMessage, setDeleteMessage] = useState({ text: '', type: '' });
 
-  // Reset to page 1 when categories change
   useEffect(() => {
     setCurrentPage(1);
   }, [categories]);
@@ -35,7 +28,7 @@ function Category() {
     fetchProducts();
   }, []);
 
-  // Keyboard shortcut handler
+  // CORE ARCHITECTURE: Global keyboard event listener for modal accessibility and quick actions.
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key === 'Escape') {
@@ -79,28 +72,25 @@ function Category() {
 
   const showAddMessage = (text, type) => {
     setAddMessage({ text, type });
-    setTimeout(() => {
-      setAddMessage({ text: '', type: '' });
-    }, 3000);
+    setTimeout(() => setAddMessage({ text: '', type: '' }), 3000);
   };
 
   const showEditMessage = (text, type) => {
     setEditMessage({ text, type });
-    setTimeout(() => {
-      setEditMessage({ text: '', type: '' });
-    }, 3000);
+    setTimeout(() => setEditMessage({ text: '', type: '' }), 3000);
   };
 
   const showDeleteMessage = (text, type) => {
     setDeleteMessage({ text, type });
-    setTimeout(() => {
-      setDeleteMessage({ text: '', type: '' });
-    }, 3000);
+    setTimeout(() => setDeleteMessage({ text: '', type: '' }), 3000);
   };
 
   const fetchCategories = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/categories');
+      const token = localStorage.getItem('token');
+      const res = await fetch('http://localhost:5000/api/categories', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
       if (res.ok) {
         const data = await res.json();
         setCategories(Array.isArray(data) ? data : []);
@@ -115,7 +105,10 @@ function Category() {
 
   const fetchProducts = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/products');
+      const token = localStorage.getItem('token');
+      const res = await fetch('http://localhost:5000/api/products', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
       if (res.ok) {
         const data = await res.json();
         setProducts(Array.isArray(data) ? data : []);
@@ -128,13 +121,11 @@ function Category() {
     }
   };
 
-  // Pagination logic
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
   const currentItems = categories.slice(indexOfFirstItem, indexOfLastItem);
   const totalPages = Math.ceil(categories.length / itemsPerPage);
 
-  // Handle Enter key on input fields
   const handleInputKeyDown = (e, action) => {
     if (e.key === 'Enter') {
       e.preventDefault();
@@ -148,18 +139,20 @@ function Category() {
       return;
     }
 
-    const duplicate = categories.find(
-      c => c.name.toLowerCase() === newCategory.name.trim().toLowerCase()
-    );
+    const duplicate = categories.find(c => c.name.toLowerCase() === newCategory.name.trim().toLowerCase());
     if (duplicate) {
       showAddMessage('This category already exists!', 'error');
       return;
     }
 
     try {
+      const token = localStorage.getItem('token');
       const res = await fetch('http://localhost:5000/api/categories', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({
           name: newCategory.name.trim(),
           description: newCategory.description.trim() || ''
@@ -207,15 +200,13 @@ function Category() {
       return;
     }
 
-    // Check if nothing changed
     if (originalCategory && originalCategory.name === nameToCheck && (originalCategory.description || '') === descToCheck) {
       showEditMessage('Nothing to update!', 'info');
       return;
     }
 
     const duplicate = categories.find(
-      c => c.name.toLowerCase() === nameToCheck.toLowerCase() &&
-           c._id !== editCategory.id
+      c => c.name.toLowerCase() === nameToCheck.toLowerCase() && c._id !== editCategory.id
     );
     if (duplicate) {
       showEditMessage('This category already exists!', 'error');
@@ -223,9 +214,13 @@ function Category() {
     }
 
     try {
+      const token = localStorage.getItem('token');
       const res = await fetch(`http://localhost:5000/api/categories/${editCategory.id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({
           name: nameToCheck,
           description: descToCheck
@@ -253,7 +248,7 @@ function Category() {
     }
   };
 
-  // Checks whether any product currently references this category
+  // DATA INTEGRITY: Prevent deletion of categories that are currently referenced by active products.
   const isCategoryInUse = (categoryId) => {
     return products.some(p => (p.categoryId?._id || p.categoryId) === categoryId);
   };
@@ -273,15 +268,16 @@ function Category() {
   const handleDelete = async () => {
     if (!deleteTargetId) return;
 
-    // Re-check right before deleting in case product data changed since the modal opened
     if (isCategoryInUse(deleteTargetId)) {
       showDeleteMessage('This category is assigned to one or more products and cannot be deleted.', 'error');
       return;
     }
 
     try {
+      const token = localStorage.getItem('token');
       const res = await fetch(`http://localhost:5000/api/categories/${deleteTargetId}`, {
-        method: 'DELETE'
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
       });
 
       if (res.ok) {
@@ -301,178 +297,152 @@ function Category() {
     }
   };
 
-  // Inline Message Component
   const InlineMessage = ({ message, type }) => {
     if (!message) return null;
-    
     const colors = {
-      success: { bg: '#d4edda', text: '#155724', border: '#c3e6cb', icon: '✅' },
-      error: { bg: '#fdecea', text: '#dc3545', border: '#f5c6cb', icon: '⚠️' },
-      info: { bg: '#e7f3ff', text: '#0056b3', border: '#b8d4f0', icon: 'ℹ️' }
+      success: { bg: 'var(--success-bg)', text: 'var(--success)', border: 'var(--success)', icon: '✅' },
+      error: { bg: 'var(--danger-bg)', text: 'var(--danger)', border: 'var(--danger)', icon: '⚠️' },
+      info: { bg: 'var(--info-bg)', text: 'var(--info)', border: 'var(--info)', icon: 'ℹ️' }
     };
-
     const style = colors[type] || colors.info;
 
     return (
-      <div style={{
-        padding: '10px 14px',
-        marginBottom: '15px',
-        borderRadius: '6px',
-        backgroundColor: style.bg,
-        color: style.text,
-        border: `1px solid ${style.border}`,
-        fontSize: '14px',
-        fontWeight: 500
-      }}>
+      <div style={{ padding: '10px 14px', marginBottom: '15px', borderRadius: 'var(--radius-sm)', backgroundColor: style.bg, color: style.text, border: `1px solid ${style.border}`, fontSize: '14px', fontWeight: 500 }}>
         {style.icon} {message}
       </div>
     );
   };
 
   return (
-    <div className="roles-container">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', width: '100%' }}>
-        <h4>Categories</h4>
-        <button style={{ width: '16%', padding: '10px 20px', color: 'white', backgroundColor: '#5aa7ef', whiteSpace: 'nowrap', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 600 }} onClick={() => { setAddMessage({ text: '', type: '' }); setIsAddModalOpen(true); }}>
+    <div className="dashboard-wrapper">
+      
+      {/* HEADER SECTION */}
+      <div className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <h2 style={{ margin: 0, color: 'var(--text-main)', fontSize: '20px', fontWeight: '600' }}>Categories</h2>
+        <button 
+          className="btn btn-primary"
+          onClick={() => { setAddMessage({ text: '', type: '' }); setIsAddModalOpen(true); }}
+        >
           + Add Category
         </button>
       </div>
 
-      {/* RESULTS COUNT */}
-      <div style={{
-        fontSize: '13px',
-        color: '#555',
-        display: 'flex',
-        justifyContent: 'space-between',
-        marginLeft: '82%'
-      }}>
-        <span>Showing {currentItems.length} of {categories.length} categories</span>
-      </div>
+      {/* TABLE SECTION */}
+      <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
 
-      {/* TABLE WRAPPED IN SCROLLABLE DIV */}
-      <div className="table-scroll-wrapper" style={{ overflowX: 'auto', width: '100%' }}>
-        <table className="roles-table" style={{ width: '100%', tableLayout: 'fixed' }}>
-          <thead>
-            <tr>
-              <th style={{ width: '15%', textAlign: 'left' }}>SR#</th>
-              <th style={{ width: '30%', textAlign: 'left' }}>Name</th>
-              <th style={{ width: '55%', textAlign: 'left' }}>Description</th>
-              <th style={{ width: '25%', textAlign: 'center' }}>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {currentItems.length > 0 ? (
-              currentItems.map((c, index) => {
-                const serialNumber = (currentPage - 1) * itemsPerPage + index + 1;
-                return (
-                  <tr key={c._id}>
-                    <td style={{ textAlign: 'left', color: '#94a3b8', fontWeight: 500 }}>{serialNumber}</td>
-                    <td style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                     
-                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.name}</span>
-                    </td>
-                    <td style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {c.description || <span style={{ color: '#94a3b8', fontStyle: 'italic' }}>N/A</span>}
-                    </td>
-                    <td className="actions-cell" style={{ textAlign: 'center' }}>
-                      <div style={styles.actionGroup}>
-                        {/* Edit Button */}
-                        <button style={styles.iconBtnEdit} onClick={() => startEdit(c)} title="Edit">
-                          <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
-                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-                          </svg>
-                        </button>
-
-                        {/* Delete Button */}
-                        <button
-                          style={styles.iconBtnDelete}
-                          onClick={() => confirmDelete(c._id)} title="Delete">
-                          <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
-                            <polyline points="3 6 5 6 21 6"></polyline>
-                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                            <line x1="10" y1="11" x2="10" y2="17"></line>
-                            <line x1="14" y1="11" x2="14" y2="17"></line>
-                          </svg>
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })
-            ) : (
-              <tr>
-                <td colSpan="4" style={{ textAlign: 'center', padding: '40px', color: '#6c757d' }}>
-                  No categories found. Click "Add Category" to create one.
-                </td>
+        <div style={{ overflowX: 'auto', width: '100%' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '600px' }}>
+            <thead>
+              <tr style={{ backgroundColor: 'var(--header)' }}>
+                <th style={{ width: '10%', padding: '12px 16px', color: '#ffff', textAlign: 'left', fontSize: '14px', fontWeight: '600' }}>SR#</th>
+                <th style={{ width: '30%', padding: '12px 16px', color: '#ffff', textAlign: 'left', fontSize: '14px', fontWeight: '600' }}>Name</th>
+                <th style={{ width: '40%', padding: '12px 16px',  color: '#ffff', textAlign: 'left', fontSize: '14px', fontWeight: '600' }}>Description</th>
+                <th style={{ width: '20%', padding: '12px 16px',  color: '#ffff', textAlign: 'center', fontSize: '14px', fontWeight: '600' }}>Actions</th>
               </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-
-      {/* PAGINATION */}
-      {categories.length > itemsPerPage && (
-        <div style={{ 
-          marginTop: '20px', 
-          display: 'flex', 
-          gap: '15px', 
-          justifyContent: 'center', 
-          alignItems: 'center',
-          padding: '10px 0'
-        }}>
-          <button 
-            disabled={currentPage === 1} 
-            onClick={() => setCurrentPage(prev => prev - 1)}
-            style={{ 
-              padding: '8px 16px',
-              backgroundColor: currentPage === 1 ? '#e9ecef' : '#5aa7ef',
-              color: currentPage === 1 ? '#6c757d' : 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
-              fontWeight: '600'
-            }}
-          >
-            ← 
-          </button>
-          
-          <span style={{ fontSize: '12px', fontWeight: '400',color:'#868484' }}>
-            Page {currentPage} of {totalPages || 1}
-          </span>
-          
-          <button 
-            disabled={currentPage >= totalPages} 
-            onClick={() => setCurrentPage(prev => prev + 1)}
-            style={{ 
-              padding: '8px 16px',
-              backgroundColor: currentPage >= totalPages ? '#e9ecef' : '#5aa7ef',
-              color: currentPage >= totalPages ? '#6c757d' : 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: currentPage >= totalPages ? 'not-allowed' : 'pointer',
-              fontWeight: '600'
-            }}
-          >
-             →
-          </button>
+            </thead>
+            <tbody>
+              {currentItems.length > 0 ? (
+                currentItems.map((c, index) => {
+                  const serialNumber = (currentPage - 1) * itemsPerPage + index + 1;
+                  return (
+                    <tr 
+                      key={c._id}
+                      style={{ borderBottom: '1px solid var(--border-color)', transition: 'background-color 0.2s' }}
+                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--bg-app)'}
+                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                    >
+                      <td style={{ padding: '8px 16px', fontSize: '13px', color: 'var(--text-main)' }}>{serialNumber}</td>
+                      <td style={{ padding: '8px 16px', fontSize: '13px', color: 'var(--text-main)' }}>{c.name}</td>
+                      <td style={{ padding: '8px 16px', fontSize: '13px', color: 'var(--text-muted)' }}>{c.description || <span style={{ fontStyle: 'italic', opacity: 0.6 }}>N/A</span>}</td>
+                      <td style={{ padding: '8px 16px', textAlign: 'center' }}>
+                        <div style={{ display: 'flex', justifyContent: 'center', gap: '8px' }}>
+                          <button 
+                            style={styles.iconBtnEdit} 
+                            onClick={() => startEdit(c)} 
+                            title="Edit"
+                            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--primary)'; e.currentTarget.style.color = 'white'; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#eff6ff'; e.currentTarget.style.color = 'var(--primary)'; }}
+                          >
+                            <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+                              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                            </svg>
+                          </button>
+                          <button
+                            style={styles.iconBtnDelete}
+                            onClick={() => confirmDelete(c._id)} 
+                            title="Delete"
+                            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--danger)'; e.currentTarget.style.color = 'white'; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'var(--danger-bg)'; e.currentTarget.style.color = 'var(--danger)'; }}
+                          >
+                            <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+                              <polyline points="3 6 5 6 21 6"></polyline>
+                              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                              <line x1="10" y1="11" x2="10" y2="17"></line>
+                              <line x1="14" y1="11" x2="14" y2="17"></line>
+                            </svg>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              ) : (
+                <tr>
+                  <td colSpan="4" style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)', fontSize: '14px' }}>
+                    No categories found. Click "Add Category" to create one.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
-      )}
+
+        {/* PAGINATION */}
+        {categories.length > itemsPerPage && (
+          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '16px', padding: '16px' }}>
+            <button 
+              className="btn btn-secondary" 
+              disabled={currentPage === 1} 
+              onClick={() => setCurrentPage(prev => prev - 1)}
+              style={{ padding: '6px 12px' }}
+            >
+              ← 
+            </button>
+            <span style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-muted)' }}>
+              Page {currentPage} of {totalPages || 1}
+            </span>
+            <button 
+              className="btn btn-secondary" 
+              disabled={currentPage >= totalPages} 
+              onClick={() => setCurrentPage(prev => prev + 1)}
+              style={{ padding: '6px 12px' }}
+            >
+              →
+            </button>
+          </div>
+        )}
+      </div>
 
       {/* ADD MODAL */}
       {isAddModalOpen && (
-        <div className="modal-overlay">
-          <div className="modal-content" style={{ maxWidth: '600px', position: 'relative' }}>
-            <h3>Add New Category</h3>
+        <div className="modal-overlay" onClick={() => setIsAddModalOpen(false)}>
+          <div className="modal-container" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2 className="modal-title">Add New Category</h2>
+              <button 
+                className="modal-close" 
+                onClick={() => { setIsAddModalOpen(false); setNewCategory({ name: '', description: '' }); setAddMessage({ text: '', type: '' }); }}
+              >×</button>
+            </div>
             
-            {/* Inline Message inside Add Modal */}
-            <InlineMessage message={addMessage.text} type={addMessage.type} />
-            
-            <div className="user-form" style={{ fontSize: '0.85rem', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
-              <div style={{ gridColumn: 'span 2' }}>
-                <label style={{ fontSize: '0.8rem' }}>Category Name *</label>
+            <div className="modal-body">
+              <InlineMessage message={addMessage.text} type={addMessage.type} />
+              
+              <div className="form-group">
+                <label className="form-label">Category Name *</label>
                 <input 
-                  style={{ fontSize: '0.85rem', width: '100%', padding: '8px', boxSizing: 'border-box' }} 
+                  className="form-input"
                   value={newCategory.name} 
                   onChange={(e) => setNewCategory({...newCategory, name: e.target.value})} 
                   onKeyDown={(e) => handleInputKeyDown(e, handleAddCategory)}
@@ -480,10 +450,12 @@ function Category() {
                   placeholder="e.g., Electronics"
                 />
               </div>
-              <div style={{ gridColumn: 'span 2' }}>
-                <label style={{ fontSize: '0.8rem' }}>Description</label>
+              
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="form-label">Description</label>
                 <textarea
-                  style={{ fontSize: '0.85rem', backgroundColor: '#f8f9fa', color: '#212529', width: '100%', minHeight: '80px', resize: 'vertical', fontFamily: 'inherit', padding: '8px', boxSizing: 'border-box' }}
+                  className="form-input"
+                  style={{ minHeight: '80px', resize: 'vertical' }}
                   value={newCategory.description}
                   onChange={(e) => setNewCategory({...newCategory, description: e.target.value})}
                   onKeyDown={(e) => {
@@ -496,10 +468,15 @@ function Category() {
                 />
               </div>
             </div>
-            
-            <div className="modal-actions" style={{ marginTop: '25px', display: 'flex', gap: '10px', alignItems: 'right', justifyContent: 'flex-end' }}>
-              <button className="btn btn-primary" onClick={handleAddCategory}>Save Category</button>
-              <button className="btn btn-cancel" onClick={() => { setIsAddModalOpen(false); setNewCategory({ name: '', description: '' }); setAddMessage({ text: '', type: '' }); }}>Cancel</button>
+
+            <div className="modal-footer">
+              <button 
+                className="btn btn-secondary" 
+                onClick={() => { setIsAddModalOpen(false); setNewCategory({ name: '', description: '' }); setAddMessage({ text: '', type: '' }); }}
+              >Cancel</button>
+              <button className="btn btn-primary" onClick={handleAddCategory}>
+                Save Category
+              </button>
             </div>
           </div>
         </div>
@@ -507,18 +484,23 @@ function Category() {
 
       {/* EDIT MODAL */}
       {isEditModalOpen && (
-        <div className="modal-overlay">
-          <div className="modal-content" style={{ maxWidth: '600px', position: 'relative' }}>
-            <h3>Edit Category</h3>
+        <div className="modal-overlay" onClick={() => setIsEditModalOpen(false)}>
+          <div className="modal-container" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2 className="modal-title">Edit Category</h2>
+              <button 
+                className="modal-close" 
+                onClick={() => { setIsEditModalOpen(false); setEditCategory({ id: '', name: '', description: '' }); setEditMessage({ text: '', type: '' }); }}
+              >×</button>
+            </div>
 
-            {/* Inline Message inside Edit Modal */}
-            <InlineMessage message={editMessage.text} type={editMessage.type} />
+            <div className="modal-body">
+              <InlineMessage message={editMessage.text} type={editMessage.type} />
 
-            <div className="user-form" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', fontSize: '0.85rem' }}>
-              <div style={{ gridColumn: 'span 2' }}>
-                <label style={{ fontSize: '0.8rem' }}>Category Name *</label>
+              <div className="form-group">
+                <label className="form-label">Category Name *</label>
                 <input 
-                  style={{ fontSize: '0.85rem', width: '100%', padding: '8px', boxSizing: 'border-box' }} 
+                  className="form-input"
                   value={editCategory.name} 
                   onChange={(e) => setEditCategory({...editCategory, name: e.target.value})} 
                   onKeyDown={(e) => handleInputKeyDown(e, handleUpdateCategory)}
@@ -526,10 +508,12 @@ function Category() {
                   placeholder="e.g., Electronics"
                 />
               </div>
-              <div style={{ gridColumn: 'span 2' }}>
-                <label style={{ fontSize: '0.8rem' }}>Description</label>
+              
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="form-label">Description</label>
                 <textarea
-                  style={{ fontSize: '0.85rem', backgroundColor: '#f8f9fa', color: '#212529', width: '100%', minHeight: '80px', resize: 'vertical', fontFamily: 'inherit', padding: '8px', boxSizing: 'border-box' }}
+                  className="form-input"
+                  style={{ minHeight: '80px', resize: 'vertical' }}
                   value={editCategory.description}
                   onChange={(e) => setEditCategory({...editCategory, description: e.target.value})}
                   onKeyDown={(e) => {
@@ -543,9 +527,14 @@ function Category() {
               </div>
             </div>
 
-            <div className="modal-actions" style={{ marginTop: '25px', display: 'flex', gap: '10px', alignItems: 'right', justifyContent: 'flex-end' }}>
-              <button className="btn btn-primary" onClick={handleUpdateCategory}>Save Changes</button>
-              <button className="btn btn-cancel" onClick={() => { setIsEditModalOpen(false); setEditCategory({ id: '', name: '', description: '' }); setEditMessage({ text: '', type: '' }); }}>Cancel</button>
+            <div className="modal-footer">
+              <button 
+                className="btn btn-secondary" 
+                onClick={() => { setIsEditModalOpen(false); setEditCategory({ id: '', name: '', description: '' }); setEditMessage({ text: '', type: '' }); }}
+              >Cancel</button>
+              <button className="btn btn-primary" onClick={handleUpdateCategory}>
+                Save Changes
+              </button>
             </div>
           </div>
         </div>
@@ -553,27 +542,42 @@ function Category() {
 
       {/* DELETE CONFIRMATION MODAL */}
       {isDeleteModalOpen && (
-        <div className="modal-overlay">
-          <div className="modal-content" style={{ maxWidth: '380px', textAlign: 'center', position: 'relative' }}>
-            
-            {/* Inline Message inside Delete Modal */}
-            <InlineMessage message={deleteMessage.text} type={deleteMessage.type} />
-
-            <div style={{
-              width: '52px', height: '52px', borderRadius: '50%', backgroundColor: '#fdecea',
-              color: '#dc3545', display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: '1.5rem', fontWeight: 700, margin: '0 auto 14px'
-            }}>
-              !
+        <div className="modal-overlay" onClick={() => setIsDeleteModalOpen(false)}>
+          <div className="modal-container" style={{ maxWidth: '380px' }} onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2 className="modal-title">Delete Category</h2>
+              <button 
+                className="modal-close" 
+                onClick={() => { setIsDeleteModalOpen(false); setDeleteTargetId(null); setDeleteMessage({ text: '', type: '' }); }}
+              >×</button>
             </div>
-            <h3 style={{ margin: '0 0 8px' }}>Delete Category</h3>
-            <p style={{ fontSize: '0.9rem', color: '#6c757d', margin: 0 }}>
-              Are you sure you want to delete <strong>{categories.find(c => c._id === deleteTargetId)?.name || 'this category'}</strong>? This action cannot be undone.
-            </p>
 
-            <div className="modal-actions" style={{ marginTop: '22px', display: 'flex', justifyContent: 'center', gap: '10px' }}>
-              <button onClick={() => { setIsDeleteModalOpen(false); setDeleteTargetId(null); setDeleteMessage({ text: '', type: '' }); }} style={{ backgroundColor: '#6c757d', color: 'white', border: 'none', padding: '10px 24px', borderRadius: '4px', cursor: 'pointer', fontWeight: 600 }}>Cancel</button>
-              <button onClick={handleDelete} style={{ backgroundColor: '#dc3545', color: 'white', border: 'none', padding: '10px 24px', borderRadius: '4px', cursor: 'pointer', fontWeight: 600 }}>Delete</button>
+            <div className="modal-body" style={{ textAlign: 'center' }}>
+              <InlineMessage message={deleteMessage.text} type={deleteMessage.type} />
+
+              <div style={{
+                width: '52px', height: '52px', borderRadius: '50%', backgroundColor: 'var(--danger-bg)',
+                color: 'var(--danger)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: '24px', fontWeight: 700, margin: '0 auto 16px'
+              }}>
+                !
+              </div>
+              
+              <p style={{ fontSize: '14px', color: 'var(--text-muted)', margin: 0 }}>
+                Are you sure you want to delete <strong style={{ color: 'var(--text-main)' }}>
+                  {categories.find(c => c._id === deleteTargetId)?.name || 'this category'}
+                </strong>? This action cannot be undone.
+              </p>
+            </div>
+
+            <div className="modal-footer" style={{ justifyContent: 'center' }}>
+              <button 
+                className="btn btn-secondary"
+                onClick={() => { setIsDeleteModalOpen(false); setDeleteTargetId(null); setDeleteMessage({ text: '', type: '' }); }} 
+              >Cancel</button>
+              <button className="btn btn-danger" onClick={handleDelete}>
+                Delete
+              </button>
             </div>
           </div>
         </div>
@@ -582,35 +586,30 @@ function Category() {
   );
 }
 
+// Minimal inline styles strictly for table-specific action icons
 const styles = {
-    actionGroup: {
-        display: 'flex',
-        justifyContent: 'left',
-        gap: '12px',
-    },
-   
-    iconBtnEdit: {
-        background: '#eff6ff',
-        color: '#3b82f6',
-        border: 'none',
-        padding: '8px',
-        borderRadius: '6px',
-        cursor: 'pointer',
-        display: 'flex',
-        alignItems: 'center',
-        transition: 'all 0.2s',
-    },
-    iconBtnDelete: {
-        background: '#fef2f2',
-        color: '#ef4444',
-        border: 'none',
-        padding: '8px',
-        borderRadius: '6px',
-        cursor: 'pointer',
-        display: 'flex',
-        alignItems: 'center',
-        transition: 'all 0.2s',
-    },
-}
+  iconBtnEdit: {
+    background: 'var(--edit)',
+    color: 'var(--primary)',
+    border: 'none',
+    padding: '8px',
+    borderRadius: 'var(--radius-sm)',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    transition: 'all 0.2s',
+  },
+  iconBtnDelete: {
+    background: 'var(--danger-bg)',
+    color: 'var(--danger)',
+    border: 'none',
+    padding: '8px',
+    borderRadius: 'var(--radius-sm)',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    transition: 'all 0.2s',
+  },
+};
 
 export default Category;

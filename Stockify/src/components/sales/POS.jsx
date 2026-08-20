@@ -28,7 +28,7 @@ function AvatarImage({ pic, name, size }) {
         onError={() => setFailed(true)}
         style={{
           width: size, height: size, borderRadius: '50%', objectFit: 'cover',
-          border: '1px solid #dee2e6', flexShrink: 0
+          border: '2px solid var(--primary)', flexShrink: 0
         }}
       />
     );
@@ -36,8 +36,8 @@ function AvatarImage({ pic, name, size }) {
 
   return (
     <div style={{
-      width: size, height: size, borderRadius: '50%', backgroundColor: '#5aa7ef',
-      color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center',
+      width: size, height: size, borderRadius: '50%', backgroundColor: 'var(--primary-light)',
+      color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center',
       fontSize: `${size * 0.35}px`, fontWeight: 600, flexShrink: 0
     }}>
       {getInitials(name)}
@@ -48,20 +48,30 @@ function AvatarImage({ pic, name, size }) {
 // ============== MESSAGE POPUP COMPONENT ==============
 function MessagePopup({ message, onClose }) {
   if (!message.text) return null;
+  const isError = message.type === 'error';
 
   return (
-    <div className="message-popup-overlay" onClick={onClose}>
-      <div className={`message-popup ${message.type}`} onClick={(e) => e.stopPropagation()}>
-        <button className="message-popup-close" onClick={onClose}>×</button>
-        <div className="message-popup-content">
-          <span className="message-popup-icon">
-            {message.type === 'error' ? '⚠️' : '✅'}
-          </span>
-          <div className="message-popup-text">
-            <strong>{message.type === 'error' ? 'Error!' : 'Success!'}</strong>
+    <div className="modal-overlay" onClick={onClose} style={{ zIndex: 999999 }}>
+      <div 
+        className="card" 
+        onClick={(e) => e.stopPropagation()} 
+        style={{
+          minWidth: '320px', maxWidth: '90%', padding: 'var(--space-md)',
+          borderLeft: `4px solid ${isError ? 'var(--danger)' : 'var(--success)'}`,
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          gap: 'var(--space-md)', boxShadow: 'var(--shadow-modal)'
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-sm)' }}>
+          <span style={{ fontSize: '20px' }}>{isError ? '⚠️' : '✅'}</span>
+          <div style={{ fontSize: '14px', color: 'var(--text-main)' }}>
+            <strong style={{ color: isError ? 'var(--danger)' : 'var(--success)' }}>
+              {isError ? 'Error! ' : 'Success! '}
+            </strong>
             {message.text}
           </div>
         </div>
+        <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: '20px', color: 'var(--text-muted)', cursor: 'pointer', lineHeight: 1 }}>&times;</button>
       </div>
     </div>
   );
@@ -70,53 +80,44 @@ function MessagePopup({ message, onClose }) {
 // ============== TOAST COMPONENT ==============
 function ToastPopup({ toast, onClose }) {
   if (!toast) return null;
+  const isError = toast.type === 'error';
 
   return (
-    <div className="message-popup-overlay" onClick={onClose} style={{ zIndex: 9999 }}>
-      <div className={`message-popup ${toast.type}`} onClick={(e) => e.stopPropagation()}>
-        <button className="message-popup-close" onClick={onClose}>×</button>
-        <div className="message-popup-content">
-          <span className="message-popup-icon">
-            {toast.type === 'error' ? '⚠️' : '✅'}
-          </span>
-          <div className="message-popup-text">
-            <strong>{toast.type === 'error' ? 'Error!' : 'Success!'}</strong>
+    <div className="modal-overlay" onClick={onClose} style={{ zIndex: 999999 }}>
+      <div 
+        className="card" 
+        onClick={(e) => e.stopPropagation()} 
+        style={{
+          minWidth: '320px', maxWidth: '90%', padding: 'var(--space-md)',
+          borderLeft: `4px solid ${isError ? 'var(--danger)' : 'var(--success)'}`,
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          gap: 'var(--space-md)', boxShadow: 'var(--shadow-modal)'
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-sm)' }}>
+          <span style={{ fontSize: '20px' }}>{isError ? '⚠️' : '✅'}</span>
+          <div style={{ fontSize: '14px', color: 'var(--text-main)' }}>
+            <strong style={{ color: isError ? 'var(--danger)' : 'var(--success)' }}>
+              {isError ? 'Error! ' : 'Success! '}
+            </strong>
             {toast.message}
           </div>
         </div>
+        <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: '20px', color: 'var(--text-muted)', cursor: 'pointer', lineHeight: 1 }}>&times;</button>
       </div>
     </div>
   );
 }
 
-// ============== EXACT PAPER CONFIG ==============
 const getPaperConfig = (paperSize) => {
   switch (paperSize) {
     case 'Thermal58':
-      return {
-        maxWidth: '320px',
-        bodyPadding: '14px',
-        fontSize: '12px',
-        mono: true,
-        narrow: true
-      };
+      return { maxWidth: '320px', bodyPadding: '14px', fontSize: '12px', mono: true, narrow: true };
     case 'A5':
-      return {
-        maxWidth: '460px',
-        bodyPadding: '20px',
-        fontSize: '13px',
-        mono: false,
-        narrow: false
-      };
+      return { maxWidth: '460px', bodyPadding: '20px', fontSize: '13px', mono: false, narrow: false };
     case 'A4':
     default:
-      return {
-        maxWidth: '800px',
-        bodyPadding: '24px',
-        fontSize: '14px',
-        mono: false,
-        narrow: false
-      };
+      return { maxWidth: '800px', bodyPadding: '24px', fontSize: '14px', mono: false, narrow: false };
   }
 };
 
@@ -129,10 +130,7 @@ function POS({ onExit, initialOpenRegister = false }) {
   const [uoms, setUoms] = useState([]);
   const [newcode, setNewcode] = useState('');
 
-  // Keyboard navigation state
   const [focusedIndex, setFocusedIndex] = useState(-1);
-
-  // Product entry form state
   const [searchTerm, setSearchTerm] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [selectedProductId, setSelectedProductId] = useState('');
@@ -140,27 +138,22 @@ function POS({ onExit, initialOpenRegister = false }) {
   const [entryPrice, setEntryPrice] = useState('');
   const [entryDiscount, setEntryDiscount] = useState(0);
 
-  // Customer form state
   const [customerId, setCustomerId] = useState('');
   const [saleDate, setSaleDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [notes, setNotes] = useState('');
 
-  // Cart
   const [cart, setCart] = useState([]);
 
-  // Billing / Discount state (cash or percentage)
-  const [discountType, setDiscountType] = useState('percent'); // 'percent' | 'cash'
+  const [discountType, setDiscountType] = useState('percent'); 
   const [discountValue, setDiscountValue] = useState(0);
   const [paidAmount, setPaidAmount] = useState(0);
 
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState(null);
 
-  // Receipts Status
   const [showReceipt, setShowReceipt] = useState(null);
   const [showHistoryReceipt, setShowHistoryReceipt] = useState(null);
 
-  // ============ INVOICES MODAL (Search History) ============
   const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false);
   const [invoiceSearchTerm, setInvoiceSearchTerm] = useState('');
   const [invoiceSearchLoading, setInvoiceSearchLoading] = useState(false);
@@ -169,12 +162,10 @@ function POS({ onExit, initialOpenRegister = false }) {
   const [invoiceFocusedIndex, setInvoiceFocusedIndex] = useState(-1);
   const invoiceSearchRef = useRef(null);
 
-  // ============ HOLD / HOLD LIST ============
   const [holdList, setHoldList] = useState([]);
   const [holdListLoading, setHoldListLoading] = useState(false);
   const [isHoldListModalOpen, setIsHoldListModalOpen] = useState(false);
 
-  // ============ ADD PRODUCT MODAL ============
   const [isAddProductModalOpen, setIsAddProductModalOpen] = useState(false);
   const [productMessage, setProductMessage] = useState({ text: '', type: '' });
   const [uploadingProductPic, setUploadingProductPic] = useState(false);
@@ -184,14 +175,12 @@ function POS({ onExit, initialOpenRegister = false }) {
   };
   const [newProduct, setNewProduct] = useState(productInitialState);
 
-  // ============ INLINE ADD CATEGORY/UOM MODALS ============
   const [isAddCategoryModalOpen, setIsAddCategoryModalOpen] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
 
   const [isAddUomModalOpen, setIsAddUomModalOpen] = useState(false);
   const [newname, setNewname] = useState('');
 
-  // ============ ADD CUSTOMER MODAL ============
   const [isAddCustomerModalOpen, setIsAddCustomerModalOpen] = useState(false);
   const [customerMessage, setCustomerMessage] = useState({ text: '', type: '' });
   const [uploadingCustomerPic, setUploadingCustomerPic] = useState(false);
@@ -202,7 +191,6 @@ function POS({ onExit, initialOpenRegister = false }) {
   const qtyInputRef = useRef(null);
   const searchInputRef = useRef(null);
 
-  // ============== CASH REGISTER STATES ==============
   const [isRegisterOpen, setIsRegisterOpen] = useState(true);
   const [registerData, setRegisterData] = useState(null);
   const [openingCash, setOpeningCash] = useState('');
@@ -238,12 +226,22 @@ function POS({ onExit, initialOpenRegister = false }) {
 
   useEffect(() => {
     fetchAllData();
+    checkRegisterStatus(); 
   }, []);
+  
+  useEffect(() => {
+    if (initialOpenRegister) {
+      handleShowRegisterDetails();
+    }
+  }, [initialOpenRegister]);
 
   const fetchHoldList = async () => {
     setHoldListLoading(true);
     try {
-      const res = await fetch('http://localhost:5000/api/sales/hold');
+      const token = localStorage.getItem('token');
+      const res = await fetch('http://localhost:5000/api/sales/hold', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
       const data = await res.json();
       setHoldList(Array.isArray(data) ? data : []);
     } catch (err) {
@@ -253,32 +251,12 @@ function POS({ onExit, initialOpenRegister = false }) {
     }
   };
 
-  useEffect(() => {
-    fetchHoldList();
-  }, []);
-
-  // Update Click Outside logic
-  useEffect(() => {
-    function handleClickOutside(event) {
-      if (searchRef.current && !searchRef.current.contains(event.target)) {
-        setShowSuggestions(false);
-      }
-      if (invoiceSearchRef.current && !invoiceSearchRef.current.contains(event.target)) {
-        setShowInvoiceSuggestions(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
-  useEffect(() => {
-    checkRegisterStatus();
-    fetchAllData();
-  }, []);
-
   const checkRegisterStatus = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/cash-register/status');
+      const token = localStorage.getItem('token');
+      const res = await fetch('http://localhost:5000/api/cash-register/status', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
 
       if (!res.ok) {
         setIsRegisterOpen(false);
@@ -292,11 +270,9 @@ function POS({ onExit, initialOpenRegister = false }) {
         setIsRegisterOpen(true);
         setRegisterData(data.registerDetails);
 
-
         if (!initialOpenRegister) {
           setShowRegisterPage(false);
         }
-
       } else {
         setIsRegisterOpen(false);
         setRegisterData(null);
@@ -312,7 +288,10 @@ function POS({ onExit, initialOpenRegister = false }) {
 
   const handleShowRegisterDetails = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/cash-register/status');
+      const token = localStorage.getItem('token');
+      const res = await fetch('http://localhost:5000/api/cash-register/status', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
       if (res.ok) {
         const data = await res.json();
         if (data.isOpen) {
@@ -342,9 +321,13 @@ function POS({ onExit, initialOpenRegister = false }) {
     }
     setRegisterLoading(true);
     try {
+      const token = localStorage.getItem('token');
       const res = await fetch('http://localhost:5000/api/cash-register/open', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({ openingAmount: Number(openingCash) })
       });
       const data = await res.json();
@@ -374,9 +357,13 @@ function POS({ onExit, initialOpenRegister = false }) {
 
     setRegisterLoading(true);
     try {
+      const token = localStorage.getItem('token');
       const res = await fetch('http://localhost:5000/api/cash-register/close', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({ registerId: registerId })
       });
 
@@ -400,17 +387,19 @@ function POS({ onExit, initialOpenRegister = false }) {
   };
 
   const fetchAllData = async () => {
+    const token = localStorage.getItem('token');
+    const headers = { 'Authorization': `Bearer ${token}` };
     await Promise.all([
-      fetchProducts(),
-      fetchCustomers(),
-      fetchCategories(),
-      fetchUoms()
+      fetchProducts(headers),
+      fetchCustomers(headers),
+      fetchCategories(headers),
+      fetchUoms(headers)
     ]);
   };
 
-  const fetchProducts = async () => {
+  const fetchProducts = async (headers) => {
     try {
-      const res = await fetch('http://localhost:5000/api/products');
+      const res = await fetch('http://localhost:5000/api/products', { headers });
       const data = await res.json();
       setProducts(data);
     } catch (err) {
@@ -418,9 +407,9 @@ function POS({ onExit, initialOpenRegister = false }) {
     }
   };
 
-  const fetchCustomers = async () => {
+  const fetchCustomers = async (headers) => {
     try {
-      const res = await fetch('http://localhost:5000/api/customers');
+      const res = await fetch('http://localhost:5000/api/customers', { headers });
       const data = await res.json();
       setCustomers(data);
     } catch (err) {
@@ -428,9 +417,9 @@ function POS({ onExit, initialOpenRegister = false }) {
     }
   };
 
-  const fetchCategories = async () => {
+  const fetchCategories = async (headers) => {
     try {
-      const res = await fetch('http://localhost:5000/api/categories');
+      const res = await fetch('http://localhost:5000/api/categories', { headers });
       const data = await res.json();
       setCategories(Array.isArray(data) ? data : []);
     } catch (err) {
@@ -439,15 +428,13 @@ function POS({ onExit, initialOpenRegister = false }) {
     }
   };
 
-  const fetchUoms = async () => {
+  const fetchUoms = async (headers) => {
     try {
-      let res = await fetch('http://localhost:5000/api/uoms');
+      let res = await fetch('http://localhost:5000/api/uoms', { headers });
       let data = [];
-
       if (!res.ok) {
-        res = await fetch('http://localhost:5000/api/uom');
+        res = await fetch('http://localhost:5000/api/uom', { headers });
         if (!res.ok) {
-          console.warn('UOM endpoints failed, using empty array');
           setUoms([]);
           return;
         }
@@ -455,7 +442,6 @@ function POS({ onExit, initialOpenRegister = false }) {
       } else {
         data = await res.json();
       }
-
       setUoms(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error('Error fetching uoms:', err);
@@ -463,6 +449,429 @@ function POS({ onExit, initialOpenRegister = false }) {
     }
   };
 
+  const handleHoldSale = async () => {
+    if (cart.length === 0) {
+      showToast('The cart is empty. Please add at least one product to hold the sale.', 'error');
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch('http://localhost:5000/api/sales/hold', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          customerId: customerId || null,
+          saleDate,
+          items: cart.map(c => ({
+            product: c.productId,
+            quantity: c.quantity,
+            unitPrice: c.unitPrice,
+            discount: Number(c.discount) || 0
+          })),
+          discount: discountAmount,
+          discountType,
+          discountValue: Number(discountValue) || 0,
+          paidAmount: Number(paidAmount) || 0,
+          notes
+        })
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        setCart([]);
+        setCustomerId('');
+        setDiscountType('percent');
+        setDiscountValue(0);
+        setPaidAmount(0);
+        setNotes('');
+        setSaleDate(new Date().toISOString().slice(0, 10));
+        setSelectedProductId('');
+        setSearchTerm('');
+        setEntryPrice('');
+        setEntryQty(1);
+        setEntryDiscount(0);
+
+        fetchHoldList();
+        showToast(`Sale has been held successfully (${data.sale.saleNumber})`, 'success');
+      } else {
+        showToast(data.message || 'Error holding the sale', 'error');
+      }
+    } catch (err) {
+      showToast('Server error while holding the sale.', 'error');
+    }
+  };
+
+  const handleResumeHold = async (holdMongoId) => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`http://localhost:5000/api/sales/${holdMongoId}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+
+      if (!data.success) {
+        showToast(data.message || 'Error resuming held sale', 'error');
+        return;
+      }
+
+      const { sale, items } = data;
+
+      setCart((items || []).map(it => ({
+        productId: it.product?._id,
+        name: it.product?.name,
+        unitPrice: it.unitPrice,
+        availableQty: it.product?.quantity ?? 0,
+        quantity: it.quantity,
+        discount: it.discount || 0
+      })));
+      setCustomerId(sale.customer?._id || sale.customer || '');
+      setSaleDate(sale.saleDate ? new Date(sale.saleDate).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10));
+      setNotes(sale.notes || '');
+      setDiscountType(sale.discountType || 'percent');
+      setDiscountValue(sale.discountValue || 0);
+      setPaidAmount(sale.paidAmount || 0);
+
+      const deleteRes = await fetch(`http://localhost:5000/api/sales/${holdMongoId}/hold`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      await deleteRes.json();
+      
+      setHoldList(prev => prev.filter(h => h._id !== holdMongoId));
+      setIsHoldListModalOpen(false);
+      showToast(`Held sale (${sale.saleNumber}) has been resumed.`, 'success');
+    } catch (err) {
+      showToast('Server error while resuming the held sale.', 'error');
+    }
+  };
+
+  const handleDeleteHold = async (holdMongoId) => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`http://localhost:5000/api/sales/${holdMongoId}/hold`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (data.success) {
+        setHoldList(prev => prev.filter(h => h._id !== holdMongoId));
+        showToast('Held sale deleted successfully', 'success');
+      } else {
+        showToast(data.message || 'Error deleting held sale', 'error');
+      }
+    } catch (err) {
+      showToast('Server error while deleting the held sale.', 'error');
+    }
+  };
+
+  const handleConfirmSale = async () => {
+    if (cart.length === 0) {
+      showToast('Please add at least one product.', 'error');
+      return;
+    }
+    const paid = Number(paidAmount) || 0;
+    setLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch('http://localhost:5000/api/sales', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          customerId: customerId || null,
+          saleDate,
+          items: cart.map(c => ({
+            product: c.productId,
+            quantity: c.quantity,
+            unitPrice: c.unitPrice,
+            discount: Number(c.discount) || 0
+          })),
+          discount: discountAmount,
+          discountType,
+          discountValue: Number(discountValue) || 0,
+          discountPercent: discountType === 'percent' ? Number(discountValue) || 0 : 0,
+          paidAmount: paid,
+          notes
+        })
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        setShowReceipt({
+          ...data.sale,
+          items: cart,
+          customer: customers.find(c => c._id === customerId),
+          discountType,
+          discountValue: Number(discountValue) || 0,
+          discountAmount: discountAmount,
+          subtotal: subtotal
+        });
+
+        checkRegisterStatus();
+      } else {
+        showToast(data.message || 'Failed to complete sale.', 'error');
+      }
+    } catch (err) {
+      showToast('Server error while creating sale.', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAddCategory = async () => {
+    if (!newCategoryName.trim()) {
+      showProductMessage('Category name is required.', 'error');
+      return;
+    }
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch('http://localhost:5000/api/categories', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ name: newCategoryName })
+      });
+      if (res.ok) {
+        const savedCat = await res.json();
+        setCategories([...categories, savedCat]);
+        setNewProduct({ ...newProduct, categoryId: savedCat._id });
+        setIsAddCategoryModalOpen(false);
+        setNewCategoryName('');
+        showProductMessage('Category added successfully!', 'success');
+      } else {
+        showProductMessage('Failed to add category.', 'error');
+      }
+    } catch (error) {
+      showProductMessage('Server error adding category.', 'error');
+    }
+  };
+
+  const handleAddUom = async () => {
+    if (!newname.trim() || !newcode.trim()) {
+      showProductMessage('UOM name and code are required.', 'error');
+      return;
+    }
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch('http://localhost:5000/api/uoms', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          name: newname.trim(),
+          code: newcode.trim().toUpperCase()
+        })
+      });
+
+      if (res.ok) {
+        const savedUom = await res.json();
+        setUoms([...uoms, savedUom]);
+        setNewProduct({ ...newProduct, uomId: savedUom._id });
+        setIsAddUomModalOpen(false);
+        setNewname('');
+        setNewcode('');
+        showProductMessage('UOM added successfully!', 'success');
+      } else {
+        const errorData = await res.text();
+        showProductMessage(`Failed to add UOM: ${errorData || 'Unknown error'}`, 'error');
+      }
+    } catch (error) {
+      showProductMessage('Server error adding UOM.', 'error');
+    }
+  };
+
+  const handleProductImageUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const formData = new FormData();
+    formData.append('image', file);
+    setUploadingProductPic(true);
+
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch('http://localhost:5000/api/upload', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+        body: formData
+      });
+      const raw = await res.text();
+      if (!res.ok) return showProductMessage(`Image upload failed.`, 'error');
+
+      const data = JSON.parse(raw);
+      if (data.imageUrl) {
+        setNewProduct(prev => ({ ...prev, pic: data.imageUrl }));
+        showProductMessage('Product image uploaded successfully!', 'success');
+      }
+    } catch (error) {
+      showProductMessage('Upload failed: could not reach the server.', 'error');
+    } finally {
+      setUploadingProductPic(false);
+    }
+  };
+
+  const validateProduct = (product) => {
+    if (!product.name.trim()) return showProductMessage('Product name is required!', 'error');
+    if (!product.categoryId) return showProductMessage('Please select a category!', 'error');
+    if (!product.uomId) return showProductMessage('Please select a UOM!', 'error');
+    return true;
+  };
+
+  const handleAddProduct = async () => {
+    const productToSave = {
+      ...newProduct,
+      costPrice: parseFloat(newProduct.costPrice) || 0,
+      retailPrice: parseFloat(newProduct.retailPrice) || 0,
+      quantity: parseInt(newProduct.quantity) || 0,
+      reorderQuantity: parseInt(newProduct.reorderQuantity) || 0,
+      status: 'active'
+    };
+
+    if (!validateProduct(productToSave)) return;
+
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch('http://localhost:5000/api/products', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(productToSave)
+      });
+
+      if (res.ok) {
+        const savedProduct = await res.json();
+        showProductMessage('Product added successfully!', 'success');
+        setNewProduct(productInitialState);
+        setIsAddProductModalOpen(false);
+        await fetchProducts();
+        setSelectedProductId(savedProduct._id);
+        setEntryPrice(savedProduct.retailPrice || '');
+        setEntryQty(1);
+        setEntryDiscount(0);
+        showToast(`Product "${savedProduct.name}" added and selected.`, 'success');
+      } else {
+        const errorData = await res.json();
+        showProductMessage(errorData.message || 'Error saving product.', 'error');
+      }
+    } catch (error) {
+      showProductMessage('Server error while saving product.', 'error');
+    }
+  };
+
+  const handleOpenInvoiceSearch = async () => {
+    setIsInvoiceModalOpen(true);
+    setInvoiceSearchLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch('http://localhost:5000/api/sales', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      setAllInvoices(Array.isArray(data) ? data : (data.sales || []));
+    } catch (err) {
+      console.error('Error fetching invoices:', err);
+    } finally {
+      setInvoiceSearchLoading(false);
+    }
+  };
+
+  const handleSearchInvoice = async (selectedInvoice = null) => {
+    if (selectedInvoice && selectedInvoice.saleNumber) {
+      setInvoiceSearchLoading(true);
+      try {
+        const token = localStorage.getItem('token');
+        const res = await fetch(`http://localhost:5000/api/sales/${selectedInvoice._id}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (data.success) {
+          const itemsWithDetails = (data.items || []).map(item => ({
+            ...item,
+            name: item.product?.name || item.name || 'Unknown Product',
+            unitPrice: item.unitPrice || 0,
+            quantity: item.quantity || 0,
+            discount: item.discount || 0
+          }));
+
+          setShowHistoryReceipt({
+            ...data.sale,
+            items: itemsWithDetails,
+            customer: data.sale.customer || selectedInvoice.customer
+          });
+          setIsInvoiceModalOpen(false);
+          setInvoiceSearchTerm('');
+          setShowInvoiceSuggestions(false);
+          setInvoiceFocusedIndex(-1);
+        } else {
+          showToast('Failed to load invoice details.', 'error');
+        }
+      } catch (err) {
+        showToast('Server error while loading invoice.', 'error');
+      } finally {
+        setInvoiceSearchLoading(false);
+      }
+      return;
+    }
+
+    if (!invoiceSearchTerm.trim()) {
+      showToast('Please enter an invoice number.', 'error');
+      return;
+    }
+
+    setInvoiceSearchLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      const found = allInvoices.find(s =>
+        s.saleNumber && s.saleNumber.toLowerCase() === invoiceSearchTerm.trim().toLowerCase()
+      );
+
+      if (found) {
+        const res = await fetch(`http://localhost:5000/api/sales/${found._id}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (data.success) {
+          const itemsWithDetails = (data.items || []).map(item => ({
+            ...item,
+            name: item.product?.name || item.name || 'Unknown Product',
+            unitPrice: item.unitPrice || 0,
+            quantity: item.quantity || 0,
+            discount: item.discount || 0
+          }));
+
+          setShowHistoryReceipt({
+            ...data.sale,
+            items: itemsWithDetails,
+            customer: data.sale.customer || found.customer
+          });
+          setIsInvoiceModalOpen(false);
+          setInvoiceSearchTerm('');
+          setShowInvoiceSuggestions(false);
+          setInvoiceFocusedIndex(-1);
+        } else {
+          showToast('Failed to load invoice details.', 'error');
+        }
+      } else {
+        showToast(`Invoice "${invoiceSearchTerm}" not found.`, 'error');
+      }
+    } catch (err) {
+      showToast('Server error while searching invoice.', 'error');
+    } finally {
+      setInvoiceSearchLoading(false);
+    }
+  };
+  
   const filteredProducts = products.filter(p =>
     p.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -669,260 +1078,9 @@ function POS({ onExit, initialOpenRegister = false }) {
     fetchProducts();
   };
 
-  // ==================== SEARCH INVOICE LOGIC ====================
-  const handleOpenInvoiceSearch = async () => {
-    setIsInvoiceModalOpen(true);
-    setInvoiceSearchLoading(true);
-    try {
-      const res = await fetch('http://localhost:5000/api/sales');
-      const data = await res.json();
-      setAllInvoices(Array.isArray(data) ? data : (data.sales || []));
-    } catch (err) {
-      console.error('Error fetching invoices:', err);
-    } finally {
-      setInvoiceSearchLoading(false);
-    }
-  };
-
-  const handleSearchInvoice = async (selectedInvoice = null) => {
-    if (selectedInvoice && selectedInvoice.saleNumber) {
-      setInvoiceSearchLoading(true);
-      try {
-        const res = await fetch(`http://localhost:5000/api/sales/${selectedInvoice._id}`);
-        const data = await res.json();
-        if (data.success) {
-          const itemsWithDetails = (data.items || []).map(item => ({
-            ...item,
-            name: item.product?.name || item.name || 'Unknown Product',
-            unitPrice: item.unitPrice || 0,
-            quantity: item.quantity || 0,
-            discount: item.discount || 0
-          }));
-
-          setShowHistoryReceipt({
-            ...data.sale,
-            items: itemsWithDetails,
-            customer: data.sale.customer || selectedInvoice.customer
-          });
-          setIsInvoiceModalOpen(false);
-          setInvoiceSearchTerm('');
-          setShowInvoiceSuggestions(false);
-          setInvoiceFocusedIndex(-1);
-        } else {
-          showToast('Failed to load invoice details.', 'error');
-        }
-      } catch (err) {
-        showToast('Server error while loading invoice.', 'error');
-      } finally {
-        setInvoiceSearchLoading(false);
-      }
-      return;
-    }
-
-    if (!invoiceSearchTerm.trim()) {
-      showToast('Please enter an invoice number.', 'error');
-      return;
-    }
-
-    setInvoiceSearchLoading(true);
-    try {
-      const found = allInvoices.find(s =>
-        s.saleNumber && s.saleNumber.toLowerCase() === invoiceSearchTerm.trim().toLowerCase()
-      );
-
-      if (found) {
-        const res = await fetch(`http://localhost:5000/api/sales/${found._id}`);
-        const data = await res.json();
-        if (data.success) {
-          const itemsWithDetails = (data.items || []).map(item => ({
-            ...item,
-            name: item.product?.name || item.name || 'Unknown Product',
-            unitPrice: item.unitPrice || 0,
-            quantity: item.quantity || 0,
-            discount: item.discount || 0
-          }));
-
-          setShowHistoryReceipt({
-            ...data.sale,
-            items: itemsWithDetails,
-            customer: data.sale.customer || found.customer
-          });
-          setIsInvoiceModalOpen(false);
-          setInvoiceSearchTerm('');
-          setShowInvoiceSuggestions(false);
-          setInvoiceFocusedIndex(-1);
-        } else {
-          showToast('Failed to load invoice details.', 'error');
-        }
-      } else {
-        showToast(`Invoice "${invoiceSearchTerm}" not found.`, 'error');
-      }
-    } catch (err) {
-      showToast('Server error while searching invoice.', 'error');
-    } finally {
-      setInvoiceSearchLoading(false);
-    }
-  };
-
   const filteredInvoices = allInvoices.filter(inv =>
     inv.saleNumber && inv.saleNumber.toLowerCase().includes(invoiceSearchTerm.toLowerCase())
   );
-
-  // ==================== HOLD SALE ====================
-  const handleHoldSale = async () => {
-    if (cart.length === 0) {
-      showToast('The cart is empty. Please add at least one product to hold the sale.', 'error');
-      return;
-    }
-
-    try {
-      const res = await fetch('http://localhost:5000/api/sales/hold', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          customerId: customerId || null,
-          saleDate,
-          items: cart.map(c => ({
-            product: c.productId,
-            quantity: c.quantity,
-            unitPrice: c.unitPrice,
-            discount: Number(c.discount) || 0
-          })),
-          discount: discountAmount,
-          discountType,
-          discountValue: Number(discountValue) || 0,
-          paidAmount: Number(paidAmount) || 0,
-          notes
-        })
-      });
-      const data = await res.json();
-
-      if (data.success) {
-        setCart([]);
-        setCustomerId('');
-        setDiscountType('percent');
-        setDiscountValue(0);
-        setPaidAmount(0);
-        setNotes('');
-        setSaleDate(new Date().toISOString().slice(0, 10));
-        setSelectedProductId('');
-        setSearchTerm('');
-        setEntryPrice('');
-        setEntryQty(1);
-        setEntryDiscount(0);
-
-        fetchHoldList();
-        showToast(`Sale has been held successfully (${data.sale.saleNumber})`, 'success');
-      } else {
-        showToast(data.message || 'Error holding the sale', 'error');
-      }
-    } catch (err) {
-      showToast('Server error while holding the sale.', 'error');
-    }
-  };
-
-  const handleResumeHold = async (holdMongoId) => {
-    try {
-      const res = await fetch(`http://localhost:5000/api/sales/${holdMongoId}`);
-      const data = await res.json();
-
-      if (!data.success) {
-        showToast(data.message || 'Error resuming held sale', 'error');
-        return;
-      }
-
-      const { sale, items } = data;
-
-      setCart((items || []).map(it => ({
-        productId: it.product?._id,
-        name: it.product?.name,
-        unitPrice: it.unitPrice,
-        availableQty: it.product?.quantity ?? 0,
-        quantity: it.quantity,
-        discount: it.discount || 0
-      })));
-      setCustomerId(sale.customer?._id || sale.customer || '');
-      setSaleDate(sale.saleDate ? new Date(sale.saleDate).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10));
-      setNotes(sale.notes || '');
-      setDiscountType(sale.discountType || 'percent');
-      setDiscountValue(sale.discountValue || 0);
-      setPaidAmount(sale.paidAmount || 0);
-
-      await fetch(`http://localhost:5000/api/sales/${holdMongoId}/hold`, { method: 'DELETE' });
-      setHoldList(prev => prev.filter(h => h._id !== holdMongoId));
-      setIsHoldListModalOpen(false);
-      showToast(`Held sale (${sale.saleNumber}) has been resumed.`, 'success');
-    } catch (err) {
-      showToast('Server error while resuming the held sale.', 'error');
-    }
-  };
-
-  const handleDeleteHold = async (holdMongoId) => {
-    try {
-      const res = await fetch(`http://localhost:5000/api/sales/${holdMongoId}/hold`, { method: 'DELETE' });
-      const data = await res.json();
-      if (data.success) {
-        setHoldList(prev => prev.filter(h => h._id !== holdMongoId));
-        showToast('Held sale deleted successfully', 'success');
-      } else {
-        showToast(data.message || 'Error deleting held sale', 'error');
-      }
-    } catch (err) {
-      showToast('Server error while deleting the held sale.', 'error');
-    }
-  };
-
-  const handleConfirmSale = async () => {
-    if (cart.length === 0) {
-      showToast('Please add at least one product.', 'error');
-      return;
-    }
-    const paid = Number(paidAmount) || 0;
-    setLoading(true);
-    try {
-      const res = await fetch('http://localhost:5000/api/sales', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          customerId: customerId || null,
-          saleDate,
-          items: cart.map(c => ({
-            product: c.productId,
-            quantity: c.quantity,
-            unitPrice: c.unitPrice,
-            discount: Number(c.discount) || 0
-          })),
-          discount: discountAmount,
-          discountType,
-          discountValue: Number(discountValue) || 0,
-          discountPercent: discountType === 'percent' ? Number(discountValue) || 0 : 0,
-          paidAmount: paid,
-          notes
-        })
-      });
-      const data = await res.json();
-
-      if (data.success) {
-        setShowReceipt({
-          ...data.sale,
-          items: cart,
-          customer: customers.find(c => c._id === customerId),
-          discountType,
-          discountValue: Number(discountValue) || 0,
-          discountAmount: discountAmount,
-          subtotal: subtotal
-        });
-
-        checkRegisterStatus();
-      } else {
-        showToast(data.message || 'Failed to complete sale.', 'error');
-      }
-    } catch (err) {
-      showToast('Server error while creating sale.', 'error');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handlePrint = () => {
     const paperConfig = getPaperConfig(printSettings?.paperSize);
@@ -992,193 +1150,6 @@ function POS({ onExit, initialOpenRegister = false }) {
     }
   };
 
-  const handleAddCategory = async () => {
-    if (!newCategoryName.trim()) {
-      showProductMessage('Category name is required.', 'error');
-      return;
-    }
-    try {
-      const res = await fetch('http://localhost:5000/api/categories', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: newCategoryName })
-      });
-      if (res.ok) {
-        const savedCat = await res.json();
-        setCategories([...categories, savedCat]);
-        setNewProduct({ ...newProduct, categoryId: savedCat._id });
-        setIsAddCategoryModalOpen(false);
-        setNewCategoryName('');
-        showProductMessage('Category added successfully!', 'success');
-      } else {
-        showProductMessage('Failed to add category.', 'error');
-      }
-    } catch (error) {
-      showProductMessage('Server error adding category.', 'error');
-    }
-  };
-
-  const handleAddUom = async () => {
-    if (!newname.trim() || !newcode.trim()) {
-      showProductMessage('UOM name and code are required.', 'error');
-      return;
-    }
-    try {
-      const res = await fetch('http://localhost:5000/api/uoms', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: newname.trim(),
-          code: newcode.trim().toUpperCase()
-        })
-      });
-
-      if (res.ok) {
-        const savedUom = await res.json();
-        setUoms([...uoms, savedUom]);
-        setNewProduct({ ...newProduct, uomId: savedUom._id });
-        setIsAddUomModalOpen(false);
-        setNewname('');
-        setNewcode('');
-        showProductMessage('UOM added successfully!', 'success');
-      } else {
-        const errorData = await res.text();
-        showProductMessage(`Failed to add UOM: ${errorData || 'Unknown error'}`, 'error');
-      }
-    } catch (error) {
-      showProductMessage('Server error adding UOM.', 'error');
-    }
-  };
-
-  const handleProductImageUpload = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    const formData = new FormData();
-    formData.append('image', file);
-    setUploadingProductPic(true);
-
-    try {
-      const res = await fetch('http://localhost:5000/api/upload', { method: 'POST', body: formData });
-      const raw = await res.text();
-      if (!res.ok) return showProductMessage(`Image upload failed.`, 'error');
-
-      const data = JSON.parse(raw);
-      if (data.imageUrl) {
-        setNewProduct(prev => ({ ...prev, pic: data.imageUrl }));
-        showProductMessage('Product image uploaded successfully!', 'success');
-      }
-    } catch (error) {
-      showProductMessage('Upload failed: could not reach the server.', 'error');
-    } finally {
-      setUploadingProductPic(false);
-    }
-  };
-
-  const validateProduct = (product) => {
-    if (!product.name.trim()) return showProductMessage('Product name is required!', 'error');
-    if (!product.categoryId) return showProductMessage('Please select a category!', 'error');
-    if (!product.uomId) return showProductMessage('Please select a UOM!', 'error');
-
-    const costPrice = parseFloat(product.costPrice) || 0;
-    const retailPrice = parseFloat(product.retailPrice) || 0;
-
-    if (costPrice < 0) return showProductMessage('Cost price cannot be negative!', 'error');
-    if (retailPrice < 0) return showProductMessage('Retail price cannot be negative!', 'error');
-
-    return true;
-  };
-
-  const handleAddProduct = async () => {
-    const productToSave = {
-      ...newProduct,
-      costPrice: parseFloat(newProduct.costPrice) || 0,
-      retailPrice: parseFloat(newProduct.retailPrice) || 0,
-      quantity: parseInt(newProduct.quantity) || 0,
-      reorderQuantity: parseInt(newProduct.reorderQuantity) || 0,
-      status: 'active'
-    };
-
-    if (!validateProduct(productToSave)) return;
-
-    try {
-      const res = await fetch('http://localhost:5000/api/products', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(productToSave)
-      });
-
-      if (res.ok) {
-        const savedProduct = await res.json();
-        showProductMessage('Product added successfully!', 'success');
-        setNewProduct(productInitialState);
-        setIsAddProductModalOpen(false);
-        await fetchProducts();
-        setSelectedProductId(savedProduct._id);
-        setEntryPrice(savedProduct.retailPrice || '');
-        setEntryQty(1);
-        setEntryDiscount(0);
-        showToast(`Product "${savedProduct.name}" added and selected.`, 'success');
-      } else {
-        const errorData = await res.json();
-        showProductMessage(errorData.message || 'Error saving product.', 'error');
-      }
-    } catch (error) {
-      showProductMessage('Server error while saving product.', 'error');
-    }
-  };
-
-  const handleCustomerImageUpload = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    const formData = new FormData();
-    formData.append('image', file);
-    setUploadingCustomerPic(true);
-
-    try {
-      const res = await fetch('http://localhost:5000/api/upload', { method: 'POST', body: formData });
-      const raw = await res.text();
-      if (!res.ok) return showCustomerMessage(`Image upload failed.`, 'error');
-
-      const data = JSON.parse(raw);
-      if (data.imageUrl) {
-        setNewCustomer(prev => ({ ...prev, pic: data.imageUrl }));
-        showCustomerMessage('Customer image uploaded successfully!', 'success');
-      }
-    } catch (error) {
-      showCustomerMessage('Upload failed: could not reach the server.', 'error');
-    } finally {
-      setUploadingCustomerPic(false);
-    }
-  };
-
-  const handleAddCustomer = async () => {
-    if (!newCustomer.name || !newCustomer.contact || !newCustomer.email) {
-      showCustomerMessage('Name, Email, and Contact are required!', 'error');
-      return;
-    }
-
-    try {
-      const res = await fetch('http://localhost:5000/api/customers', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newCustomer)
-      });
-      if (res.ok) {
-        const savedCustomer = await res.json();
-        showCustomerMessage('Customer added successfully!', 'success');
-        setNewCustomer(customerInitialState);
-        setIsAddCustomerModalOpen(false);
-        await fetchCustomers();
-        setCustomerId(savedCustomer._id);
-        showToast(`Customer "${savedCustomer.name}" added and selected.`, 'success');
-      } else {
-        showCustomerMessage('Error saving customer.', 'error');
-      }
-    } catch (error) {
-      showCustomerMessage('Server error.', 'error');
-    }
-  };
-
   const ReceiptModal = ({ sale }) => {
     const paperConfig = getPaperConfig(printSettings?.paperSize);
 
@@ -1192,42 +1163,28 @@ function POS({ onExit, initialOpenRegister = false }) {
       return 'Unknown Product';
     };
 
-    const getItemQty = (item) => {
-      return item.quantity || 0;
-    };
-
-    const getUnitPrice = (item) => {
-      return item.unitPrice || 0;
-    };
-
-    const getDiscount = (item) => {
-      return item.discount || 0;
-    };
-
-    const getLineTotal = (item) => {
-      const qty = getItemQty(item);
-      const price = getUnitPrice(item);
-      const disc = getDiscount(item);
-      return (qty * price) - disc;
-    };
+    const getItemQty = (item) => item.quantity || 0;
+    const getUnitPrice = (item) => item.unitPrice || 0;
+    const getDiscount = (item) => item.discount || 0;
+    const getLineTotal = (item) => (getItemQty(item) * getUnitPrice(item)) - getDiscount(item);
 
     return (
-      <div style={styles.receiptOverlay}>
-        <div style={{ ...styles.receiptContainer, maxWidth: paperConfig.maxWidth }}>
-          <div style={{ ...styles.receiptHeader, flexDirection: paperConfig.narrow ? 'column' : 'row', gap: paperConfig.narrow ? '10px' : '0' }}>
-            <h3 style={{ margin: 0, color: '#000' }}>CAPOBIZ</h3>
+      <div className="modal-overlay" onClick={handleCloseReceipt}>
+        <div className="modal-container" style={{ maxWidth: paperConfig.maxWidth, padding: 0, overflow: 'hidden' }} onClick={(e) => e.stopPropagation()}>
+          <div className="modal-header" style={{ flexDirection: paperConfig.narrow ? 'column' : 'row', gap: paperConfig.narrow ? 'var(--space-md)' : '0' }}>
+            <h3 className="modal-title" style={{ color: '#000' }}>CAPOBIZ</h3>
 
-            <div style={{ ...styles.receiptActions, width: paperConfig.narrow ? '100%' : 'auto' }}>
+            <div style={{ display: 'flex', gap: 'var(--space-sm)', width: paperConfig.narrow ? '100%' : 'auto' }}>
               <button
-                className="receipt-print-btn"
-                style={{ ...styles.printReceiptBtn, ...(paperConfig.narrow ? { flex: 1 } : {}) }}
+                className="btn btn-primary"
+                style={paperConfig.narrow ? { flex: 1 } : {}}
                 onClick={handlePrint}
               >
                 🖨️ Print
               </button>
               <button
-                className="receipt-close-btn"
-                style={{ ...styles.closeReceiptBtn, ...(paperConfig.narrow ? { flex: 1 } : {}) }}
+                className="btn btn-secondary"
+                style={paperConfig.narrow ? { flex: 1 } : {}}
                 onClick={handleCloseReceipt}
               >
                 ✕ Close
@@ -1236,22 +1193,22 @@ function POS({ onExit, initialOpenRegister = false }) {
           </div>
 
           <div
+            className="modal-body"
             style={{
-              ...styles.receiptBody,
               padding: paperConfig.bodyPadding,
               fontSize: paperConfig.fontSize,
               fontFamily: paperConfig.mono ? "'Courier New', monospace" : 'inherit'
             }}
             id="receipt-content"
           >
-            <div style={styles.receiptHeaderInfo}>
+            <div style={{ textAlign: 'left', marginBottom: '16px' }}>
               <p style={{ margin: '4px 0', color: '#333' }}>Invoice: {sale.saleNumber}</p>
               <p style={{ margin: '4px 0', color: '#333' }}>Date: {new Date(sale.saleDate || sale.createdAt).toLocaleDateString()}</p>
               <p style={{ margin: '4px 0', color: '#333' }}>
                 Customer: {sale.customer?.name || sale.customer?.customerName || 'Walk-in Customer'}
               </p>
             </div>
-            <div style={styles.receiptDivider}></div>
+            <div style={{ borderTop: '2px dashed #000', margin: '14px 0' }}></div>
 
             {paperConfig.mono ? (
               <div>
@@ -1262,12 +1219,12 @@ function POS({ onExit, initialOpenRegister = false }) {
                   const price = getUnitPrice(item);
                   const disc = getDiscount(item);
                   return (
-                    <div key={idx} style={styles.thermalItemRow}>
-                      <div style={styles.thermalItemLine1}>
+                    <div key={idx} style={{ borderBottom: '1px dashed #000', padding: '6px 0' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 700, fontSize: '1em', color: '#000' }}>
                         <span>{itemName}</span>
                         <span>x{qty}</span>
                       </div>
-                      <div style={styles.thermalItemLine2}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85em', color: '#000', marginTop: '2px' }}>
                         <span>
                           @{price.toFixed(2)}
                           {disc > 0 ? ` −${disc.toFixed(2)}` : ''}
@@ -1279,14 +1236,14 @@ function POS({ onExit, initialOpenRegister = false }) {
                 })}
               </div>
             ) : (
-              <table style={styles.receiptTable}>
+              <table style={{ width: '100%', tableLayout: 'fixed', borderCollapse: 'collapse', marginBottom: '12px' }}>
                 <thead>
                   <tr>
-                    <th style={{ ...styles.receiptTh, width: '32%' }}>Product</th>
-                    <th style={{ ...styles.receiptTh, textAlign: 'left', width: '14%' }}>Qty</th>
-                    <th style={{ ...styles.receiptTh, width: '18%' }}>Price</th>
-                    <th style={{ ...styles.receiptTh, width: '16%' }}>Disc</th>
-                    <th style={{ ...styles.receiptTh, width: '20%' }}>SubTotal </th>
+                    <th style={{ ...tableStyles.th, width: '32%' }}>Product</th>
+                    <th style={{ ...tableStyles.th, textAlign: 'left', width: '14%' }}>Qty</th>
+                    <th style={{ ...tableStyles.th, width: '18%' }}>Price</th>
+                    <th style={{ ...tableStyles.th, width: '16%' }}>Disc</th>
+                    <th style={{ ...tableStyles.th, width: '20%' }}>SubTotal</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1297,14 +1254,12 @@ function POS({ onExit, initialOpenRegister = false }) {
                     const lineTotal = getLineTotal(item);
                     const itemName = getItemName(item);
                     return (
-                      <tr key={idx}>
-                        <td style={styles.receiptTdName}>{itemName}</td>
-                        <td style={{ ...styles.receiptTd, textAlign: 'left' }}>{qty}</td>
-                        <td style={styles.receiptTd}>{price.toFixed(2)}</td>
-                        <td style={styles.receiptTd}>{disc > 0 ? disc.toFixed(2) : '0.00'}</td>
-                        <td style={{ ...styles.receiptTd, fontWeight: 600 }}>
-                          {lineTotal.toFixed(2)}
-                        </td>
+                      <tr key={idx} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                        <td style={{ padding: '6px 8px', fontSize: '13px', color: '#000', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{itemName}</td>
+                        <td style={{ padding: '6px 8px', fontSize: '13px', color: '#000', textAlign: 'left' }}>{qty}</td>
+                        <td style={{ padding: '6px 8px', fontSize: '13px', color: '#000' }}>{price.toFixed(2)}</td>
+                        <td style={{ padding: '6px 8px', fontSize: '13px', color: '#000' }}>{disc > 0 ? disc.toFixed(2) : '0.00'}</td>
+                        <td style={{ padding: '6px 8px', fontSize: '13px', color: '#000', fontWeight: 600 }}>{lineTotal.toFixed(2)}</td>
                       </tr>
                     );
                   })}
@@ -1312,25 +1267,25 @@ function POS({ onExit, initialOpenRegister = false }) {
               </table>
             )}
 
-            <div style={styles.receiptDivider}></div>
-            <div style={styles.receiptTotals}>
-              <div style={styles.receiptTotalRow}>
+            <div style={{ borderTop: '2px dashed #000', margin: '14px 0' }}></div>
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', fontSize: '13px', color: '#000' }}>
                 <span>Order total</span>
                 <span>Rs. {sale.subtotal?.toFixed(2) || (sale.totalAmount + (sale.discountAmount || 0)).toFixed(2)}</span>
               </div>
-              <div style={styles.receiptTotalRow}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', fontSize: '13px', color: '#000' }}>
                 <span>Discount {sale.discountType === 'cash' ? '(Fixed)' : `(${sale.discountValue || 0}%)`}</span>
                 <span>Rs. {sale.discountAmount?.toFixed(2) || discountAmount.toFixed(2)}</span>
               </div>
-              <div style={{ ...styles.receiptTotalRow, fontWeight: 700, fontSize: '1.15em', borderTop: '2px solid #000', paddingTop: '10px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', fontSize: '13px', color: '#000', fontWeight: 700, fontSize: '1.15em', borderTop: '2px solid #000', paddingTop: '10px' }}>
                 <span>Grand Total</span>
                 <span>Rs. {finalTotal.toFixed(2)}</span>
               </div>
-              <div style={styles.receiptTotalRow}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', fontSize: '13px', color: '#000' }}>
                 <span>Paid</span>
                 <span>Rs. {finalPaid.toFixed(2)}</span>
               </div>
-              <div style={{ ...styles.receiptTotalRow, fontWeight: 700 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', fontSize: '13px', color: '#000', fontWeight: 700 }}>
                 <span>Balance</span>
                 <span>Rs. {balance.toFixed(2)} {balance > 0 ? '(Due)' : '(Paid)'}</span>
               </div>
@@ -1342,158 +1297,135 @@ function POS({ onExit, initialOpenRegister = false }) {
   };
 
   const HoldListModal = () => (
-    <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999999 }}>
-      <div style={{ background: 'white', padding: '24px', borderRadius: '12px', width: '100%', maxWidth: '780px', maxHeight: '82vh', overflowY: 'auto', boxShadow: '0 20px 40px rgba(0,0,0,0.3)' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px' }}>
-          <h3 style={{ margin: 0, color: '#0f172a' }}>Hold List</h3>
-          <button
-            onClick={() => setIsHoldListModalOpen(false)}
-            style={{ background: 'none', border: 'none', fontSize: '22px', cursor: 'pointer', color: '#64748b', lineHeight: 1 }}
-          >
-            ×
-          </button>
+    <div className="modal-overlay" onClick={() => setIsHoldListModalOpen(false)}>
+      <div className="modal-container modal-container-wide" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-header">
+          <h3 className="modal-title">Hold List</h3>
+          <button className="modal-close" onClick={() => setIsHoldListModalOpen(false)}>&times;</button>
         </div>
 
-        {holdListLoading ? (
-          <div style={{ textAlign: 'center', padding: '40px 0', color: '#64748b', fontSize: '14px' }}>Loading...</div>
-        ) : holdList.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '50px 0', color: '#94a3b8' }}>
-            <div style={{ fontSize: '42px', marginBottom: '10px' }}>📋</div>
-            <div style={{ fontSize: '14px', fontWeight: 500 }}>No held sales available.</div>
-          </div>
-        ) : (
-          <div style={{ border: '1px solid #e2e8f0', borderRadius: '10px', overflow: 'hidden' }}>
-            <table style={styles.table}>
-              <thead>
-                <tr>
-                  <th style={{ ...styles.th, textAlign: 'left' }}>Hold #</th>
-                  <th style={{ ...styles.th, textAlign: 'left' }}>Customer</th>
-                  <th style={{ ...styles.th, textAlign: 'center' }}>Items</th>
-                  <th style={{ ...styles.th, textAlign: 'right' }}>Total</th>
-                  <th style={{ ...styles.th, textAlign: 'center' }}>Status</th>
-                  <th style={{ ...styles.th, textAlign: 'center' }}>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {holdList.map(h => (
-                  <tr key={h._id}>
-                    <td style={{ ...styles.td, fontWeight: 700, color: '#0f172a' }}>{h.saleNumber}</td>
-                    <td style={styles.td}>{h.customer?.name || h.customer?.customerName || 'Walk-in Customer'}</td>
-                    <td style={{ ...styles.td, textAlign: 'center' }}>{h.itemsCount ?? '—'}</td>
-                    <td style={{ ...styles.td, textAlign: 'right', fontWeight: 600 }}>
-                      Rs. {Number(h.totalAmount || 0).toFixed(2)}
-                    </td>
-                    <td style={{ ...styles.td, textAlign: 'center' }}>
-                      <span style={styles.holdStatusBadge}>Hold</span>
-                    </td>
-                    <td style={{ ...styles.td, textAlign: 'center' }}>
-                      <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
-                        <button
-                          onClick={() => handleResumeHold(h._id)}
-                          style={{ background: '#3c4e6b', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', fontWeight: 600, fontSize: '12px', whiteSpace: 'nowrap' }}
-                        >
-                          ▶
-                        </button>
-                        <button
-                          onClick={() => handleDeleteHold(h._id)}
-                          style={{ background: '#ab3838', color: '#ffffff', border: 'none', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', fontWeight: 800, fontSize: '14px', whiteSpace: 'nowrap' }}
-                        >
-                          ✕
-                        </button>
-                      </div>
-                    </td>
+        <div className="modal-body">
+          {holdListLoading ? (
+            <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-muted)', fontSize: '14px' }}>Loading...</div>
+          ) : holdList.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '50px 0', color: 'var(--text-light)' }}>
+              <div style={{ fontSize: '42px', marginBottom: '10px' }}>📋</div>
+              <div style={{ fontSize: '14px', fontWeight: 500 }}>No held sales available.</div>
+            </div>
+          ) : (
+            <div style={{ border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr>
+                    <th style={tableStyles.th}>Hold #</th>
+                    <th style={tableStyles.th}>Customer</th>
+                    <th style={{ ...tableStyles.th, textAlign: 'center' }}>Items</th>
+                    <th style={{ ...tableStyles.th, textAlign: 'right' }}>Total</th>
+                    <th style={{ ...tableStyles.th, textAlign: 'center' }}>Status</th>
+                    <th style={{ ...tableStyles.th, textAlign: 'center' }}>Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+                </thead>
+                <tbody>
+                  {holdList.map(h => (
+                    <tr key={h._id} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                      <td style={{ ...tableStyles.td, fontWeight: 700, color: 'var(--text-main)' }}>{h.saleNumber}</td>
+                      <td style={tableStyles.td}>{h.customer?.name || h.customer?.customerName || 'Walk-in Customer'}</td>
+                      <td style={{ ...tableStyles.td, textAlign: 'center' }}>{h.itemsCount ?? '—'}</td>
+                      <td style={{ ...tableStyles.td, textAlign: 'right', fontWeight: 600 }}>
+                        Rs. {Number(h.totalAmount || 0).toFixed(2)}
+                      </td>
+                      <td style={{ ...tableStyles.td, textAlign: 'center' }}>
+                        <span style={{
+                          display: 'inline-block', background: '#fef3c7', color: '#92400e', border: '1px solid #fde68a',
+                          borderRadius: '999px', fontSize: '11px', fontWeight: 700, padding: '3px 10px', textTransform: 'uppercase'
+                        }}>
+                          Hold
+                        </span>
+                      </td>
+                      <td style={{ ...tableStyles.td, textAlign: 'center' }}>
+                        <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
+                          <button
+                            className="btn btn-primary"
+                            onClick={() => handleResumeHold(h._id)}
+                            style={{ padding: '6px 12px', fontSize: '12px' }}
+                          >
+                            ▶
+                          </button>
+                          <button
+                            className="btn btn-danger"
+                            onClick={() => handleDeleteHold(h._id)}
+                            style={{ padding: '6px 12px', fontSize: '14px' }}
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
 
   // ==================== MAIN RENDER ====================
-  // If register page should be shown, render it instead of POS
   if (showRegisterPage) {
     return (
       <div style={{
-        width: '100%',
-        height: '100%',
-        background: '#f8fafc',
-        display: 'flex',
-        flexDirection: 'column',
-        fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
-        overflowY: 'auto',
-        padding: '20px'
+        width: '100vw', height: '100vh', background: 'var(--bg-app)',
+        display: 'flex', flexDirection: 'column', overflowY: 'auto', padding: '20px',
+        boxSizing: 'border-box'
       }}>
         <ToastPopup toast={toast} onClose={clearToast} />
 
-        <div style={{
-          flex: 1,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}>
-          <div style={{
-            background: 'white',
-            borderRadius: '16px',
-            width: '100%',
-            maxWidth: '500px',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
-            border: '1px solid #e2e8f0',
-            overflow: 'hidden'
-          }}>
-            {/* Card Header */}
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div className="card" style={{ width: '100%', maxWidth: '500px', padding: 0, overflow: 'hidden' }}>
+            
             <div style={{
               padding: '24px',
-              borderBottom: '1px solid #f1f5f9',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '14px'
+              borderBottom: '1px solid var(--border-color)',
+              display: 'flex', alignItems: 'center', gap: '14px'
             }}>
               <div style={{
-                width: '50px',
-                height: '50px',
-                borderRadius: '12px',
-                background: isRegisterOpen ? '#ecfdf5' : '#fef2f2',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '24px'
+                width: '50px', height: '50px', borderRadius: '12px',
+                background: isRegisterOpen ? 'var(--success-bg)' : 'var(--danger-bg)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px'
               }}>
                 {isRegisterOpen ? '✅' : '🔒'}
               </div>
               <div>
-                <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 700, color: '#0f172a' }}>
+                <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 700, color: 'var(--text-main)' }}>
                   {isRegisterOpen ? 'Register is Open' : 'Register is Closed'}
                 </h3>
-                <p style={{ margin: '4px 0 0 0', fontSize: '13px', color: '#64748b' }}>
+                <p style={{ margin: '4px 0 0 0', fontSize: '13px', color: 'var(--text-muted)' }}>
                   {isRegisterOpen ? 'Ready for transactions' : 'Open the register to start using POS'}
                 </p>
               </div>
             </div>
 
-            {/* Card Body */}
             <div style={{ padding: '24px' }}>
               {isRegisterOpen && registerData ? (
                 <div>
-                  <div style={{ margin: '0 0 20px 0', display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '14px', color: '#555' }}>
+                  <div style={{ margin: '0 0 20px 0', display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '14px', color: 'var(--text-main)' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                       <span>Opening Amount:</span> <strong>Rs. {registerData.openingAmount || 0}</strong>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span>Sales Amount:</span> <strong style={{ color: '#10b981' }}>+ Rs. {registerData.salesAmount || 0}</strong>
+                      <span>Sales Amount:</span> <strong style={{ color: 'var(--success)' }}>+ Rs. {registerData.salesAmount || 0}</strong>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span>Total Returns:</span> <strong style={{ color: '#ef4444' }}>- Rs. {registerData.totalReturn || 0}</strong>
+                      <span>Total Returns:</span> <strong style={{ color: 'var(--danger)' }}>- Rs. {registerData.totalReturn || 0}</strong>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span>Purchases (Cash Paid):</span> <strong style={{ color: '#ef4444' }}>- Rs. {registerData.purchaseAmount || 0}</strong>
+                      <span>Purchases (Cash Paid):</span> <strong style={{ color: 'var(--danger)' }}>- Rs. {registerData.purchaseAmount || 0}</strong>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span>Purchase Returns:</span> <strong style={{ color: '#10b981' }}>+ Rs. {registerData.purchaseReturnAmount || 0}</strong>
+                      <span>Purchase Returns:</span> <strong style={{ color: 'var(--success)' }}>+ Rs. {registerData.purchaseReturnAmount || 0}</strong>
                     </div>
-                    <hr style={{ borderTop: '1px dashed #cbd5e1', margin: '6px 0' }} />
+                    <hr style={{ borderTop: '1px dashed var(--border-color)', margin: '6px 0' }} />
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '16px' }}>
                       <span>Closing Amount:</span>
                       <strong>
@@ -1508,36 +1440,17 @@ function POS({ onExit, initialOpenRegister = false }) {
 
                   <div style={{ display: 'flex', gap: '10px' }}>
                     <button
+                      className="btn btn-primary"
                       onClick={() => setShowRegisterPage(false)}
-                      style={{
-                        flex: 1,
-                        background: '#3c4e6b',
-                        color: '#fff',
-                        border: 'none',
-                        padding: '12px',
-                        borderRadius: '8px',
-                        cursor: 'pointer',
-                        fontWeight: 600,
-                        fontSize: '14px'
-                      }}
+                      style={{ flex: 1, padding: '12px' }}
                     >
                       🏪 Go to POS
                     </button>
                     <button
+                      className="btn btn-danger"
                       onClick={handleCloseRegister}
                       disabled={registerLoading}
-                      style={{
-                        flex: 1,
-                        background: '#ef4444',
-                        color: '#fff',
-                        border: 'none',
-                        padding: '12px',
-                        borderRadius: '8px',
-                        cursor: 'pointer',
-                        fontWeight: 600,
-                        fontSize: '14px',
-                        opacity: registerLoading ? 0.6 : 1
-                      }}
+                      style={{ flex: 1, padding: '12px' }}
                     >
                       {registerLoading ? '⏳ Closing...' : '🔒 Close Register'}
                     </button>
@@ -1545,49 +1458,27 @@ function POS({ onExit, initialOpenRegister = false }) {
                 </div>
               ) : (
                 <div>
-                  <div style={{ marginBottom: '20px' }}>
-                    <label style={{ fontSize: '13px', fontWeight: 600, color: '#475569', display: 'block', marginBottom: '8px', textAlign: 'left' }}>
-                      Opening Amount
-                    </label>
+                  <div className="form-group" style={{ marginBottom: '20px' }}>
+                    <label className="form-label">Opening Amount</label>
                     <div style={{ position: 'relative' }}>
-                      <span style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', fontSize: '15px', fontWeight: 600, color: '#94a3b8' }}>Rs.</span>
+                      <span style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', fontSize: '15px', fontWeight: 600, color: 'var(--text-light)' }}>Rs.</span>
                       <input
                         type="number"
+                        className="form-input"
                         value={openingCash}
                         onChange={(e) => setOpeningCash(e.target.value)}
                         placeholder="Enter amount"
-                        style={{
-                          width: '100%',
-                          padding: '12px 12px 12px 44px',
-                          borderRadius: '8px',
-                          border: '1px solid #cbd5e1',
-                          fontSize: '14px',
-                          fontWeight: 600,
-                          outline: 'none',
-                          backgroundColor: '#f8fafc',
-                          color: '#0f172a',
-                          boxSizing: 'border-box'
-                        }}
+                        style={{ paddingLeft: '44px' }}
                         onKeyDown={(e) => { if (e.key === 'Enter') handleOpenRegister(); }}
                       />
                     </div>
                   </div>
 
                   <button
+                    className="btn btn-primary"
                     onClick={handleOpenRegister}
                     disabled={registerLoading}
-                    style={{
-                      width: '100%',
-                      background: '#3c4e6b',
-                      color: '#fff',
-                      border: 'none',
-                      padding: '14px',
-                      borderRadius: '8px',
-                      cursor: 'pointer',
-                      fontWeight: 700,
-                      fontSize: '15px',
-                      opacity: registerLoading ? 0.6 : 1
-                    }}
+                    style={{ width: '100%', padding: '14px', fontSize: '15px' }}
                   >
                     {registerLoading ? '⏳ Opening...' : '💰 Open Register'}
                   </button>
@@ -1601,30 +1492,28 @@ function POS({ onExit, initialOpenRegister = false }) {
   }
 
   return (
-    <div style={styles.fullScreen}>
+    <div style={{
+      position: 'fixed', inset: 0, background: 'var(--bg-app)', zIndex: 1000,
+      display: 'flex', flexDirection: 'column', overflow: 'hidden',
+      fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif"
+    }}>
       <ToastPopup toast={toast} onClose={clearToast} />
 
       {(showReceipt || showHistoryReceipt) && <ReceiptModal sale={showReceipt || showHistoryReceipt} />}
-
       {isHoldListModalOpen && <HoldListModal />}
 
       {/* ==================== SEARCH INVOICES MODAL ==================== */}
       {isInvoiceModalOpen && (
-        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999999 }}>
-          <div style={{ background: 'white', padding: '24px', borderRadius: '12px', width: '100%', maxWidth: '400px', boxShadow: '0 20px 40px rgba(0,0,0,0.3)', zIndex: 1000000 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-              <h3 style={{ margin: 0, color: '#0f172a' }}>📄 Search Invoice</h3>
-              <button
-                onClick={() => setIsInvoiceModalOpen(false)}
-                style={{ background: 'none', border: 'none', fontSize: '22px', cursor: 'pointer', color: '#64748b', lineHeight: 1 }}
-              >
-                ×
-              </button>
+        <div className="modal-overlay" onClick={() => setIsInvoiceModalOpen(false)}>
+          <div className="modal-container" style={{ maxWidth: '400px' }} onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3 className="modal-title">📄 Search Invoice</h3>
+              <button className="modal-close" onClick={() => setIsInvoiceModalOpen(false)}>&times;</button>
             </div>
 
-            <div style={{ position: 'relative' }} ref={invoiceSearchRef}>
+            <div className="modal-body" style={{ position: 'relative' }} ref={invoiceSearchRef}>
               <input
-                style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '14px', outline: 'none' }}
+                className="form-input"
                 placeholder="Enter Invoice # (e.g. SL-1)"
                 value={invoiceSearchTerm}
                 onChange={(e) => {
@@ -1637,41 +1526,40 @@ function POS({ onExit, initialOpenRegister = false }) {
               />
 
               {showInvoiceSuggestions && invoiceSearchTerm && (
-                <ul style={{ ...styles.suggestionsList, top: 'calc(100% + 4px)', zIndex: 1000001, border: '1px solid #cbd5e1', borderRadius: '8px' }}>
+                <ul style={{
+                  position: 'absolute', top: 'calc(100% + 4px)', left: 'var(--space-lg)', right: 'var(--space-lg)',
+                  backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)',
+                  maxHeight: '200px', overflowY: 'auto', margin: 0, padding: 0, listStyle: 'none',
+                  zIndex: 1000001, boxShadow: 'var(--shadow-md)', textAlign: 'left'
+                }}>
                   {filteredInvoices.length > 0 ? (
                     filteredInvoices.map((inv, index) => (
                       <li
                         key={inv._id}
                         style={{
-                          ...styles.suggestionItem,
-                          ...(index === invoiceFocusedIndex ? styles.suggestionItemFocused : {}),
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          alignItems: 'center'
+                          padding: '10px 12px', cursor: 'pointer', borderBottom: '1px solid var(--border-color)',
+                          backgroundColor: index === invoiceFocusedIndex ? 'var(--primary-light)' : 'var(--bg-surface)',
+                          display: 'flex', justifyContent: 'space-between', alignItems: 'center'
                         }}
                         className={index === invoiceFocusedIndex ? 'invoice-suggestion-focused' : ''}
                         onClick={() => handleSearchInvoice(inv)}
                       >
-                        <div style={{ fontWeight: 600, color: '#0f172a' }}>{inv.saleNumber}</div>
-                        <div style={{ fontSize: '11px', color: '#64748b', textAlign: 'right' }}>
+                        <div style={{ fontWeight: 600, color: 'var(--text-main)' }}>{inv.saleNumber}</div>
+                        <div style={{ fontSize: '11px', color: 'var(--text-muted)', textAlign: 'right' }}>
                           <div>{new Date(inv.saleDate || inv.createdAt).toLocaleDateString()}</div>
                           <div style={{ fontWeight: 500 }}>Rs. {inv.totalAmount?.toFixed(2)}</div>
                         </div>
                       </li>
                     ))
                   ) : (
-                    <li style={{ ...styles.suggestionItem, color: '#94a3b8' }}>No invoices found</li>
+                    <li style={{ padding: '10px 12px', color: 'var(--text-muted)' }}>No invoices found</li>
                   )}
                 </ul>
               )}
             </div>
 
-            <div style={{ marginTop: '24px', display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
-              <button
-                style={{ ...styles.proceedBtn, margin: 0, width: 'auto', padding: '10px 16px', fontSize: '14px' }}
-                onClick={() => handleSearchInvoice()}
-                disabled={invoiceSearchLoading}
-              >
+            <div className="modal-footer">
+              <button className="btn btn-primary" onClick={() => handleSearchInvoice()} disabled={invoiceSearchLoading}>
                 {invoiceSearchLoading ? 'Searching...' : 'Search & Open'}
               </button>
             </div>
@@ -1681,118 +1569,103 @@ function POS({ onExit, initialOpenRegister = false }) {
 
       {/* ==================== ADD PRODUCT MODAL ==================== */}
       {isAddProductModalOpen && (
-        <div className="modal-overlay" style={{ zIndex: 10000 }}>
-          <div className="modal-content" style={{ minWidth: '60%', position: 'relative', maxHeight: '90vh', overflowY: 'auto' }}>
-            <h3>Add New Product</h3>
-            <MessagePopup message={productMessage} onClose={clearProductMessage} />
-            <div className="user-form" style={{ color: '#242a33', fontSize: '0.85rem', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
-              <div>
-                <label style={{ fontSize: '0.8rem' }}>Category *</label>
-                <div style={{ display: 'flex', gap: '5px' }}>
-                  <select
-                    style={{ flex: 1, fontSize: '0.85rem', padding: '10px 12px', border: '1px solid #ced4da', borderRadius: '4px', backgroundColor: '#f8f9fa' }}
-                    value={newProduct.categoryId}
-                    onChange={(e) => setNewProduct({ ...newProduct, categoryId: e.target.value })}
-                  >
-                    <option value="">Select Category</option>
-                    {categories.map(c => (
-                      <option key={c._id} value={c._id}>{c.name}</option>
-                    ))}
-                  </select>
-                  <button onClick={() => setIsAddCategoryModalOpen(true)} style={styles.inlineAddBtn}>+</button>
-                </div>
-              </div>
+        <div className="modal-overlay" onClick={() => setIsAddProductModalOpen(false)}>
+          <div className="modal-container modal-container-wide" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3 className="modal-title">Add New Product</h3>
+              <button className="modal-close" onClick={() => setIsAddProductModalOpen(false)}>&times;</button>
+            </div>
 
-              <div>
-                <label style={{ fontSize: '0.8rem' }}>UOM *</label>
-                <div style={{ display: 'flex', gap: '5px' }}>
-                  <select
-                    style={{ flex: 1, fontSize: '0.85rem', padding: '10px 12px', border: '1px solid #ced4da', borderRadius: '4px', backgroundColor: '#f8f9fa' }}
-                    value={newProduct.uomId}
-                    onChange={(e) => setNewProduct({ ...newProduct, uomId: e.target.value })}
-                  >
-                    <option value="">Select UOM</option>
-                    {uoms.map(u => (
-                      <option key={u._id} value={u._id}>{u.name}</option>
-                    ))}
-                  </select>
-                  <button onClick={() => setIsAddUomModalOpen(true)} style={styles.inlineAddBtn}>+</button>
-                </div>
-              </div>
+            <div className="modal-body">
+              <MessagePopup message={productMessage} onClose={clearProductMessage} />
 
-              <div style={{ gridColumn: 'span 2' }}>
-                <label style={{ fontSize: '0.8rem' }}>Product Name *</label>
-                <input
-                  style={{ fontSize: '0.85rem', width: '100%' }}
-                  value={newProduct.name}
-                  onChange={(e) => setNewProduct({ ...newProduct, name: e.target.value })}
-                  placeholder="Enter product name"
-                />
-              </div>
-
-              <div>
-                <label style={{ fontSize: '0.8rem' }}>Cost Price</label>
-                <input
-                  type="number" min="0" placeholder="0"
-                  style={{ fontSize: '0.85rem', width: '100%' }}
-                  value={newProduct.costPrice}
-                  onChange={(e) => setNewProduct({ ...newProduct, costPrice: e.target.value })}
-                />
-              </div>
-              <div>
-                <label style={{ fontSize: '0.8rem' }}>Retail Price</label>
-                <input
-                  type="number" min="0" placeholder="0"
-                  style={{ fontSize: '0.85rem', width: '100%' }}
-                  value={newProduct.retailPrice}
-                  onChange={(e) => setNewProduct({ ...newProduct, retailPrice: e.target.value })}
-                />
-              </div>
-
-              <div>
-                <label style={{ fontSize: '0.8rem' }}>Opening Stock (Qty)</label>
-                <input
-                  type="number" min="0" placeholder="0"
-                  style={{ fontSize: '0.85rem', width: '100%' }}
-                  value={newProduct.quantity}
-                  onChange={(e) => setNewProduct({ ...newProduct, quantity: e.target.value })}
-                />
-              </div>
-              <div>
-                <label style={{ fontSize: '0.8rem' }}>Reorder Quantity</label>
-                <input
-                  type="number" min="0" placeholder="0"
-                  style={{ fontSize: '0.85rem', width: '100%' }}
-                  value={newProduct.reorderQuantity}
-                  onChange={(e) => setNewProduct({ ...newProduct, reorderQuantity: e.target.value })}
-                />
-              </div>
-
-              <div>
-                <label style={{ fontSize: '0.8rem' }}>Expiry Date</label>
-                <input
-                  type="date"
-                  style={{ fontSize: '0.85rem', width: '100%' }}
-                  value={newProduct.expiryDate}
-                  onChange={(e) => setNewProduct({ ...newProduct, expiryDate: e.target.value })}
-                />
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column' }}>
-                <label style={{ fontSize: '0.8rem' }}>Product Image</label>
-                <input style={{ fontSize: '0.85rem' }} type="file" accept="image/*" onChange={handleProductImageUpload} disabled={uploadingProductPic} />
-                {uploadingProductPic && <span style={{ fontSize: '0.75rem', color: '#1b2f41' }}>Uploading...</span>}
-                {!uploadingProductPic && newProduct.pic && (
-                  <div style={{ marginTop: '8px' }}>
-                    <AvatarImage pic={newProduct.pic} name={newProduct.name || 'Product'} size={40} />
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-md)' }}>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label">Category *</label>
+                  <div style={{ display: 'flex', gap: '6px' }}>
+                    <select
+                      className="form-input"
+                      value={newProduct.categoryId}
+                      onChange={(e) => setNewProduct({ ...newProduct, categoryId: e.target.value })}
+                    >
+                      <option value="">Select Category</option>
+                      {categories.map(c => <option key={c._id} value={c._id}>{c.name}</option>)}
+                    </select>
+                    <button className="btn btn-primary" onClick={() => setIsAddCategoryModalOpen(true)} style={{ padding: '0 12px' }}>+</button>
                   </div>
-                )}
+                </div>
+
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label">UOM *</label>
+                  <div style={{ display: 'flex', gap: '6px' }}>
+                    <select
+                      className="form-input"
+                      value={newProduct.uomId}
+                      onChange={(e) => setNewProduct({ ...newProduct, uomId: e.target.value })}
+                    >
+                      <option value="">Select UOM</option>
+                      {uoms.map(u => <option key={u._id} value={u._id}>{u.name}</option>)}
+                    </select>
+                    <button className="btn btn-primary" onClick={() => setIsAddUomModalOpen(true)} style={{ padding: '0 12px' }}>+</button>
+                  </div>
+                </div>
+
+                <div className="form-group" style={{ gridColumn: 'span 2', marginBottom: 0 }}>
+                  <label className="form-label">Product Name *</label>
+                  <input
+                    className="form-input"
+                    value={newProduct.name}
+                    onChange={(e) => setNewProduct({ ...newProduct, name: e.target.value })}
+                    placeholder="Enter product name"
+                  />
+                </div>
+
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label">Cost Price</label>
+                  <input
+                    type="number" min="0" placeholder="0" className="form-input"
+                    value={newProduct.costPrice}
+                    onChange={(e) => setNewProduct({ ...newProduct, costPrice: e.target.value })}
+                  />
+                </div>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label">Retail Price</label>
+                  <input
+                    type="number" min="0" placeholder="0" className="form-input"
+                    value={newProduct.retailPrice}
+                    onChange={(e) => setNewProduct({ ...newProduct, retailPrice: e.target.value })}
+                  />
+                </div>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label">Opening Stock (Qty)</label>
+                  <input
+                    type="number" min="0" placeholder="0" className="form-input"
+                    value={newProduct.quantity}
+                    onChange={(e) => setNewProduct({ ...newProduct, quantity: e.target.value })}
+                  />
+                </div>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label">Reorder Quantity</label>
+                  <input
+                    type="number" min="0" placeholder="0" className="form-input"
+                    value={newProduct.reorderQuantity}
+                    onChange={(e) => setNewProduct({ ...newProduct, reorderQuantity: e.target.value })}
+                  />
+                </div>
+                <div className="form-group" style={{ gridColumn: 'span 2', marginBottom: 0 }}>
+                  <label className="form-label">Expiry Date</label>
+                  <input
+                    type="date" className="form-input"
+                    value={newProduct.expiryDate}
+                    onChange={(e) => setNewProduct({ ...newProduct, expiryDate: e.target.value })}
+                  />
+                </div>
               </div>
             </div>
 
-            <div className="modal-actions" style={{ marginTop: '25px', display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+            <div className="modal-footer">
+              <button className="btn btn-secondary" onClick={() => setIsAddProductModalOpen(false)}>Cancel</button>
               <button className="btn btn-primary" onClick={handleAddProduct}>Save Product</button>
-              <button className="btn btn-cancel" onClick={() => { setIsAddProductModalOpen(false); setNewProduct(productInitialState); clearProductMessage(); }}>Cancel</button>
             </div>
           </div>
         </div>
@@ -1805,151 +1678,151 @@ function POS({ onExit, initialOpenRegister = false }) {
           onClose={() => setIsAddCustomerModalOpen(false)}
           onSuccess={(newCust) => {
             fetchCustomers();
-
-            if (typeof setCustomerId === 'function') {
-              setCustomerId(newCust._id);
-              showToast(`Customer "${newCust.name}" added successfully.`, 'success');
-            } else {
-              showMessage('Customer added successfully!', 'success');
-            }
+            setCustomerId(newCust._id);
+            showToast(`Customer "${newCust.name}" added successfully.`, 'success');
           }}
         />
       )}
 
-      {/* Header */}
-      <div style={styles.header}>
-        <div style={styles.headerLeft}>
-          <span style={styles.headerIcon}>🛒</span>
-          <h2 style={styles.headerTitle}>Point of Sale</h2>
+      {/* Header - Buttons made larger and properly padded */}
+      <div style={{
+        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+        padding: '14px 28px', background: 'var(--primary)', color: '#fff', flexShrink: 0,
+        boxShadow: 'var(--shadow-sm)', zIndex: 50
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <span style={{ fontSize: '22px' }}>🛒</span>
+          <h2 style={{ margin: 0, fontSize: '20px', fontWeight: 700, color: 'white' }}>Point of Sale</h2>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <button style={styles.regHeaderBtn} onClick={handleShowRegisterDetails}>
-            <span style={{ marginRight: '6px' }}><FontAwesomeIcon icon={faCashRegister} /></span> Register
+          <button className="btn" style={{ background: '#9fe8ec', color: '#283357', padding: '9px 16px', fontSize: '13px', fontWeight: 600 }} onClick={handleShowRegisterDetails}>
+            <FontAwesomeIcon icon={faCashRegister} style={{ marginRight: '6px' }} /> Register
           </button>
-
-          <button style={styles.paidHeaderBtn} onClick={handleConfirmSale} disabled={loading}>
-            <span style={{ marginRight: '6px' }}><FontAwesomeIcon icon={faCreditCard} /></span> Paid
+          <button className="btn" style={{ background: '#b8e0c0', color: '#283357', padding: '9px 16px', fontSize: '13px', fontWeight: 600 }} onClick={handleConfirmSale} disabled={loading}>
+            <FontAwesomeIcon icon={faCreditCard} style={{ marginRight: '6px' }} /> Paid
           </button>
-
-          <button style={styles.invoicesHeaderBtn} onClick={handleOpenInvoiceSearch}>
-            <span style={{ marginRight: '6px' }}><FontAwesomeIcon icon={faFileLines} /></span> Invoices
+          <button className="btn" style={{ background: '#ebefc8', color: '#283357', padding: '9px 16px', fontSize: '13px', fontWeight: 600 }} onClick={handleOpenInvoiceSearch}>
+            <FontAwesomeIcon icon={faFileLines} style={{ marginRight: '6px' }} /> Invoices
           </button>
-
-          <button style={styles.holdBtn} onClick={handleHoldSale}>
-            <span style={{ marginRight: '6px' }}><FontAwesomeIcon icon={faCirclePause} /> </span> Hold
+          <button className="btn" style={{ background: '#f0e2d3', color: '#283357', padding: '9px 16px', fontSize: '13px', fontWeight: 600 }} onClick={handleHoldSale}>
+            <FontAwesomeIcon icon={faCirclePause} style={{ marginRight: '6px' }} /> Hold
           </button>
-
-          <button style={styles.holdListBtn} onClick={() => { setIsHoldListModalOpen(true); fetchHoldList(); }}>
-            <span style={{ marginRight: '6px' }}><FontAwesomeIcon icon={faClipboardList} /> </span> Hold List
-            {holdList.length > 0 && <span style={styles.holdBadge}>{holdList.length}</span>}
+          <button className="btn" style={{ background: '#f4d8f7', color: '#283357', padding: '9px 16px', fontSize: '13px', fontWeight: 600, position: 'relative' }} onClick={() => { setIsHoldListModalOpen(true); fetchHoldList(); }}>
+            <FontAwesomeIcon icon={faClipboardList} style={{ marginRight: '6px' }} /> Hold List
+            {holdList.length > 0 && (
+              <span style={{ marginLeft: '6px', background: '#654766', color: '#fefefe', borderRadius: '999px', fontSize: '11px', fontWeight: 800, padding: '1px 7px' }}>
+                {holdList.length}
+              </span>
+            )}
           </button>
-
-          <button style={styles.exitBtn} onClick={onExit}>
-            <span style={{ marginRight: '6px' }}>✕</span> Close POS
+          <button className="btn btn-danger" style={{ padding: '9px 16px', fontSize: '13px', fontWeight: 600 }} onClick={onExit}>
+            ✕ Close POS
           </button>
         </div>
       </div>
 
       {/* Body: Split Layout */}
-      <div style={{ ...styles.bodyLayout, flexDirection: 'row', alignItems: 'stretch' }}>
+      <div style={{ display: 'flex', flex: 1, gap: '16px', padding: '16px', overflow: 'hidden', boxSizing: 'border-box' }}>
 
         {/* ==================== LEFT COLUMN (35% Width): Product & Customer Forms ==================== */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', flex: '0 0 35%', height: '100%', overflowY: 'auto', paddingRight: '10px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', flex: '0 0 35%', height: '100%', overflowY: 'auto' }}>
 
           {/* Product Section */}
-          <div style={{ ...styles.card, display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
-            <div style={styles.cardHeader}>
-              <span style={styles.cardHeaderLeft}>
-                <span style={styles.cardIcon}>📦</span>
-                <span style={styles.cardTitle}>Search / Add Product</span>
+          <div className="card" style={{ display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--primary)', fontWeight: 700, fontSize: '13px', textTransform: 'uppercase' }}>
+                <span>📦</span> Search / Add Product
               </span>
-              <button style={styles.addNewBtn} onClick={() => setIsAddProductModalOpen(true)}>+</button>
+              <button className="btn btn-primary" onClick={() => setIsAddProductModalOpen(true)} style={{ padding: '2px 8px', fontSize: '14px' }}>+</button>
             </div>
 
             {/* Search Field */}
-            <div style={styles.horizontalField} ref={searchRef}>
-              <label style={styles.leftLabel}>SEARCH</label>
-              <div style={{ position: 'relative', flex: 1 }}>
-                <input
-                  ref={searchInputRef}
-                  type="text"
-                  value={searchTerm}
-                  placeholder="Search product..."
-                  onChange={(e) => {
-                    setSearchTerm(e.target.value);
-                    setShowSuggestions(true);
-                    setFocusedIndex(-1); // Keyboard navigation fix
-                  }}
-                  onKeyDown={handleKeyDown} // Keyboard navigation event
-                  onFocus={() => setShowSuggestions(true)}
-                  style={styles.input}
-                />
-                {showSuggestions && searchTerm && (
-                  <ul style={styles.suggestionsList}>
-                    {filteredProducts.length > 0 ? (
-                      filteredProducts.map((p, index) => (
-                        <li
-                          key={p._id}
-                          style={{
-                            ...styles.suggestionItem,
-                            ...(index === focusedIndex ? styles.suggestionItemFocused : {}),
-                            color: p.quantity <= 0 ? '#94a3b8' : '#0f172a'
-                          }}
-                          className={index === focusedIndex ? 'suggestion-item-focused' : ''}
-                          onClick={() => p.quantity > 0 && handleProductSelect(p)}
-                        >
-                          <div>{p.name}</div>
-                          <div style={{ fontSize: '11px' }}>Stock: {p.quantity} | Rs.{p.retailPrice}</div>
-                        </li>
-                      ))
-                    ) : (
-                      <li style={styles.suggestionItem}>No products found</li>
-                    )}
-                  </ul>
-                )}
-              </div>
+            <div className="form-group" style={{ position: 'relative', marginBottom: selectedProductId ? '12px' : 0 }} ref={searchRef}>
+              <label className="form-label">Search</label>
+              <input
+                ref={searchInputRef}
+                type="text"
+                className="form-input"
+                value={searchTerm}
+                placeholder="Search product..."
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                  setShowSuggestions(true);
+                  setFocusedIndex(-1);
+                }}
+                onKeyDown={handleKeyDown}
+                onFocus={() => setShowSuggestions(true)}
+              />
+              {showSuggestions && searchTerm && (
+                <ul style={{
+                  position: 'absolute', top: '100%', left: 0, right: 0,
+                  backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)',
+                  maxHeight: '200px', overflowY: 'auto', margin: 'var(--space-xs) 0 0 0', padding: 0, listStyle: 'none',
+                  zIndex: 20, boxShadow: 'var(--shadow-md)', textAlign: 'left'
+                }}>
+                  {filteredProducts.length > 0 ? (
+                    filteredProducts.map((p, index) => (
+                      <li
+                        key={p._id}
+                        style={{
+                          padding: '10px 12px', cursor: 'pointer', borderBottom: '1px solid var(--border-color)', fontSize: '14px',
+                          backgroundColor: index === focusedIndex ? 'var(--primary-light)' : 'var(--bg-surface)',
+                          color: p.quantity <= 0 ? 'var(--text-light)' : 'var(--text-main)'
+                        }}
+                        className={index === focusedIndex ? 'suggestion-item-focused' : ''}
+                        onClick={() => p.quantity > 0 && handleProductSelect(p)}
+                      >
+                        <div style={{ fontWeight: 600 }}>{p.name}</div>
+                        <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Stock: {p.quantity} | Rs.{p.retailPrice}</div>
+                      </li>
+                    ))
+                  ) : (
+                    <li style={{ padding: '10px 12px', color: 'var(--text-muted)', fontSize: '14px' }}>No products found</li>
+                  )}
+                </ul>
+              )}
             </div>
 
             {/* Selected Product Details */}
             {selectedProduct && (
               <div style={{ display: 'flex', flexDirection: 'column' }}>
-                <div style={{ ...styles.stockPricePopup, flexDirection: 'column', alignItems: 'stretch', gap: '12px', padding: '16px' }}>
-                  <div style={{ display: 'flex', alignItems: 'left', justifyContent: 'left', gap: '50px' }}>
-                    <span style={{ fontWeight: 600, fontSize: '14px', color: '#122a42' }}>{selectedProduct.name}</span>
-                    <div style={{ border: '1px solid #c1d4e6', borderRadius: '30px', gap: '10px', width: '190px' }}>
-                      <span style={{ fontSize: '13px', fontWeight: 600, color: '#065f46', marginRight: '20px' }}>📦 Stock</span>
-                      <span style={{ fontSize: '15px', fontWeight: 700, color: selectedProduct.quantity <= 5 ? '#44a2ef' : '#0f766e' }}>
-                        {selectedProduct.quantity} {getname() !== '—' ? getname() : 'units'}
-                      </span>
-                    </div>
-                  </div>
+                <div style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  backgroundColor: 'var(--primary-light)', border: '1px dashed var(--btn-border)',
+                  borderRadius: 'var(--radius-md)', padding: '10px 14px', marginTop: '12px'
+                }}>
+                  <span style={{ fontWeight: 600, fontSize: '13px', color: 'var(--text-main)' }}>{selectedProduct.name}</span>
+                  <span style={{ fontSize: '13px', fontWeight: 700, color: selectedProduct.quantity <= 5 ? 'var(--danger)' : 'var(--success)' }}>
+                    📦 Stock: {selectedProduct.quantity} {getname() !== '—' ? getname() : 'units'}
+                  </span>
                 </div>
 
-                {/* ===================== UPDATED QTY & PRICE ROW ===================== */}
-                <div style={{ display: 'flex', gap: '10px', marginTop: '12px', width: '100%' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', flex: 1, gap: '6px' }}>
-                    <label style={{ fontSize: '12px', fontWeight: 700, color: '#475569', letterSpacing: '0.5px' }}>QTY</label>
+                <div style={{ display: 'flex', gap: 'var(--space-sm)', marginTop: '12px', width: '100%' }}>
+                  <div className="form-group" style={{ flex: 1, marginBottom: 0 }}>
+                    <label className="form-label">QTY</label>
                     <input
                       ref={qtyInputRef}
                       type="number" min="1" max={selectedProduct ? selectedProduct.quantity : undefined}
                       value={entryQty} onChange={(e) => setEntryQty(e.target.value)}
                       onKeyDown={(e) => { if (e.key === 'Enter') handleAddToCart(); }}
-                      style={{ ...styles.input, height: '35px', fontSize: '16px', fontWeight: 'bold', textAlign: 'center', width: '100%' }}
+                      className="form-input"
+                      style={{ textAlign: 'center', fontWeight: 'bold' }}
                     />
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', flex: 1, gap: '6px' }}>
-                    <label style={{ fontSize: '12px', fontWeight: 700, color: '#475569', letterSpacing: '0.5px' }}>PRICE</label>
+                  <div className="form-group" style={{ flex: 1, marginBottom: 0 }}>
+                    <label className="form-label">PRICE</label>
                     <input
                       type="number" min="0" value={entryPrice} onChange={(e) => setEntryPrice(e.target.value)}
                       onKeyDown={(e) => { if (e.key === 'Enter') handleAddToCart(); }}
-                      style={{ ...styles.input, height: '35px', fontSize: '16px', fontWeight: 'bold', textAlign: 'center', width: '100%' }}
+                      className="form-input"
+                      style={{ textAlign: 'center', fontWeight: 'bold' }}
                     />
                   </div>
                 </div>
 
-                {/* Add to Cart Button */}
                 <button
-                  style={{ ...styles.addBtn, marginTop: '24px', width: '100%', maxWidth: '200px', marginInline: 'auto' }}
+                  className="btn btn-primary"
+                  style={{ marginTop: '16px', width: '100%' }}
                   onClick={handleAddToCart}
                 >
                   🛒 Add to Cart
@@ -1958,26 +1831,25 @@ function POS({ onExit, initialOpenRegister = false }) {
             )}
 
             {!selectedProduct && (
-              <div style={styles.noProductSelected}>
-                <span style={styles.noProductIcon}>🔍</span>
-                <span style={styles.noProductText}>Search and select a product to add</span>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '30px 0', color: 'var(--text-muted)' }}>
+                <span style={{ fontSize: '32px', marginBottom: '8px' }}>🔍</span>
+                <span style={{ fontSize: '13px', fontWeight: 500 }}>Search and select a product to add</span>
               </div>
             )}
           </div>
 
           {/* Customer Section */}
-          <div style={{ ...styles.card, display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
-            <div style={styles.cardHeader}>
-              <span style={styles.cardHeaderLeft}>
-                <span style={styles.cardIcon}>👤</span>
-                <span style={styles.cardTitle}>Customer</span>
+          <div className="card" style={{ display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--primary)', fontWeight: 700, fontSize: '13px', textTransform: 'uppercase' }}>
+                <span>👤</span> Customer
               </span>
-              <button style={styles.addNewBtn} onClick={() => setIsAddCustomerModalOpen(true)}>+</button>
+              <button className="btn btn-primary" onClick={() => setIsAddCustomerModalOpen(true)} style={{ padding: '2px 8px', fontSize: '14px' }}>+</button>
             </div>
 
-            <div style={styles.horizontalField}>
-              <label style={styles.leftLabel}>SELECT</label>
-              <select value={customerId} onChange={(e) => setCustomerId(e.target.value)} style={styles.input}>
+            <div className="form-group">
+              <label className="form-label">Select</label>
+              <select value={customerId} onChange={(e) => setCustomerId(e.target.value)} className="form-input">
                 <option value="">Select a Customer</option>
                 {customers.map(c => (
                   <option key={c._id} value={c._id}>{c.name || c.customerName}</option>
@@ -1985,18 +1857,18 @@ function POS({ onExit, initialOpenRegister = false }) {
               </select>
             </div>
 
-            <div style={styles.horizontalField}>
-              <label style={styles.leftLabel}>DATE</label>
-              <input type="date" value={saleDate} onChange={(e) => setSaleDate(e.target.value)} style={styles.input} />
+            <div className="form-group">
+              <label className="form-label">Date</label>
+              <input type="date" value={saleDate} onChange={(e) => setSaleDate(e.target.value)} className="form-input" />
             </div>
 
-            <div style={{ ...styles.horizontalField, flex: 1, alignItems: 'flex-start' }}>
-              <label style={styles.leftLabel}>NOTES</label>
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label className="form-label">Notes</label>
               <input
                 type="text"
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                style={{ ...styles.input, height: '100%', minHeight: '38px' }}
+                className="form-input"
                 placeholder="Optional notes..."
               />
             </div>
@@ -2005,49 +1877,50 @@ function POS({ onExit, initialOpenRegister = false }) {
         </div>
 
         {/* ==================== RIGHT COLUMN (65% Width): Table, Billing Form & Complete Button ==================== */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', flex: '1', minWidth: 0, height: '100%', overflowY: 'auto', overflowX: 'hidden', paddingRight: '4px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', flex: '1', minWidth: 0, height: '100%', overflowY: 'auto' }}>
 
           {/* Cart Table */}
-          <div style={{ ...styles.card, display: 'flex', flexDirection: 'column', padding: 0, overflow: 'hidden', flexShrink: 0, minHeight: '220px', maxHeight: '340px' }}>
-            <div style={{ ...styles.tableWrapper }}>
-              <table style={styles.table}>
+          <div className="card" style={{ padding: 0, overflow: 'hidden', flexShrink: 0, maxHeight: '300px', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ overflowY: 'auto', flex: 1 }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead style={{ position: 'sticky', top: 0, zIndex: 10 }}>
                   <tr>
-                    <th style={{ ...styles.th, textAlign: 'left', paddingLeft: '24px', width: '100px' }}>Item Name</th>
-                    <th style={{ ...styles.th, textAlign: 'center', width: '90px' }}>QTY</th>
-                    <th style={{ ...styles.th, textAlign: 'right', width: '90px' }}>Price</th>
-                    <th style={{ ...styles.th, textAlign: 'right', width: '90px' }}>SubTotal</th>
-                    <th style={{ ...styles.th, textAlign: 'center', width: '100px' }}>Action</th>
+                    <th style={{ ...tableStyles.th, paddingLeft: '20px', width: '35%' }}>Item Name</th>
+                    <th style={{ ...tableStyles.th, textAlign: 'center', width: '15%' }}>QTY</th>
+                    <th style={{ ...tableStyles.th, textAlign: 'right', width: '18%' }}>Price</th>
+                    <th style={{ ...tableStyles.th, textAlign: 'right', width: '18%' }}>SubTotal</th>
+                    <th style={{ ...tableStyles.th, textAlign: 'center', width: '14%' }}>Action</th>
                   </tr>
                 </thead>
                 <tbody>
                   {cart.length === 0 ? (
                     <tr>
                       <td colSpan="5">
-                        <div style={{ ...styles.emptyCart, padding: '40px 0' }}>
-                          <div style={styles.emptyCartTitle}>🛒 No items in cart!</div>
+                        <div style={{ padding: '40px 0', textAlign: 'center', color: 'var(--text-muted)' }}>
+                          <div style={{ fontSize: '16px', fontWeight: 600 }}>🛒 No items in cart!</div>
                         </div>
                       </td>
                     </tr>
                   ) : (
                     cart.map((item) => (
-                      <tr key={item.productId}>
-                        <td style={{ ...styles.td, textAlign: 'left', paddingLeft: '24px', fontWeight: 600, color: '#1e293b' }}>
+                      <tr key={item.productId} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                        <td style={{ padding: '10px 16px', paddingLeft: '20px', fontWeight: 600, color: 'var(--text-main)', fontSize: '13px' }}>
                           {item.name}
                         </td>
-                        <td style={{ ...styles.td, textAlign: 'center' }}>
+                        <td style={{ padding: '10px 16px', textAlign: 'center' }}>
                           <input
                             type="number" min="1" max={item.availableQty}
                             value={item.quantity} onChange={(e) => updateCartQty(item.productId, e.target.value)}
-                            style={styles.qtyInput}
+                            className="form-input"
+                            style={{ width: '60px', padding: '4px 6px', textAlign: 'center', margin: '0 auto' }}
                           />
                         </td>
-                        <td style={{ ...styles.td, textAlign: 'right' }}>{item.unitPrice.toFixed(2)}</td>
-                        <td style={{ ...styles.td, textAlign: 'right', fontWeight: 600 }}>
+                        <td style={{ padding: '10px 16px', textAlign: 'right', fontSize: '13px', color: 'var(--text-main)' }}>{item.unitPrice.toFixed(2)}</td>
+                        <td style={{ padding: '10px 16px', textAlign: 'right', fontSize: '13px', fontWeight: 600, color: 'var(--text-main)' }}>
                           {(item.quantity * item.unitPrice - (Number(item.discount) || 0)).toFixed(2)}
                         </td>
-                        <td style={{ ...styles.td, textAlign: 'center' }}>
-                          <button style={styles.removeBtn} onClick={() => removeFromCart(item.productId)}>✕</button>
+                        <td style={{ padding: '10px 16px', textAlign: 'center' }}>
+                          <button className="btn btn-danger" onClick={() => removeFromCart(item.productId)} style={{ padding: '4px 8px', fontSize: '12px' }}>✕</button>
                         </td>
                       </tr>
                     ))
@@ -2057,83 +1930,80 @@ function POS({ onExit, initialOpenRegister = false }) {
             </div>
           </div>
 
-          {/* ==================== BILLING FORM ==================== */}
-          <div style={{ ...styles.card, flexShrink: 0, padding: '18px 24px' }}>
-            <div style={styles.cardHeader}>
-              <span style={styles.cardHeaderLeft}>
-                <span style={styles.cardIcon}>🧮</span>
-                <span style={styles.cardTitle}>Billing</span>
-              </span>
+          {/* ==================== BILLING FORM (Fixed Alignment & Inputs) ==================== */}
+          <div className="card" style={{ padding: '18px 24px', flexShrink: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--primary)', fontWeight: 700, fontSize: '13px', textTransform: 'uppercase', marginBottom: '14px', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>
+              <span>🧮</span> Billing
             </div>
 
-            <div style={styles.billingGrid}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
 
-              <div style={styles.horizontalField}>
-                <label style={styles.leftLabel}>Order Total</label>
+              {/* Order Total */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Order Total</span>
                 <input
                   type="text" readOnly value={`Rs. ${subtotal.toFixed(2)}`}
-                  style={{ ...styles.input, ...styles.readOnlyInput }}
+                  className="form-input"
+                  style={{ maxWidth: '240px', width: '100%', fontWeight: 700, backgroundColor: 'var(--bg-app)', textAlign: 'right' }}
                 />
               </div>
 
-              <div style={styles.horizontalField}>
-                <label style={styles.leftLabel}>DISCOUNT</label>
-                <div style={{ display: 'flex', gap: '18px', alignItems: 'center', flex: 1 }}>
-                  <label style={styles.radioLabel}>
-                    <input
-                      type="radio" name="discountType" checked={discountType === 'percent'}
-                      onChange={() => setDiscountType('percent')}
-                      style={styles.radioInput}
-                    />
-                    Percentage (%)
+              {/* Discount Type */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Discount Type</span>
+                <div style={{ display: 'flex', gap: '24px', alignItems: 'center', maxWidth: '240px', width: '100%', paddingRight: '12px', boxSizing: 'border-box' }}>
+                  <label style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text-main)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <input type="radio" name="discountType" checked={discountType === 'percent'} onChange={() => setDiscountType('percent')} style={{ accentColor: 'var(--primary)' }} /> Percentage 
                   </label>
-                  <label style={styles.radioLabel}>
-                    <input
-                      type="radio" name="discountType" checked={discountType === 'cash'}
-                      onChange={() => setDiscountType('cash')}
-                      style={styles.radioInput}
-                    />
-                    Cash (Rs.)
+                  <label style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text-main)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <input type="radio" name="discountType" checked={discountType === 'cash'} onChange={() => setDiscountType('cash')} style={{ accentColor: 'var(--primary)' }} /> Cash 
                   </label>
                 </div>
               </div>
 
-              <div style={styles.horizontalField}>
-                <label style={styles.leftLabel}>{discountType === 'percent' ? 'DISC %' : 'DISC RS.'}</label>
-                <input
-                  type="number" min="0" max={discountType === 'percent' ? 100 : undefined}
-                  value={discountValue}
-                  onChange={(e) => setDiscountValue(e.target.value)}
-                  style={styles.input}
-                  placeholder={discountType === 'percent' ? 'e.g. 10' : 'e.g. 500'}
-                />
-                <span style={styles.inlineHint}>− Rs. {discountAmount.toFixed(2)}</span>
+              {/* Disc % / Rs */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase' }}>{discountType === 'percent' ? 'Disc %' : 'Disc Rs.'}</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', maxWidth: '240px', width: '100%' }}>
+                  <input
+                    type="number" min="0" max={discountType === 'percent' ? 100 : undefined}
+                    value={discountValue} onChange={(e) => setDiscountValue(e.target.value)}
+                    className="form-input"
+                    style={{ textAlign: 'right' }}
+                    placeholder={discountType === 'percent' ? '0' : '0'}
+                  />
+                </div>
               </div>
 
-              <div style={styles.horizontalField}>
-                <label style={styles.leftLabel}>NET PAYABLE</label>
+              {/* Net Payable */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-main)', textTransform: 'uppercase' }}>Net Payable</span>
                 <input
                   type="text" readOnly value={`Rs. ${totalAmount.toFixed(2)}`}
-                  style={{ ...styles.input, ...styles.readOnlyInput, color: '#10b981', fontWeight: 700 }}
+                  className="form-input"
+                  style={{ maxWidth: '240px', width: '100%', fontWeight: 700, color: 'var(--success)', backgroundColor: 'var(--bg-app)', textAlign: 'right' }}
                 />
               </div>
 
-              <div style={styles.horizontalField}>
-                <label style={styles.leftLabel}>PAID </label>
+              {/* Paid */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Paid</span>
                 <input
-                  type="number" min="0" value={paidAmount}
-                  onChange={(e) => setPaidAmount(e.target.value)}
-                  style={styles.input}
+                  type="number" min="0" value={paidAmount} onChange={(e) => setPaidAmount(e.target.value)}
+                  className="form-input"
+                  style={{ maxWidth: '240px', width: '100%', textAlign: 'right', fontWeight: 600 }}
                 />
               </div>
 
-              <div style={{ ...styles.horizontalField, marginBottom: 0 }}>
-                <label style={styles.leftLabel}>BALANCE</label>
+              {/* Balance */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-main)', textTransform: 'uppercase' }}>Balance</span>
                 <input
                   type="text" readOnly value={`Rs. ${balanceAmount.toFixed(2)}`}
+                  className="form-input"
                   style={{
-                    ...styles.input, ...styles.readOnlyInput, fontWeight: 700,
-                    color: balanceAmount > 0 ? '#ef4444' : '#10b981'
+                    maxWidth: '240px', width: '100%', fontWeight: 700, backgroundColor: 'var(--bg-app)', textAlign: 'right',
+                    color: balanceAmount > 0 ? 'var(--danger)' : 'var(--success)'
                   }}
                 />
               </div>
@@ -2142,7 +2012,7 @@ function POS({ onExit, initialOpenRegister = false }) {
           </div>
 
           {/* Complete Sale Button */}
-          <button style={{ ...styles.proceedBtn, width: '60%', margin: '0 auto', padding: '12px', fontSize: '15px', flexShrink: 0 }} onClick={handleConfirmSale} disabled={loading}>
+          <button className="btn btn-primary" style={{ padding: '14px', fontSize: '15px', width: '60%', margin: '0 auto', flexShrink: 0 }} onClick={handleConfirmSale} disabled={loading}>
             {loading ? '⏳ Processing...' : 'Proceed To Complete Sale →'}
           </button>
 
@@ -2152,18 +2022,23 @@ function POS({ onExit, initialOpenRegister = false }) {
 
       {/* ==================== INLINE CATEGORY MODAL ==================== */}
       {isAddCategoryModalOpen && (
-        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999999 }}>
-          <div style={{ background: 'white', padding: '24px', borderRadius: '12px', width: '100%', maxWidth: '400px', boxShadow: '0 20px 40px rgba(0,0,0,0.3)', zIndex: 1000000 }}>
-            <h3 style={{ marginTop: 0, color: '#0f172a' }}>Add New Category</h3>
-            <input
-              style={{ width: '100%', padding: '12px', marginTop: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '14px', outline: 'none' }}
-              placeholder="Enter Category Name"
-              value={newCategoryName}
-              onChange={(e) => setNewCategoryName(e.target.value)}
-            />
-            <div style={{ marginTop: '24px', display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
-              <button style={{ ...styles.proceedBtn, margin: 0, width: 'auto', padding: '10px 16px', fontSize: '14px' }} onClick={handleAddCategory}>Save</button>
-              <button style={{ ...styles.exitBtn, padding: '10px 16px', fontSize: '14px', background: '#f1f5f9', color: '#475569' }} onClick={() => setIsAddCategoryModalOpen(false)}>Cancel</button>
+        <div className="modal-overlay" onClick={() => setIsAddCategoryModalOpen(false)}>
+          <div className="modal-container" style={{ maxWidth: '400px' }} onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3 className="modal-title">Add New Category</h3>
+              <button className="modal-close" onClick={() => setIsAddCategoryModalOpen(false)}>&times;</button>
+            </div>
+            <div className="modal-body">
+              <input
+                className="form-input"
+                placeholder="Enter Category Name"
+                value={newCategoryName}
+                onChange={(e) => setNewCategoryName(e.target.value)}
+              />
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-secondary" onClick={() => setIsAddCategoryModalOpen(false)}>Cancel</button>
+              <button className="btn btn-primary" onClick={handleAddCategory}>Save</button>
             </div>
           </div>
         </div>
@@ -2171,24 +2046,29 @@ function POS({ onExit, initialOpenRegister = false }) {
 
       {/* ==================== INLINE UOM MODAL ==================== */}
       {isAddUomModalOpen && (
-        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999999 }}>
-          <div style={{ background: 'white', padding: '24px', borderRadius: '12px', width: '100%', maxWidth: '400px', boxShadow: '0 20px 40px rgba(0,0,0,0.3)', zIndex: 1000000 }}>
-            <h3 style={{ marginTop: 0, color: '#0f172a' }}>Add New UOM</h3>
-            <input
-              style={{ width: '100%', padding: '12px', marginTop: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '14px', outline: 'none' }}
-              placeholder="Name (e.g., Kilograms, Pieces)"
-              value={newname}
-              onChange={(e) => setNewname(e.target.value)}
-            />
-            <input
-              style={{ width: '100%', padding: '12px', marginTop: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '14px', outline: 'none' }}
-              placeholder="Code (e.g., KG, PCS)"
-              value={newcode}
-              onChange={(e) => setNewcode(e.target.value)}
-            />
-            <div style={{ marginTop: '24px', display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
-              <button style={{ ...styles.proceedBtn, margin: 0, width: 'auto', padding: '10px 16px', fontSize: '14px' }} onClick={handleAddUom}>Save</button>
-              <button style={{ ...styles.exitBtn, padding: '10px 16px', fontSize: '14px', background: '#f1f5f9', color: '#475569' }} onClick={() => { setIsAddUomModalOpen(false); setNewcode(''); setNewname(''); }}>Cancel</button>
+        <div className="modal-overlay" onClick={() => setIsAddUomModalOpen(false)}>
+          <div className="modal-container" style={{ maxWidth: '400px' }} onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3 className="modal-title">Add New UOM</h3>
+              <button className="modal-close" onClick={() => setIsAddUomModalOpen(false)}>&times;</button>
+            </div>
+            <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-md)' }}>
+              <input
+                className="form-input"
+                placeholder="Name (e.g., Kilograms, Pieces)"
+                value={newname}
+                onChange={(e) => setNewname(e.target.value)}
+              />
+              <input
+                className="form-input"
+                placeholder="Code (e.g., KG, PCS)"
+                value={newcode}
+                onChange={(e) => setNewcode(e.target.value)}
+              />
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-secondary" onClick={() => { setIsAddUomModalOpen(false); setNewcode(''); setNewname(''); }}>Cancel</button>
+              <button className="btn btn-primary" onClick={handleAddUom}>Save</button>
             </div>
           </div>
         </div>
@@ -2197,96 +2077,29 @@ function POS({ onExit, initialOpenRegister = false }) {
   );
 }
 
-const styles = {
-  fullScreen: { position: 'fixed', inset: 0, background: '#f8fafc', zIndex: 1000, display: 'flex', flexDirection: 'column', overflow: 'hidden' },
-  header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 32px', background: '#2f3a54', color: '#fff', flexShrink: 0, boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' },
-  headerLeft: { display: 'flex', alignItems: 'center', gap: '12px' },
-  headerIcon: { fontSize: '24px' },
-  headerTitle: { margin: 0, fontSize: '22px', fontWeight: 700, color: 'white' },
-  regHeaderBtn: { background: '#9fe8ec', color: '#283357', border: 'none', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer', fontWeight: 600, display: 'flex', alignItems: 'center' },
-  paidHeaderBtn: { background: '#b8e0c0', color: '#283357', border: 'none', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer', fontWeight: 600, display: 'flex', alignItems: 'center' },
-  invoicesHeaderBtn: { background: '#ebefc8', color: '#283357', border: 'none', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer', fontWeight: 600, display: 'flex', alignItems: 'center' },
-
-  exitBtn: { background: '#ef4444', color: '#fff', border: 'none', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer', fontWeight: 600, display: 'flex', alignItems: 'center' },
-  holdBtn: { background: '#f0e2d3', color: '#283357', border: 'none', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer', fontWeight: 600, display: 'flex', alignItems: 'center' },
-  holdListBtn: { background: '#f4d8f7', color: '#283357', border: 'none', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer', fontWeight: 600, display: 'flex', alignItems: 'center', position: 'relative' },
-  holdBadge: { border: '1px #fffefe', marginLeft: '8px', background: '#654766', color: '#fefefe', borderRadius: '999px', fontSize: '11px', fontWeight: 800, padding: '1px 7px', lineHeight: '16px' },
-  holdStatusBadge: { display: 'inline-block', background: '#fef3c7', color: '#92400e', border: '1px solid #fde68a', borderRadius: '999px', fontSize: '11px', fontWeight: 700, padding: '3px 10px', textTransform: 'uppercase', letterSpacing: '0.3px' },
-  bodyLayout: { display: 'flex', flexDirection: 'column', flex: 1, gap: '20px', padding: '24px', overflow: 'hidden' },
-  formsRow: { display: 'flex', gap: '60px', flexWrap: 'wrap' },
-  card: { background: '#ffffff', borderRadius: '12px', padding: '20px', border: '1px solid #cbd5e1', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' },
-  cardHeader: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' },
-  cardHeaderLeft: { display: 'flex', alignItems: 'center', gap: '10px', textTransform: 'uppercase', color: '#3c4e6b', fontWeight: 800, fontSize: '14px' },
-  cardIcon: { fontSize: '18px' },
-  cardTitle: {},
-  addNewBtn: { background: '#41526f', color: '#ffffff', border: '1px solid #cbd5e1', padding: '6px 12px', borderRadius: '7px', cursor: 'pointer', fontSize: '16px', fontWeight: 700, whiteSpace: 'nowrap' },
-  inlineAddBtn: { background: '#3c4e6b', color: '#fff', border: 'none', padding: '0 12px', borderRadius: '4px', cursor: 'pointer', fontSize: '18px', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center' },
-  horizontalField: { display: 'flex', alignItems: 'center', marginBottom: '16px', gap: '16px' },
-  fieldRowInline: { display: 'flex', gap: '16px', marginBottom: '4px' },
-  horizontalFieldInline: { display: 'flex', alignItems: 'center', gap: '10px', flex: 1 },
-  leftLabel: { width: '90px', fontSize: '12px', fontWeight: 700, color: '#475569', textAlign: 'left', letterSpacing: '0.5px', flexShrink: 0 },
-  input: { flex: 1, padding: '10px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '14px', backgroundColor: '#f8fafc', outline: 'none', transition: 'all 0.2s' },
-  readOnlyInput: { backgroundColor: '#f1f5f9', cursor: 'default', fontWeight: 600, color: '#0f172a' },
-  radioLabel: { display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', fontWeight: 600, color: '#334155', cursor: 'pointer' },
-  radioInput: { width: '16px', height: '16px', accentColor: '#3c4e6b', cursor: 'pointer' },
-  inlineHint: { fontSize: '12px', color: '#64748b', minWidth: '110px', textAlign: 'right', flexShrink: 0 },
-  billingGrid: { display: 'flex', flexDirection: 'column' },
-
-  suggestionsList: {
-    position: 'absolute',
-    top: '100%',
-    left: 0,
-    right: 0,
-    backgroundColor: '#fff',
-    border: '1px solid #cbd5e1',
-    borderTop: 'none',
-    borderRadius: '0 0 8px 8px',
-    maxHeight: '200px',
-    overflowY: 'auto',
-    margin: 0,
-    padding: 0,
-    listStyle: 'none',
-    zIndex: 20,
-    boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)',
-    textAlign: 'left'
-  },
-  suggestionItem: {
+// Strict Table Styles Rule
+const tableStyles = {
+  th: {
     padding: '12px 16px',
-    cursor: 'pointer',
-    borderBottom: '1px solid #f1f5f9',
-    fontSize: '14px',
+    backgroundColor: 'var(--header)',
+    color: '#ffffff',
+    fontWeight: '600',
+    fontSize: '13px',
     textAlign: 'left'
   },
-  suggestionItemFocused: {
-    backgroundColor: '#e2e8f0'
-  },
+  td: {
+    padding: '8px 16px',
+    color: 'var(--text-main)',
+    fontSize: '13px',
+    textAlign: 'left'
+  }
+};
 
-  productInfoGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px', marginBottom: '12px', color: '#181616' },
-  productInfoItem: { display: 'flex', flexDirection: 'column', gap: '2px', color: '#181616' },
-  productInfoLabel: { fontSize: '10px', fontWeight: 600, color: '#27282b', textTransform: 'uppercase', letterSpacing: '0.5px' },
-  productInfoValue: { fontSize: '14px', color: '#475569', padding: '4px 8px', backgroundColor: '#f8fafc', borderRadius: '4px', border: '1px solid #e2e8f0', minHeight: '32px', display: 'flex', alignItems: 'center' },
-  stockPricePopup: { display: 'flex', alignItems: 'center', backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '8px', padding: '10px 16px', marginBottom: '16px', gap: '16px', textAlign: 'center' },
-  stockPriceItem: { display: 'flex', alignItems: 'center', gap: '2px', flex: 1, textAlign: 'center' },
-  stockPriceLabel: { fontSize: '12px', fontWeight: 500, color: '#64748b', textAlign: 'center', margin: '0 20%' },
-  stockPriceValue: { fontSize: '14px', fontWeight: 600, color: '#0f172a', textAlign: 'center' },
-  stockPriceDivider: { width: '1px', height: '24px', backgroundColor: '#bbf7d0' },
-  noProductSelected: { display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '40px 0', color: '#94a3b8', flex: 1 },
-  noProductIcon: { fontSize: '48px', marginBottom: '12px' },
-  noProductText: { fontSize: '14px', fontWeight: 500 },
-  addBtn: { width: '30%', margin: '4% 34%', background: '#3c4e6b', color: '#fff', border: 'none', padding: '12px', fontWeight: 700, fontSize: '15px', cursor: 'pointer', borderRadius: '8px', marginTop: 'auto', transition: 'all 0.2s' },
-  tableWrapper: { overflowY: 'auto', flex: 1 },
-  table: { width: '100%', borderCollapse: 'collapse' },
-  th: { textAlign: 'left', padding: '12px 16px', background: '#3c4e6b', fontSize: '12px', color: '#ffffff', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', position: 'sticky', top: 0 },
-  td: { padding: '10px 16px', textAlign: 'left', fontSize: '14px', borderBottom: '1px solid #f1f5f9', color: '#334155' },
-  qtyInput: { width: '60px', padding: '4px 6px', borderRadius: '6px', border: '1px solid #cbd5e1', textAlign: 'center', fontSize: '14px', backgroundColor: '#f8fafc' },
-  removeBtn: { background: '#fef2f2', color: '#ef4444', border: 'none', padding: '4px 8px', borderRadius: '6px', cursor: 'pointer', fontSize: '14px', fontWeight: 700 },
-  emptyCart: { display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '60px 0', color: '#94a3b8' },
-  emptyCartTitle: { fontSize: '18px', fontWeight: 600, color: '#64748b' },
-  proceedBtn: { background: '#3c4e6b', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' },
+const styles = {
   receiptOverlay: { position: 'fixed', inset: 0, background: 'rgba(0, 0, 0, 0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000, padding: '20px' },
   receiptContainer: { background: '#ffffff', borderRadius: '10px', border: '1px solid #000', width: '100%', maxHeight: '92vh', display: 'flex', flexDirection: 'column', boxShadow: '0 25px 80px rgba(0,0,0,0.3)', overflow: 'hidden' },
   receiptHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 18px', borderBottom: '2px solid #000', background: '#ffffff', flexShrink: 0 },
-  receiptActions: { display: 'flex', gap: '10px', marginLeft: '67%' },
+  receiptActions: { display: 'flex', gap: '10px' },
   printReceiptBtn: { background: '#3a485f', color: '#fff', border: '1px solid #000', padding: '8px 14px', borderRadius: '6px', cursor: 'pointer', fontWeight: 600, fontSize: '13px', whiteSpace: 'nowrap' },
   closeReceiptBtn: { background: '#fff', color: '#000', border: '1px solid #000', padding: '8px 14px', borderRadius: '6px', cursor: 'pointer', fontWeight: 600, fontSize: '13px', whiteSpace: 'nowrap' },
   receiptBody: { overflowY: 'auto', overflowX: 'hidden', flex: 1, color: '#000' },
@@ -2312,7 +2125,6 @@ styleSheet.textContent = `
   ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
   ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
   
-  /* REMOVE NUMBER INPUT ARROWS (SPINNERS) */
   input[type="number"]::-webkit-inner-spin-button,
   input[type="number"]::-webkit-outer-spin-button {
     -webkit-appearance: none;

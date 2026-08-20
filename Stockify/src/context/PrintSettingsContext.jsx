@@ -25,22 +25,36 @@ export const PrintSettingsProvider = ({ children }) => {
 
   const fetchPrintSettings = useCallback(async () => {
     try {
-      const res = await fetch(`${API_BASE}/print-settings`);
-      if (!res.ok) throw new Error('Request failed');
-      const data = await res.json();
-      setSettings({ ...DEFAULT_SETTINGS, ...data });
+        const token = localStorage.getItem('token');
+        const res = await fetch(`${API_BASE}/print-settings`, {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        if (!res.ok) {
+            throw new Error('Request failed');
+        }
+        
+        const data = await res.json();
+        if (data) {
+            setSettings({ ...DEFAULT_SETTINGS, ...data });
+        }
     } catch (err) {
-      console.error('Failed to load print settings, using defaults:', err);
-      setSettings(DEFAULT_SETTINGS);
+        console.error('Failed to load print settings, using defaults:', err);
     } finally {
-      setLoading(false);
+        setLoading(false);
     }
   }, []);
 
   const updatePrintSettings = async (updates) => {
+    const token = localStorage.getItem('token');
     const res = await fetch(`${API_BASE}/print-settings`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}` 
+      },
       body: JSON.stringify(updates),
     });
     if (!res.ok) {

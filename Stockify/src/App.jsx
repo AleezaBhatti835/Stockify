@@ -1,36 +1,33 @@
 import { useState } from 'react';
+import WelcomeScreen from './components/WelcomeScreen';
 import Login from './components/login';
 import Dashboard from './components/dashboard';
-import { PrintSettingsProvider } from './context/PrintSettingsContext';
+import './global-theme.css';
 
 function App() {
-  // 1. Initialize state from localStorage so it survives refresh
-  const [loggedInUser, setLoggedInUser] = useState(() => {
-    const savedUser = localStorage.getItem('loggedInUser');
-    return savedUser ? JSON.parse(savedUser) : null;
-  });
+  const [showWelcome, setShowWelcome] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [userData, setUserData] = useState(null);
 
-  // 2. Save user to localStorage on login
-  const handleLogin = (user) => {
-    setLoggedInUser(user);
-    localStorage.setItem('loggedInUser', JSON.stringify(user));
+const handleLoginSuccess = (user) => {
+    localStorage.setItem('currentUser', JSON.stringify(user));
+    setUserData(user);          
+    setIsAuthenticated(true);    
   };
-
-  // 3. Clear user from localStorage on logout
   const handleLogout = () => {
-    setLoggedInUser(null);
-    localStorage.removeItem('loggedInUser');
+    setUserData(null);
+    setIsAuthenticated(false);
   };
 
-  return (
-    <PrintSettingsProvider>
-      {loggedInUser ? (
-        <Dashboard user={loggedInUser} onLogout={handleLogout} />
-      ) : (
-        <Login onLoginSuccess={handleLogin} />
-      )}
-    </PrintSettingsProvider>
-  );
+  if (showWelcome) {
+    return <WelcomeScreen onComplete={() => setShowWelcome(false)} />;
+  }
+
+  if (isAuthenticated) {
+    return <Dashboard user={userData} onLogout={handleLogout} />;
+  }
+
+  return <Login onLoginSuccess={handleLoginSuccess} />;
 }
 
 export default App;

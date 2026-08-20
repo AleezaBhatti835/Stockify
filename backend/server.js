@@ -1,11 +1,84 @@
 import 'dotenv/config';
 import express, { json } from 'express';
 import mongoose from 'mongoose';
+import jwt from 'jsonwebtoken';
 import cors from 'cors';
 import multer from 'multer';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
+
+export const authorize = (requiredPermission) => {
+  return async (req, res, next) => {
+    try {
+      const authHeader = req.headers['authorization'];
+      let token = null;
+
+      if (authHeader && authHeader.startsWith('Bearer ')) {
+        token = authHeader.split(' ')[1];
+      }
+
+      if (!token && req.query && req.query.token) {
+        token = req.query.token;
+      }
+
+      if (!token) {
+        return res.status(401).json({ success: false, message: 'Unauthorized: No token provided' });
+      }
+
+      let decoded;
+      try {
+        decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret_key');
+      } catch (err) {
+        return res.status(401).json({ success: false, message: 'Unauthorized: Invalid or expired token' });
+      }
+
+      const user = await User.findById(decoded.userId);
+      if (!user || user.status === 'Inactive') {
+        return res.status(401).json({ success: false, message: 'Unauthorized: User not found or inactive' });
+      }
+
+      let roleName = '';
+      if (typeof user.role === 'string') {
+        roleName = user.role;
+      } else if (user.role && mongoose.Types.ObjectId.isValid(user.role)) {
+        const foundRole = await Role.findById(user.role);
+        roleName = foundRole ? foundRole.role : '';
+      }
+
+      if (user.email === 'admin@gmail.com' || roleName.trim().toLowerCase() === 'admin') {
+        req.user = user;
+        return next();
+      }
+
+      // 2. SAFE POPULATION FOR OTHER USERS (Managers etc.)
+      if (user.role && mongoose.Types.ObjectId.isValid(user.role)) {
+        await user.populate('role');
+      }
+
+      // 3. DASHBOARD BYPASS
+      if (requiredPermission === 'dashboard_view' || !requiredPermission) {
+        req.user = user;
+        return next();
+      }
+
+      // 4. GRANULAR PERMISSION CHECK
+      const userPermissions = user.role?.permissions || [];
+      if (requiredPermission && !userPermissions.includes(requiredPermission)) {
+        return res.status(403).json({
+          success: false,
+          message: `Forbidden: You do not have the '${requiredPermission}' permission.`
+        });
+      }
+
+      req.user = user;
+      next();
+    } catch (error) {
+      console.error('Authorization Middleware Error:', error);
+      return res.status(500).json({ success: false, message: 'Server authorization error' });
+    }
+  };
+};
 import User from './models/user.js';
 import Role from './models/Role.js';
 import Customer from './models/Customer.js';
@@ -39,6 +112,8 @@ import PurchaseRateDifference from './models/PurchaseRateDifference.js'
 import SalesRebate from './models/SalesRebate.js';
 import SalesRebateDetail from './models/SalesRebateDetail.js';
 import SaleRateDifference from './models/SaleRateDifference.js';
+import Attendance from './models/Attendance.js';
+import AttendanceRule from './models/AttendanceRule.js';
 console.log("Checking URI:", process.env.MONGO_URI);
 
 const __filename = fileURLToPath(import.meta.url);
@@ -78,8 +153,7 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
-app.post('/api/upload', upload.single('image'), (req, res) => {
-  if (!req.file) {
+app.post('/api/upload', authorize('settings_edit'), upload.single('image'), (req, res) => {  if (!req.file) {
     return res.status(400).json({ message: 'No file uploaded' });
   }
   const imageUrl = `http://localhost:5000/uploads/${req.file.filename}`;
@@ -93,9 +167,17 @@ app.post('/api/login', async (req, res) => {
     const user = await User.findOne({ email }).populate('role');
 
     if (user && user.password === password) {
-
       const { password: _pw, ...userData } = user.toObject();
-      return res.json({ success: true, user: userData });
+      
+      // Generate JWT token here. Ensure process.env.JWT_SECRET exists.
+      const token = jwt.sign(
+        { userId: user._id, role: user.role }, 
+        process.env.JWT_SECRET || 'secret_key', 
+        { expiresIn: '1d' }
+      );
+
+      // Return both user data and the generated token
+      return res.json({ success: true, user: userData, token });
     } else {
       return res.status(401).json({ success: false, message: 'Invalid credentials' });
     }
@@ -104,10 +186,8 @@ app.post('/api/login', async (req, res) => {
   }
 });
 
-
 // ==================== GET LAST INVOICE NUMBER ====================
-app.get('/api/purchases/last-invoice', async (req, res) => {
-  try {
+app.get('/api/purchases/last-invoice', authorize('purchases_view'), async (req, res) => {  try {
     // Find the last purchase and sort by createdAt descending
     const lastPurchase = await Purchase.findOne()
       .sort({ createdAt: -1 })
@@ -126,20 +206,50 @@ app.get('/api/purchases/last-invoice', async (req, res) => {
 });
 
 // ==================== ROLES ====================
-app.post('/api/roles', async (req, res) => {
-  try {
-    console.log("Saving to DB:", req.body);
-    const newRole = await Role.create(req.body);
-    await newRole.save();
+app.post('/api/roles', authorize('roles_add'), async (req, res) => {  try {
+    const { role, permissions } = req.body;
+    const newRole = await Role.create({
+      role: role.trim(),
+      permissions: permissions || []
+    });
     return res.status(201).json(newRole);
   } catch (error) {
-    console.error("CRASHED HERE:", error);
-    return res.status(400).json({ message: 'Save failed', error });
+    console.error("Error creating role:", error);
+    return res.status(400).json({ message: 'Save failed', error: error.message });
   }
 });
 
-app.get('/api/roles', async (req, res) => {
+app.put('/api/roles/:id', authorize('roles_edit'), async (req, res) => {  if (!req.params.id || req.params.id === 'null') {
+    return res.status(400).json({ message: 'Invalid ID provided' });
+  }
+
   try {
+    const { role, permissions } = req.body;
+    const updatedRole = await Role.findByIdAndUpdate(
+      req.params.id,
+      { 
+        role: role ? role.trim() : undefined,
+        permissions: permissions || []
+      },
+      { new: true }
+    );
+    return res.json(updatedRole);
+  } catch (error) {
+    console.error("Backend PUT Error:", error);
+    return res.status(500).json({ message: 'Error updating role', error: error.message });
+  }
+});
+
+// Endpoint to fetch users assigned to a specific role 
+app.get('/api/roles/:id/users', authorize('roles_view'), async (req, res) => {  try {
+    const users = await User.find({ role: req.params.id, status: { $ne: 'Inactive' } }).select('name email');
+    return res.json({ success: true, users });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+app.get('/api/roles', authorize('dashboard_view'), async (req, res) => {  try {
     const roles = await Role.find({ status: { $ne: 'Inactive' } });
     return res.json({ success: true, roles });
   } catch (error) {
@@ -147,26 +257,9 @@ app.get('/api/roles', async (req, res) => {
   }
 });
 
-app.put('/api/roles/:id', async (req, res) => {
-  if (!req.params.id || req.params.id === 'null') {
-    return res.status(400).json({ message: 'Invalid ID provided' });
-  }
 
-  try {
-    const updatedRole = await Role.findByIdAndUpdate(
-      req.params.id,
-      req.body,
-      { new: true }
-    );
-    return res.json(updatedRole);
-  } catch (error) {
-    console.error("Backend PUT Error:", error);
-    return res.status(500).json({ message: 'Error updating role', error });
-  }
-});
 
-app.delete('/api/roles/:id', async (req, res) => {
-  const { id } = req.params;
+app.delete('/api/roles/:id', authorize('roles_delete'), async (req, res) => {  const { id } = req.params;
   try {
     const activeUsers = await User.find({ role: id, status: { $ne: 'Inactive' } });
 
@@ -195,8 +288,7 @@ app.delete('/api/roles/:id', async (req, res) => {
 });
 
 // ==================== USERS ====================
-app.post('/api/users', async (req, res) => {
-  try {
+app.post('/api/users', authorize('users_add'), async (req, res) => {  try {
     const newUser = await User.create(req.body);
     return res.status(201).json(newUser);
   } catch (error) {
@@ -205,8 +297,7 @@ app.post('/api/users', async (req, res) => {
   }
 });
 
-app.get('/api/users', async (req, res) => {
-  try {
+app.get('/api/users', authorize('users_view'), async (req, res) => {  try {
     const users = await User.find({ status: { $ne: 'Inactive' } }).populate('role');
     return res.json(users);
   } catch (error) {
@@ -214,8 +305,7 @@ app.get('/api/users', async (req, res) => {
   }
 });
 
-app.put('/api/users/:id', async (req, res) => {
-  if (!req.params.id || req.params.id === 'null') {
+app.put('/api/users/:id', authorize('users_edit'), async (req, res) => {  if (!req.params.id || req.params.id === 'null') {
     return res.status(400).json({ message: 'Invalid ID' });
   }
 
@@ -227,8 +317,7 @@ app.put('/api/users/:id', async (req, res) => {
   }
 });
 
-app.delete('/api/users/:id', async (req, res) => {
-  try {
+app.delete('/api/users/:id', authorize('users_delete'), async (req, res) => {  try {
     await User.findByIdAndUpdate(req.params.id, { status: 'Inactive' }, { new: true });
     return res.json({ message: 'User deleted successfully' });
   } catch (error) {
@@ -237,8 +326,7 @@ app.delete('/api/users/:id', async (req, res) => {
 });
 
 // ==================== RESET PASSWORD ====================
-app.put('/api/users/:id/reset-password', async (req, res) => {
-  const { currentPassword, newPassword } = req.body;
+app.put('/api/users/:id/reset-password', authorize('users_edit'), async (req, res) => {  const { currentPassword, newPassword } = req.body;
 
   try {
     if (!currentPassword || !newPassword) {
@@ -269,8 +357,7 @@ app.put('/api/users/:id/reset-password', async (req, res) => {
 });
 
 // ==================== CUSTOMERS ====================
-app.get('/api/customers', async (req, res) => {
-  try {
+app.get('/api/customers', authorize('customers_view'), async (req, res) => {  try {
     const customers = await Customer.find({ status: { $ne: 'Inactive' } })
       .populate('customerTypeId', 'name');
     res.json(customers);
@@ -279,8 +366,7 @@ app.get('/api/customers', async (req, res) => {
   }
 });
 
-app.post('/api/customers', async (req, res) => {
-  try {
+app.post('/api/customers', authorize('customers_add'), async (req, res) => {  try {
     const newCustomer = await Customer.create(req.body);
     res.status(201).json(newCustomer);
   } catch (error) {
@@ -288,8 +374,7 @@ app.post('/api/customers', async (req, res) => {
   }
 });
 
-app.put('/api/customers/:id', async (req, res) => {
-  try {
+app.put('/api/customers/:id', authorize('customers_edit'), async (req, res) => {  try {
     const updatedCustomer = await Customer.findByIdAndUpdate(req.params.id, req.body, { new: true });
     res.json(updatedCustomer);
   } catch (error) {
@@ -297,8 +382,7 @@ app.put('/api/customers/:id', async (req, res) => {
   }
 });
 
-app.delete('/api/customers/:id', async (req, res) => {
-  try {
+app.delete('/api/customers/:id', authorize('customers_delete'), async (req, res) => {  try {
     await Customer.findByIdAndUpdate(req.params.id, { status: 'Inactive' }, { new: true });
     res.json({ message: 'Customer deleted' });
   } catch (error) {
@@ -307,8 +391,7 @@ app.delete('/api/customers/:id', async (req, res) => {
 });
 
 // ==================== SUPPLIERS ====================
-app.get('/api/suppliers', async (req, res) => {
-  try {
+app.get('/api/suppliers', authorize('suppliers_view'), async (req, res) => {  try {
     const suppliers = await Supplier.find({ status: { $ne: 'Inactive' } });
     res.json(suppliers);
   } catch (error) {
@@ -316,8 +399,7 @@ app.get('/api/suppliers', async (req, res) => {
   }
 });
 
-app.post('/api/suppliers', async (req, res) => {
-  try {
+app.post('/api/suppliers', authorize('suppliers_add'), async (req, res) => {  try {
     const newSupplier = await Supplier.create(req.body);
     res.status(201).json(newSupplier);
   } catch (error) {
@@ -326,8 +408,7 @@ app.post('/api/suppliers', async (req, res) => {
   }
 });
 
-app.put('/api/suppliers/:id', async (req, res) => {
-  try {
+app.put('/api/suppliers/:id', authorize('suppliers_edit'), async (req, res) => {  try {
     const updatedSupplier = await Supplier.findByIdAndUpdate(req.params.id, req.body, { new: true });
     res.json(updatedSupplier);
   } catch (error) {
@@ -335,8 +416,7 @@ app.put('/api/suppliers/:id', async (req, res) => {
   }
 });
 
-app.delete('/api/suppliers/:id', async (req, res) => {
-  try {
+app.delete('/api/suppliers/:id', authorize('suppliers_delete'), async (req, res) => {  try {
     await Supplier.findByIdAndUpdate(req.params.id, { status: 'inactive' }, { new: true });
     res.json({ message: 'Supplier deleted' });
   } catch (error) {
@@ -345,8 +425,7 @@ app.delete('/api/suppliers/:id', async (req, res) => {
 });
 
 // ==================== DESIGNATIONS ====================
-app.post('/api/designations', async (req, res) => {
-  try {
+app.post('/api/designations', authorize('settings_edit'), async (req, res) => {  try {
     const newDesignation = await Designation.create(req.body);
     return res.status(201).json(newDesignation);
   } catch (error) {
@@ -354,8 +433,7 @@ app.post('/api/designations', async (req, res) => {
   }
 });
 
-app.get('/api/designations', async (req, res) => {
-  try {
+app.get('/api/designations', authorize('settings_view'), async (req, res) => {  try {
     const designations = await Designation.find({ status: { $ne: 'inactive' } });
     return res.json(designations);
   } catch (error) {
@@ -363,8 +441,7 @@ app.get('/api/designations', async (req, res) => {
   }
 });
 
-app.put('/api/designations/:id', async (req, res) => {
-  if (!req.params.id) {
+app.put('/api/designations/:id', authorize('settings_edit'), async (req, res) => {  if (!req.params.id) {
     return res.status(400).json({ message: 'Invalid ID provided' });
   }
 
@@ -380,8 +457,7 @@ app.put('/api/designations/:id', async (req, res) => {
   }
 });
 
-app.delete('/api/designations/:id', async (req, res) => {
-  const { id } = req.params;
+app.delete('/api/designations/:id', authorize('settings_edit'), async (req, res) => {  const { id } = req.params;
   try {
     const employeeUsingDesignation = await Employee.findOne({ designation: id });
 
@@ -410,8 +486,7 @@ app.delete('/api/designations/:id', async (req, res) => {
 });
 
 // ==================== EMPLOYEES ====================
-app.post('/api/employees', async (req, res) => {
-  try {
+app.post('/api/employees', authorize('employees_add'), async (req, res) => {  try {
     const newEmployee = await Employee.create(req.body);
     const populatedEmployee = await Employee.findById(newEmployee._id).populate('designation');
     return res.status(201).json(populatedEmployee);
@@ -420,8 +495,7 @@ app.post('/api/employees', async (req, res) => {
   }
 });
 
-app.get('/api/employees', async (req, res) => {
-  try {
+app.get('/api/employees', authorize('employees_view'), async (req, res) => {  try {
     const employees = await Employee.find({ status: { $ne: 'inactive' } }).populate('designation');
     return res.json(employees);
   } catch (error) {
@@ -429,8 +503,7 @@ app.get('/api/employees', async (req, res) => {
   }
 });
 
-app.put('/api/employees/:id', async (req, res) => {
-  try {
+app.put('/api/employees/:id', authorize('employees_edit'), async (req, res) => {  try {
     const updatedEmployee = await Employee.findByIdAndUpdate(
       req.params.id,
       req.body,
@@ -442,8 +515,7 @@ app.put('/api/employees/:id', async (req, res) => {
   }
 });
 
-app.delete('/api/employees/:id', async (req, res) => {
-  try {
+app.delete('/api/employees/:id', authorize('employees_delete'), async (req, res) => {  try {
     const deletedEmployee = await Employee.findByIdAndUpdate(
       req.params.id,
       { status: 'inactive' },
@@ -460,8 +532,7 @@ app.delete('/api/employees/:id', async (req, res) => {
 });
 
 // ==================== EMPLOYEE PAYMENTS/ENTRIES (Add Entry) ====================
-app.post('/api/employee-payments', async (req, res) => {
-  const { employeeId, amount, type, transactionType, date, notes } = req.body;
+app.post('/api/employee-payments', authorize('employee_account_add'), async (req, res) => {  const { employeeId, amount, type, transactionType, date, notes } = req.body;
 
   try {
     if (!employeeId) {
@@ -505,8 +576,7 @@ app.post('/api/employee-payments', async (req, res) => {
 });
 
 // ==================== EMPLOYEE LEDGER (Full ledger with filters) ====================
-app.get('/api/employee-ledger', async (req, res) => {
-  try {
+app.get('/api/employee-ledger', authorize('employee_account_view'), async (req, res) => {  try {
     const { employeeId, fromDate, toDate } = req.query;
 
     const filter = {};
@@ -556,8 +626,7 @@ app.get('/api/employee-ledger', async (req, res) => {
 });
 
 // ==================== UOM (Unit of Measure) ====================
-app.get('/api/uoms', async (req, res) => {
-  try {
+app.get('/api/uoms', authorize('uom_view'), async (req, res) => {  try {
     const uoms = await UOM.find({ status: 'active' }).sort({ name: 1 });
     res.json(uoms);
   } catch (error) {
@@ -565,8 +634,7 @@ app.get('/api/uoms', async (req, res) => {
   }
 });
 
-app.post('/api/uoms', async (req, res) => {
-  try {
+app.post('/api/uoms', authorize('uom_add'), async (req, res) => {  try {
     const { code, name, abbreviation } = req.body;
 
     const existing = await UOM.findOne({
@@ -588,8 +656,7 @@ app.post('/api/uoms', async (req, res) => {
   }
 });
 
-app.put('/api/uoms/:id', async (req, res) => {
-  try {
+app.put('/api/uoms/:id', authorize('uom_edit'), async (req, res) => {  try {
     const { code, name, abbreviation } = req.body;
     const id = req.params.id;
 
@@ -621,8 +688,7 @@ app.put('/api/uoms/:id', async (req, res) => {
   }
 });
 
-app.delete('/api/uoms/:id', async (req, res) => {
-  try {
+app.delete('/api/uoms/:id', authorize('uom_delete'), async (req, res) => {  try {
     const uom = await UOM.findByIdAndUpdate(
       req.params.id,
       { status: 'inactive' },
@@ -640,8 +706,7 @@ app.delete('/api/uoms/:id', async (req, res) => {
 });
 
 // ==================== CATEGORIES ====================
-app.get('/api/categories', async (req, res) => {
-  try {
+app.get('/api/categories', authorize('categories_view'), async (req, res) => {  try {
     const categories = await Category.find({ status: 'active' }).sort({ name: 1 });
     res.json(categories);
   } catch (error) {
@@ -649,8 +714,7 @@ app.get('/api/categories', async (req, res) => {
   }
 });
 
-app.post('/api/categories', async (req, res) => {
-  try {
+app.post('/api/categories', authorize('categories_add'), async (req, res) => {  try {
     const { name, description } = req.body;
 
     const existing = await Category.findOne({
@@ -669,8 +733,7 @@ app.post('/api/categories', async (req, res) => {
   }
 });
 
-app.put('/api/categories/:id', async (req, res) => {
-  try {
+app.put('/api/categories/:id', authorize('categories_edit'), async (req, res) => {  try {
     const { name, description } = req.body;
     const id = req.params.id;
 
@@ -699,8 +762,7 @@ app.put('/api/categories/:id', async (req, res) => {
   }
 });
 
-app.delete('/api/categories/:id', async (req, res) => {
-  try {
+app.delete('/api/categories/:id', authorize('categories_delete'), async (req, res) => {  try {
     const category = await Category.findByIdAndUpdate(
       req.params.id,
       { status: 'inactive' },
@@ -718,8 +780,7 @@ app.delete('/api/categories/:id', async (req, res) => {
 });
 
 // ==================== PRODUCTS ====================
-app.get('/api/products', async (req, res) => {
-  try {
+app.get('/api/products', authorize('products_view'), async (req, res) => {  try {
     const products = await Product.find({ status: 'active' })
       .populate('categoryId', 'name')
       .populate('uomId', 'name abbreviation')
@@ -730,8 +791,7 @@ app.get('/api/products', async (req, res) => {
   }
 });
 
-app.post('/api/products', async (req, res) => {
-  try {
+app.post('/api/products', authorize('products_add'), async (req, res) => {  try {
     const product = new Product(req.body);
 
     // If quantity is provided at creation, opening stock is locked
@@ -749,8 +809,7 @@ app.post('/api/products', async (req, res) => {
   }
 });
 
-app.put('/api/products/:id', async (req, res) => {
-  try {
+app.put('/api/products/:id', authorize('products_edit'), async (req, res) => {  try {
     const id = req.params.id;
     const product = await Product.findByIdAndUpdate(
       id,
@@ -770,8 +829,7 @@ app.put('/api/products/:id', async (req, res) => {
   }
 });
 
-app.delete('/api/products/:id', async (req, res) => {
-  try {
+app.delete('/api/products/:id', authorize('products_delete'), async (req, res) => {  try {
     const product = await Product.findByIdAndUpdate(
       req.params.id,
       { status: 'inactive' },
@@ -791,8 +849,7 @@ app.delete('/api/products/:id', async (req, res) => {
 // ==================== DELETED PRODUCTS APIS ====================
 
 // 1. Get all inactive (deleted) products
-app.get('/api/products/deleted', async (req, res) => {
-  try {
+app.get('/api/products/deleted', authorize('products_view'), async (req, res) => {  try {
     const products = await Product.find({ status: 'inactive' })
       .populate('categoryId', 'name')
       .populate('uomId', 'name abbreviation')
@@ -804,8 +861,7 @@ app.get('/api/products/deleted', async (req, res) => {
 });
 
 // 2. Activate a deleted product
-app.put('/api/products/:id/activate', async (req, res) => {
-  try {
+app.put('/api/products/:id/activate', authorize('products_edit'), async (req, res) => {  try {
     const product = await Product.findByIdAndUpdate(
       req.params.id,
       { status: 'active' },
@@ -822,8 +878,7 @@ app.put('/api/products/:id/activate', async (req, res) => {
   }
 });
 // ==================== OPENING STOCK ====================
-app.post('/api/products/:id/opening-stocks', async (req, res) => {
-  const { quantity } = req.body;
+app.post('/api/products/:id/opening-stocks', authorize('products_edit'), async (req, res) => {  const { quantity } = req.body;
 
   try {
     const product = await Product.findById(req.params.id);
@@ -857,8 +912,7 @@ app.post('/api/products/:id/opening-stocks', async (req, res) => {
 });
 
 // ==================== ADD PURCHASE (POST) ====================
-app.post('/api/purchases', async (req, res) => {
-  const { supplierId, invoiceNumber, purchaseDate, items, totalAmount, paidAmount } = req.body;
+app.post('/api/purchases', authorize('purchases_add'), async (req, res) => {  const { supplierId, invoiceNumber, purchaseDate, items, totalAmount, paidAmount } = req.body;
   const session = await mongoose.startSession();
 
   try {
@@ -950,8 +1004,7 @@ app.post('/api/purchases', async (req, res) => {
 });
 
 // ==================== GET PURCHASES ====================
-app.get('/api/purchases', async (req, res) => {
-  try {
+app.get('/api/purchases', authorize('purchases_view'), async (req, res) => {  try {
     const purchases = await Purchase.find()
       .populate('supplier')
       .populate('items.product')
@@ -965,8 +1018,7 @@ app.get('/api/purchases', async (req, res) => {
 });
 
 // ==================== SEARCH PURCHASE BY INVOICE NUMBER ====================
-app.get('/api/purchases/search', async (req, res) => {
-  // Now extracting invoiceNumber from the query parameters
+app.get('/api/purchases/search', authorize('purchases_view'), async (req, res) => {  // Now extracting invoiceNumber from the query parameters
   const { invoiceNumber } = req.query;
 
   if (!invoiceNumber || !invoiceNumber.trim()) {
@@ -1030,8 +1082,7 @@ app.get('/api/purchases/search', async (req, res) => {
 // ==================== PURCHASE RETURNS ====================
 
 // Get a purchase's items with remaining returnable quantity
-app.get('/api/purchases/:id/returnable-items', async (req, res) => {
-  try {
+app.get('/api/purchases/:id/returnable-items', authorize('purchase_returns_view'), async (req, res) => {  try {
     const purchase = await Purchase.findById(req.params.id).populate('items.product').populate('supplier');
     if (!purchase) {
       return res.status(404).json({ success: false, message: 'Purchase not found' });
@@ -1079,7 +1130,7 @@ app.get('/api/purchases/:id/returnable-items', async (req, res) => {
 });
 
 // Create a new purchase return
-app.post('/api/purchase-returns', async (req, res) => {
+app.post('/api/purchase-returns', authorize('purchase_returns_add'), async (req, res) => {
   const { purchaseId, supplierId, items, refundMethod, notes, submitForApproval } = req.body;
 
   try {
@@ -1149,8 +1200,7 @@ app.post('/api/purchase-returns', async (req, res) => {
 });
 
 // List all purchase returns
-app.get('/api/purchase-returns', async (req, res) => {
-  try {
+app.get('/api/purchase-returns', authorize('purchase_returns_view'), async (req, res) => {  try {
     const returns = await PurchaseReturn.find()
       .populate('supplier')
       .populate('purchase', 'purchaseNumber invoiceNumber')
@@ -1163,8 +1213,7 @@ app.get('/api/purchase-returns', async (req, res) => {
 });
 
 // Get a single purchase return
-app.get('/api/purchase-returns/:id', async (req, res) => {
-  try {
+app.get('/api/purchase-returns/:id', authorize('purchase_returns_view'), async (req, res) => {   try {
     const purchaseReturn = await PurchaseReturn.findById(req.params.id)
       .populate('supplier')
       .populate('purchase')
@@ -1190,8 +1239,7 @@ const ALLOWED_TRANSITIONS = {
 };
 
 // Update a purchase return's status
-app.put('/api/purchase-returns/:id/status', async (req, res) => {
-  const { status: newStatus } = req.body;
+app.put('/api/purchase-returns/:id/status', authorize('purchase_returns_edit'), async (req, res) => {  const { status: newStatus } = req.body;
   const session = await mongoose.startSession();
 
   try {
@@ -1266,8 +1314,7 @@ app.put('/api/purchase-returns/:id/status', async (req, res) => {
 });
 
 // ==================== COMPLETE PURCHASE RETURN (One-Step) ====================
-app.post('/api/purchase-returns/complete', async (req, res) => {
-  const { purchaseId, supplierId, invoiceNumber, items } = req.body;
+app.post('/api/purchase-returns/complete', authorize('purchase_returns_add'), async (req, res) => {   const { purchaseId, supplierId, invoiceNumber, items } = req.body;
   const session = await mongoose.startSession();
 
   try {
@@ -1404,8 +1451,7 @@ app.post('/api/purchase-returns/complete', async (req, res) => {
 });
 
 // ==================== BLIND RETURN (Without Invoice) ====================
-app.post('/api/purchase-returns/blind-return', async (req, res) => {
-  const { supplierId, returnDate, items } = req.body;
+app.post('/api/purchase-returns/blind-return', authorize('purchase_returns_add'), async (req, res) => {  const { supplierId, returnDate, items } = req.body;
   const session = await mongoose.startSession();
 
   try {
@@ -1515,8 +1561,7 @@ app.post('/api/purchase-returns/blind-return', async (req, res) => {
   }
 });
 // ==================== SUPPLIER PAYMENTS ====================
-app.post('/api/supplier-payments', async (req, res) => {
-  const { supplierId, amount, type, invoiceNumber, date, notes } = req.body;
+app.post('/api/supplier-payments', authorize('supplier_account_add'), async (req, res) => {  const { supplierId, amount, type, invoiceNumber, date, notes } = req.body;
 
   try {
     if (!supplierId) {
@@ -1562,45 +1607,9 @@ app.post('/api/supplier-payments', async (req, res) => {
   }
 });
 
-// Get a supplier's full ledger
-app.get('/api/suppliers/:id/ledger', async (req, res) => {
-  try {
-    const supplier = await Supplier.findById(req.params.id);
-    if (!supplier) {
-      return res.status(404).json({ success: false, message: 'Supplier not found.' });
-    }
-
-    const entries = await SupplierAccount.find({ supplier: req.params.id }).sort({ date: 1, createdAt: 1 });
-
-    let runningBalance = 0;
-    const ledger = entries.map(entry => {
-      runningBalance += (entry.debit - entry.credit);
-      return {
-        _id: entry._id,
-        invoiceNumber: entry.invoiceNumber,
-        transactionType: entry.transactionType,
-        debit: entry.debit,
-        credit: entry.credit,
-        runningBalance,
-        date: entry.date
-      };
-    });
-
-    return res.json({
-      success: true,
-      supplier: { _id: supplier._id, name: supplier.contactPerson || supplier.companyName },
-      ledger,
-      currentBalance: runningBalance
-    });
-  } catch (error) {
-    console.error('Error fetching supplier ledger:', error);
-    return res.status(500).json({ success: false, message: 'Server error', error: error.message });
-  }
-});
 
 // ==================== SUPPLIER LEDGER (Full ledger with filters) ====================
-app.get('/api/supplier-ledger', async (req, res) => {
-  try {
+app.get('/api/supplier-ledger', authorize('supplier_account_view'), async (req, res) => {  try {
     const { supplierId, fromDate, toDate } = req.query;
 
     const filter = {};
@@ -1648,10 +1657,43 @@ app.get('/api/supplier-ledger', async (req, res) => {
     return res.status(500).json({ success: false, message: 'Server error', error: error.message });
   }
 });
+// Get a supplier's full ledger
+app.get('/api/suppliers/:id/ledger', authorize('supplier_account_view'), async (req, res) => {
+  try {
+    const supplier = await Supplier.findById(req.params.id);
+    if (!supplier) {
+      return res.status(404).json({ success: false, message: 'Supplier not found.' });
+    }
 
+    const entries = await SupplierAccount.find({ supplier: req.params.id }).sort({ date: 1, createdAt: 1 });
+
+    let runningBalance = 0;
+    const ledger = entries.map(entry => {
+      runningBalance += (entry.debit - entry.credit);
+      return {
+        _id: entry._id,
+        invoiceNumber: entry.invoiceNumber,
+        transactionType: entry.transactionType,
+        debit: entry.debit,
+        credit: entry.credit,
+        runningBalance,
+        date: entry.date
+      };
+    });
+
+    return res.json({
+      success: true,
+      supplier: { _id: supplier._id, name: supplier.contactPerson || supplier.companyName },
+      ledger,
+      currentBalance: runningBalance
+    });
+  } catch (error) {
+    console.error('Error fetching supplier ledger:', error);
+    return res.status(500).json({ success: false, message: 'Server error', error: error.message });
+  }
+});
 // ==================== CUSTOMER PAYMENTS (Add Payment) ====================
-app.post('/api/customer-payments', async (req, res) => {
-  const { customerId, amount, type, date, notes } = req.body;
+app.post('/api/customer-payments', authorize('customer_account_add'), async (req, res) => {  const { customerId, amount, type, date, notes } = req.body;
 
   try {
     if (!customerId) {
@@ -1695,8 +1737,7 @@ app.post('/api/customer-payments', async (req, res) => {
 });
 
 // ==================== CUSTOMER LEDGER (Full ledger with filters) ====================
-app.get('/api/customer-ledger', async (req, res) => {
-  try {
+app.get('/api/customer-ledger', authorize('customer_account_view'), async (req, res) => {  try {
     const { customerId, fromDate, toDate } = req.query;
 
     const filter = {};
@@ -1747,9 +1788,44 @@ app.get('/api/customer-ledger', async (req, res) => {
   }
 });
 
+// Get a customer's full ledger
+app.get('/api/customers/:id/ledger', authorize('customer_account_view'), async (req, res) => {
+  try {
+    const customer = await Customer.findById(req.params.id);
+    if (!customer) {
+      return res.status(404).json({ success: false, message: 'Customer not found.' });
+    }
+
+    const entries = await CustomerAccount.find({ customer: req.params.id }).sort({ date: 1, createdAt: 1 });
+
+    let runningBalance = 0;
+    const ledger = entries.map(entry => {
+      runningBalance += (entry.debit - entry.credit);
+      return {
+        _id: entry._id,
+        invoiceNumber: entry.invoiceNumber,
+        transactionType: entry.transactionType,
+        debit: entry.debit,
+        credit: entry.credit,
+        runningBalance,
+        date: entry.date
+      };
+    });
+
+    return res.json({
+      success: true,
+      customer: { _id: customer._id, name: customer.name || customer.name },
+      ledger,
+      currentBalance: runningBalance
+    });
+  } catch (error) {
+    console.error('Error fetching customer ledger:', error);
+    return res.status(500).json({ success: false, message: 'Server error', error: error.message });
+  }
+});
+
 // Create a stock adjustment (increase or decrease)
-app.post('/api/stock-adjustment', async (req, res) => {
-  const { productId, adjustmentType, quantity, reason, notes, invoiceNumber } = req.body;
+app.post('/api/stock-adjustment', authorize('stock_adjustment_add'), async (req, res) => {  const { productId, adjustmentType, quantity, reason, notes, invoiceNumber } = req.body;
   const session = await mongoose.startSession();
 
   try {
@@ -1830,8 +1906,7 @@ app.post('/api/stock-adjustment', async (req, res) => {
   }
 });
 
-app.post('/api/stock-adjustment/batch', async (req, res) => {
-  const { adjustments } = req.body;
+app.post('/api/stock-adjustment/batch', authorize('stock_adjustment_add'), async (req, res) => {  const { adjustments } = req.body;
   const session = await mongoose.startSession();
 
   try {
@@ -1929,8 +2004,7 @@ app.post('/api/stock-adjustment/batch', async (req, res) => {
   }
 });
 // List all stock adjustments (history)
-app.get('/api/stock-adjustment', async (req, res) => {
-  try {
+app.get('/api/stock-adjustment', authorize('stock_adjustment_view'), async (req, res) => {  try {
     const adjustments = await StockAdjustment.find()
       .populate('product', 'name')
       .sort({ createdAt: -1 });
@@ -1942,7 +2016,7 @@ app.get('/api/stock-adjustment', async (req, res) => {
 });
 
 // Get a single product's adjustment history (optional, useful for a product detail view)
-app.get('/api/products/:id/stock-adjustment', async (req, res) => {
+app.get('/api/products/:id/stock-adjustment', authorize('stock_adjustment_view'), async (req, res) => {
   try {
     const adjustments = await StockAdjustment.find({ product: req.params.id })
       .populate('product', 'name')
@@ -1957,8 +2031,7 @@ app.get('/api/products/:id/stock-adjustment', async (req, res) => {
 // ==================== SALES (POS) ====================
 
 // Create a sale — one-shot, instant stock deduction (POS style, no draft workflow)
-app.post('/api/sales', async (req, res) => {
-  const { customerId, items, discount, paidAmount, notes, saleDate } = req.body;
+app.post('/api/sales', authorize('pos_add'), async (req, res) => {  const { customerId, items, discount, paidAmount, notes, saleDate } = req.body;
   const session = await mongoose.startSession();
 
   try {
@@ -2090,8 +2163,7 @@ app.post('/api/sales', async (req, res) => {
   }
 });
 
-app.get('/api/sales', async (req, res) => {
-  try {
+app.get('/api/sales', authorize('pos_view'), async (req, res) => {  try {
     const sales = await Sale.find()
       .populate('customer')
       .sort({ saleDate: -1, createdAt: -1 })
@@ -2118,8 +2190,7 @@ app.get('/api/sales', async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 });
-app.get('/api/sales/search', async (req, res) => {
-  const { invoiceNumber } = req.query; // this is actually the saleNumber, e.g. "SL-12"
+app.get('/api/sales/search', authorize('pos_view'), async (req, res) => {  const { invoiceNumber } = req.query; // this is actually the saleNumber, e.g. "SL-12"
 
   if (!invoiceNumber || !invoiceNumber.trim()) {
     return res.status(400).json({ success: false, message: 'Invoice number is required.' });
@@ -2188,8 +2259,7 @@ app.get('/api/sales/search', async (req, res) => {
   }
 });
 
-app.post('/api/sales/hold', async (req, res) => {
-  const { customerId, items, discount, discountType, discountValue, paidAmount, notes, saleDate } = req.body;
+app.post('/api/sales/hold', authorize('pos_add'), async (req, res) => {  const { customerId, items, discount, discountType, discountValue, paidAmount, notes, saleDate } = req.body;
 
   try {
     if (!items || !Array.isArray(items) || items.length === 0) {
@@ -2266,8 +2336,7 @@ app.post('/api/sales/hold', async (req, res) => {
 });
 
 // List all held sales — for the POS "Hold List" table (includes item count per hold)
-app.get('/api/sales/hold', async (req, res) => {
-  try {
+app.get('/api/sales/hold', authorize('pos_view'), async (req, res) => {  try {
     const holds = await Sale.find({ status: 'Hold' })
       .populate('customer')
       .sort({ createdAt: -1 })
@@ -2290,8 +2359,7 @@ app.get('/api/sales/hold', async (req, res) => {
 });
 
 
-app.delete('/api/sales/:id/hold', async (req, res) => {
-  try {
+app.delete('/api/sales/:id/hold', authorize('pos_delete'), async (req, res) => {  try {
     const sale = await Sale.findById(req.params.id);
     if (!sale) throw new Error('Held sale not found.');
     if (sale.status !== 'Hold') throw new Error('This sale is not on hold.');
@@ -2307,8 +2375,7 @@ app.delete('/api/sales/:id/hold', async (req, res) => {
 });
 
 // Get a single sale with its line items (for view/print)
-app.get('/api/sales/:id', async (req, res) => {
-  try {
+app.get('/api/sales/:id', authorize('pos_view'), async (req, res) => {  try {
     const sale = await Sale.findById(req.params.id).populate('customer');
     if (!sale) {
       return res.status(404).json({ success: false, message: 'Sale not found' });
@@ -2324,8 +2391,7 @@ app.get('/api/sales/:id', async (req, res) => {
 });
 
 // Cancel/void a sale — restores stock, reverses ledger entry (audit trail preserved, nothing deleted)
-app.put('/api/sales/:id/cancel', async (req, res) => {
-  const session = await mongoose.startSession();
+app.put('/api/sales/:id/cancel', authorize('pos_delete'), async (req, res) => {  const session = await mongoose.startSession();
 
   try {
     session.startTransaction();
@@ -2379,44 +2445,9 @@ app.put('/api/sales/:id/cancel', async (req, res) => {
   }
 });
 
-// Get a customer's full ledger (mirrors supplier ledger)
-app.get('/api/customers/:id/ledger', async (req, res) => {
-  try {
-    const customer = await Customer.findById(req.params.id);
-    if (!customer) {
-      return res.status(404).json({ success: false, message: 'Customer not found.' });
-    }
 
-    const entries = await CustomerAccount.find({ customer: req.params.id }).sort({ date: 1, createdAt: 1 });
 
-    let runningBalance = 0;
-    const ledger = entries.map(entry => {
-      runningBalance += (entry.debit - entry.credit);
-      return {
-        _id: entry._id,
-        invoiceNumber: entry.invoiceNumber,
-        transactionType: entry.transactionType,
-        debit: entry.debit,
-        credit: entry.credit,
-        runningBalance,
-        date: entry.date
-      };
-    });
-
-    return res.json({
-      success: true,
-      customer: { _id: customer._id, name: customer.name || customer.name },
-      ledger,
-      currentBalance: runningBalance
-    });
-  } catch (error) {
-    console.error('Error fetching customer ledger:', error);
-    return res.status(500).json({ success: false, message: 'Server error', error: error.message });
-  }
-});
-
-app.get('/api/print-settings', async (req, res) => {
-  try {
+app.get('/api/print-settings', authorize('dashboard_view'), async (req, res) => {  try {
     let settings = await PrintSettings.findOne();
     if (!settings) {
       settings = await PrintSettings.create({});
@@ -2428,10 +2459,7 @@ app.get('/api/print-settings', async (req, res) => {
   }
 });
 
-// PUT /api/print-settings
-// Body can include any subset of the form fields — only what's sent gets updated.
-app.put('/api/print-settings', async (req, res) => {
-  try {
+app.put('/api/print-settings', authorize('dashboard_view'), async (req, res) => {  try {
     const {
       paperSize,
       printerName,
@@ -2484,8 +2512,7 @@ app.put('/api/print-settings', async (req, res) => {
 // ==========================================
 
 // 1. GET Client
-app.get('/api/client', async (req, res) => {
-  try {
+app.get('/api/client', authorize('settings_view'), async (req, res) => {  try {
     const clients = await Client.find();
 
     res.status(200).json(clients);
@@ -2496,8 +2523,7 @@ app.get('/api/client', async (req, res) => {
 });
 
 // 2. POST Client (Add New - Restricted to 1)
-app.post('/api/client', async (req, res) => {
-  try {
+app.post('/api/client', authorize('settings_edit'), async (req, res) => {  try {
     const existingCount = await Client.countDocuments();
     if (existingCount >= 1) {
       return res.status(400).json({
@@ -2524,8 +2550,7 @@ app.post('/api/client', async (req, res) => {
 });
 
 // 3. PUT Client (Edit Existing)
-app.put('/api/client/:id', async (req, res) => {
-  try {
+app.put('/api/client/:id', authorize('settings_edit'), async (req, res) => {  try {
     const { id } = req.params;
     const { businessName, contact, address, logo } = req.body;
 
@@ -2547,8 +2572,7 @@ app.put('/api/client/:id', async (req, res) => {
 });
 
 // 4. DELETE Client
-app.delete('/api/client/:id', async (req, res) => {
-  try {
+app.delete('/api/client/:id', authorize('settings_edit'), async (req, res) => {  try {
     const { id } = req.params;
 
     const deletedClient = await Client.findByIdAndDelete(id);
@@ -2565,8 +2589,7 @@ app.delete('/api/client/:id', async (req, res) => {
 });
 
 // ==================== CASH REGISTER ROUTES ====================
-app.get('/api/cash-register/status', async (req, res) => {
-  try {
+app.get('/api/cash-register/status', authorize('cash_register_view'), async (req, res) => {  try {
     const activeRegister = await CashRegister.findOne({ closingDate: null });
 
     if (activeRegister) {
@@ -2585,8 +2608,7 @@ app.get('/api/cash-register/status', async (req, res) => {
 });
 
 // 2. Open Cash Register
-app.post('/api/cash-register/open', async (req, res) => {
-  try {
+app.post('/api/cash-register/open', authorize('cash_register_manage'), async (req, res) => {  try {
     const { openingAmount } = req.body;
 
     const existing = await CashRegister.findOne({ closingDate: null });
@@ -2609,8 +2631,7 @@ app.post('/api/cash-register/open', async (req, res) => {
 });
 
 // 3. Close Cash Register 
-app.post('/api/cash-register/close', async (req, res) => {
-  try {
+app.post('/api/cash-register/close', authorize('cash_register_manage'), async (req, res) => {  try {
     const activeRegister = await CashRegister.findOne({ closingDate: null });
 
     if (!activeRegister) {
@@ -2632,8 +2653,7 @@ app.post('/api/cash-register/close', async (req, res) => {
 });
 
 // ==================== CASH REGISTER HISTORY (for reports) ====================
-app.get('/api/cash-register/history', async (req, res) => {
-  try {
+app.get('/api/cash-register/history', authorize('cash_register_view'), async (req, res) => {  try {
     const registers = await CashRegister.find().sort({ createdAt: -1 });
     res.json({ success: true, registers });
   } catch (err) {
@@ -2642,8 +2662,7 @@ app.get('/api/cash-register/history', async (req, res) => {
   }
 });
 
-app.post('/api/customer-types', async (req, res) => {
-  try {
+app.post('/api/customer-types', authorize('customers_add'), async (req, res) => {  try {
     const { name } = req.body;
     if (!name) return res.status(400).json({ success: false, message: 'Type name is required' });
 
@@ -2659,8 +2678,7 @@ app.post('/api/customer-types', async (req, res) => {
   }
 });
 
-app.get('/api/customer-types', async (req, res) => {
-  try {
+app.get('/api/customer-types', authorize('customers_view'), async (req, res) => {  try {
     const types = await CustomerType.find().sort({ createdAt: -1 });
     res.status(200).json(types);
   } catch (error) {
@@ -2668,8 +2686,7 @@ app.get('/api/customer-types', async (req, res) => {
   }
 });
 
-app.put('/api/customer-types/:id', async (req, res) => {
-  try {
+app.put('/api/customer-types/:id', authorize('customers_edit'), async (req, res) => {  try {
     const { name } = req.body;
     const updatedType = await CustomerType.findByIdAndUpdate(
       req.params.id,
@@ -2684,8 +2701,7 @@ app.put('/api/customer-types/:id', async (req, res) => {
   }
 });
 
-app.delete('/api/customer-types/:id', async (req, res) => {
-  try {
+app.delete('/api/customer-types/:id', authorize('customers_delete'), async (req, res) => {  try {
     const deletedType = await CustomerType.findByIdAndDelete(req.params.id);
     if (!deletedType) return res.status(404).json({ success: false, message: 'Customer Type not found' });
 
@@ -2697,9 +2713,8 @@ app.delete('/api/customer-types/:id', async (req, res) => {
 
 // ==================== SALE RETURNS ====================
 
-
 // 1. Return WITH Invoice
-app.post('/api/sale-returns/complete', async (req, res) => {
+app.post('/api/sale-returns/complete', authorize('sale_returns_add'), async (req, res) => {
   const { saleId, customerId, invoiceNumber, items } = req.body;
   const session = await mongoose.startSession();
 
@@ -2808,9 +2823,9 @@ app.post('/api/sale-returns/complete', async (req, res) => {
   }
 });
 
+
 // 2. Return WITHOUT Invoice (Blind Return)
-app.post('/api/sale-returns/blind-return', async (req, res) => {
-  const { customerId, returnDate, items } = req.body;
+app.post('/api/sale-returns/blind-return', authorize('sale_returns_add'), async (req, res) => {  const { customerId, returnDate, items } = req.body;
   const session = await mongoose.startSession();
 
   try {
@@ -2915,24 +2930,8 @@ app.post('/api/sale-returns/blind-return', async (req, res) => {
     session.endSession();
   }
 });
-
-app.get('/api/sales/check-customer-purchase', async (req, res) => {
-  try {
-    const { customerId, productId } = req.query;
-    const saleExists = await Sale.findOne({
-      customer: customerId,
-      status: { $nin: ['Hold', 'Cancelled'] },
-      'items.product': productId
-    });
-
-    res.json({ success: true, hasPurchased: !!saleExists });
-  } catch (error) {
-    res.status(500).json({ success: false, message: 'Server error' });
-  }
-});
-
-app.get('/api/sale-returns', async (req, res) => {
-  try {
+// 3. Get All Sale Returns (List)
+app.get('/api/sale-returns', authorize('sale_returns_view'), async (req, res) => {  try {
     const saleReturns = await SaleReturn.find()
       .populate('customer', 'name customerName phone address')
       .populate('sale', 'saleNumber invoiceNumber')
@@ -2952,9 +2951,24 @@ app.get('/api/sale-returns', async (req, res) => {
     });
   }
 });
+app.get('/api/sales/check-customer-purchase', authorize('pos_view'), async (req, res) => {  try {
+    const { customerId, productId } = req.query;
+    const saleExists = await Sale.findOne({
+      customer: customerId,
+      status: { $nin: ['Hold', 'Cancelled'] },
+      'items.product': productId
+    });
+
+    res.json({ success: true, hasPurchased: !!saleExists });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+
 
 // ==================== EXPENSE CATEGORIES ====================
-app.get('/api/expense-categories', async (req, res) => {
+app.get('/api/expense-categories', authorize('expense_category_view'), async (req, res) => {
   try {
     const categories = await ExpenseCategory.find({ status: { $ne: 'inactive' } }).sort({ name: 1 });
     res.json(categories);
@@ -2963,7 +2977,7 @@ app.get('/api/expense-categories', async (req, res) => {
   }
 });
 
-app.post('/api/expense-categories', async (req, res) => {
+app.post('/api/expense-categories', authorize('expense_category_add'), async (req, res) => {
   try {
     const { name } = req.body;
     if (!name || !name.trim()) {
@@ -2986,7 +3000,7 @@ app.post('/api/expense-categories', async (req, res) => {
   }
 });
 
-app.put('/api/expense-categories/:id', async (req, res) => {
+app.put('/api/expense-categories/:id', authorize('expense_category_edit'), async (req, res) => {
   try {
     const { name } = req.body;
     if (!name || !name.trim()) {
@@ -3016,7 +3030,7 @@ app.put('/api/expense-categories/:id', async (req, res) => {
   }
 });
 
-app.delete('/api/expense-categories/:id', async (req, res) => {
+app.delete('/api/expense-categories/:id', authorize('expense_category_delete'), async (req, res) => {
   try {
     const inUse = await Expense.findOne({ category: req.params.id, status: { $ne: 'inactive' } });
     if (inUse) {
@@ -3040,7 +3054,7 @@ app.delete('/api/expense-categories/:id', async (req, res) => {
 });
 
 // ==================== EXPENSES ====================
-app.get('/api/expenses', async (req, res) => {
+app.get('/api/expenses', authorize('expenses_view'), async (req, res) => {
   try {
     const expenses = await Expense.find({ status: { $ne: 'inactive' } })
       .populate('category', 'name')
@@ -3051,7 +3065,7 @@ app.get('/api/expenses', async (req, res) => {
   }
 });
 
-app.post('/api/expenses', async (req, res) => {
+app.post('/api/expenses', authorize('expenses_add'), async (req, res) => {
   try {
     const { category, expenseName, date, amount, addedBy, description } = req.body;
 
@@ -3080,7 +3094,7 @@ app.post('/api/expenses', async (req, res) => {
   }
 });
 
-app.put('/api/expenses/:id', async (req, res) => {
+app.put('/api/expenses/:id', authorize('expenses_edit'), async (req, res) => {
   try {
     const { category, expenseName, date, amount, addedBy, description } = req.body;
 
@@ -3114,7 +3128,7 @@ app.put('/api/expenses/:id', async (req, res) => {
   }
 });
 
-app.delete('/api/expenses/:id', async (req, res) => {
+app.delete('/api/expenses/:id', authorize('expenses_delete'), async (req, res) => {
   try {
     const expense = await Expense.findByIdAndUpdate(
       req.params.id,
@@ -3131,12 +3145,8 @@ app.delete('/api/expenses/:id', async (req, res) => {
 });
 
 // ==================== STOCK BREAKAGE ====================
-
-// ==================== STOCK BREAKAGE ====================
-
 // List all breakage records (main table)
-app.get('/api/stock-breakage', async (req, res) => {
-  try {
+app.get('/api/stock-breakage', authorize('stock_breakage_view'), async (req, res) => {  try {
     const records = await StockBreakage.find()
       .populate('product', 'name categoryId uomId') // Make sure to populate product
       .sort({ createdAt: -1 });
@@ -3147,8 +3157,7 @@ app.get('/api/stock-breakage', async (req, res) => {
 });
 
 // Add multiple broken products at once — ONE breakageNumber for the whole batch
-app.post('/api/stock-breakage/batch', async (req, res) => {
-  const { items, notes } = req.body;
+app.post('/api/stock-breakage/batch', authorize('stock_breakage_add'), async (req, res) => {  const { items, notes } = req.body;
   const session = await mongoose.startSession();
 
   try {
@@ -3237,9 +3246,7 @@ app.post('/api/stock-breakage/batch', async (req, res) => {
 });
 
 // ==================== PURCHASE REBATE ====================
-
-// Get a purchase's items with remaining rebatable quantity (mirrors returnable-items)
-app.get('/api/purchases/:id/rebatable-items', async (req, res) => {
+app.get('/api/purchases/:id/rebatable-items', authorize('purchase_rebates_view'), async (req, res) => {
   try {
     const purchase = await Purchase.findById(req.params.id).populate('items.product').populate('supplier');
     if (!purchase) {
@@ -3283,10 +3290,8 @@ app.get('/api/purchases/:id/rebatable-items', async (req, res) => {
     res.status(500).json({ success: false, message: 'Server error', error: error.message });
   }
 });
-
 // Complete a purchase rebate — one-step, supplier ledger only, NO stock/StockMovement effect
-app.post('/api/purchase-rebates/complete', async (req, res) => {
-  const { purchaseId, supplierId, invoiceNumber, items } = req.body;
+app.post('/api/purchase-rebates/complete', authorize('purchase_rebates_add'), async (req, res) => {  const { purchaseId, supplierId, invoiceNumber, items } = req.body;
   const session = await mongoose.startSession();
 
   try {
@@ -3394,8 +3399,7 @@ app.post('/api/purchase-rebates/complete', async (req, res) => {
   }
 });
 
-app.get('/api/purchase-rebates', async (req, res) => {
-  try {
+app.get('/api/purchase-rebates', authorize('purchase_rebates_view'), async (req, res) => {  try {
     const rebates = await PurchaseRebate.find()
       .populate('supplier')
       .populate('purchase', 'purchaseNumber invoiceNumber')
@@ -3425,8 +3429,7 @@ app.get('/api/purchase-rebates', async (req, res) => {
 });
 
 // Get a single rebate with its line items (for the View modal)
-app.get('/api/purchase-rebates/:id', async (req, res) => {
-  try {
+app.get('/api/purchase-rebates/:id', authorize('purchase_rebates_view'), async (req, res) => {  try {
     const rebate = await PurchaseRebate.findById(req.params.id)
       .populate('supplier')
       .populate('purchase', 'purchaseNumber invoiceNumber');
@@ -3441,44 +3444,9 @@ app.get('/api/purchase-rebates/:id', async (req, res) => {
     res.status(500).json({ success: false, message: 'Server error', error: error.message });
   }
 });
-// ==================== PURCHASE RATE DIFFERENCE ====================
-// ==================== SPECIFIC SEARCH FOR RATE DIFFERENCE ====================
-app.get('/api/purchase-rate-difference/search', async (req, res) => {
-  const { invoiceNumber } = req.query;
 
-  if (!invoiceNumber || !invoiceNumber.trim()) {
-    return res.status(400).json({ success: false, message: 'Invoice number is required.' });
-  }
-
-  try {
-    const purchase = await Purchase.findOne({
-      invoiceNumber: { $regex: new RegExp(`^${invoiceNumber.trim()}$`, 'i') }
-    })
-      .populate('items.product')
-      .populate('supplier');
-
-    if (!purchase) {
-      return res.status(404).json({ success: false, message: 'No purchase found with that invoice number.' });
-    }
-
-    return res.json({
-      success: true,
-      purchase: {
-        _id: purchase._id,
-        purchaseNumber: purchase.purchaseNumber,
-        invoiceNumber: purchase.invoiceNumber,
-        supplier: purchase.supplier,
-        items: purchase.items
-      }
-    });
-  } catch (error) {
-    console.error('Error searching purchase for rate difference:', error);
-    return res.status(500).json({ success: false, message: 'Server error', error: error.message });
-  }
-});
 // 1. Complete Purchase Rate Difference & Hit Supplier Account
-app.post('/api/purchase-rate-difference/complete', async (req, res) => {
-  const { purchaseId, supplierId, invoiceNumber, netDifference, items } = req.body;
+app.post('/api/purchase-rate-difference/complete', authorize('purchase_rate_difference_add'), async (req, res) => {  const { purchaseId, supplierId, invoiceNumber, netDifference, items } = req.body;
   const session = await mongoose.startSession();
 
   try {
@@ -3555,10 +3523,43 @@ app.post('/api/purchase-rate-difference/complete', async (req, res) => {
     session.endSession();
   }
 });
+// ==================== SPECIFIC SEARCH FOR RATE DIFFERENCE ====================
+app.get('/api/purchase-rate-difference/search', authorize('purchase_rate_difference_view'), async (req, res) => {
+  const { invoiceNumber } = req.query;
+
+  if (!invoiceNumber || !invoiceNumber.trim()) {
+    return res.status(400).json({ success: false, message: 'Invoice number is required.' });
+  }
+
+  try {
+    const purchase = await Purchase.findOne({
+      invoiceNumber: { $regex: new RegExp(`^${invoiceNumber.trim()}$`, 'i') }
+    })
+      .populate('items.product')
+      .populate('supplier');
+
+    if (!purchase) {
+      return res.status(404).json({ success: false, message: 'No purchase found with that invoice number.' });
+    }
+
+    return res.json({
+      success: true,
+      purchase: {
+        _id: purchase._id,
+        purchaseNumber: purchase.purchaseNumber,
+        invoiceNumber: purchase.invoiceNumber,
+        supplier: purchase.supplier,
+        items: purchase.items
+      }
+    });
+  } catch (error) {
+    console.error('Error searching purchase for rate difference:', error);
+    return res.status(500).json({ success: false, message: 'Server error', error: error.message });
+  }
+});
 
 // 2. List all Rate Difference records (Main table view)
-app.get('/api/purchase-rate-difference', async (req, res) => {
-  try {
+app.get('/api/purchase-rate-difference', authorize('purchase_rate_difference_view'), async (req, res) => {  try {
     const records = await PurchaseRateDifference.find()
       .populate('supplierId', 'companyName contactPerson')
       .populate('purchaseId', 'purchaseNumber invoiceNumber')
@@ -3570,8 +3571,7 @@ app.get('/api/purchase-rate-difference', async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 });
-app.get('/api/purchase-rate-difference/:id', async (req, res) => {
-  try {
+app.get('/api/purchase-rate-difference/:id', authorize('purchase_rate_difference_view'), async (req, res) => {  try {
     const record = await PurchaseRateDifference.findById(req.params.id)
       .populate('supplierId', 'companyName contactPerson')
       .populate('purchaseId', 'purchaseNumber invoiceNumber')
@@ -3589,9 +3589,7 @@ app.get('/api/purchase-rate-difference/:id', async (req, res) => {
 });
 // ==================== SALES REBATE ====================
 
-// Get a sale's items with remaining rebatable quantity (mirrors purchase's rebatable-items)
-app.get('/api/sales/:id/rebatable-items', async (req, res) => {
-  try {
+app.get('/api/sales/:id/rebatable-items', authorize('sales_rebates_view'), async (req, res) => {  try {
     const sale = await Sale.findById(req.params.id).populate('customer');
     if (!sale) {
       return res.status(404).json({ success: false, message: 'Sale not found' });
@@ -3645,8 +3643,7 @@ app.get('/api/sales/:id/rebatable-items', async (req, res) => {
 });
 
 // Complete a sales rebate — one-step, customer ledger only, NO stock/StockMovement effect
-app.post('/api/sales-rebates/complete', async (req, res) => {
-  const { saleId, customerId, invoiceNumber, items } = req.body;
+app.post('/api/sales-rebates/complete', authorize('sales_rebates_add'), async (req, res) => {  const { saleId, customerId, invoiceNumber, items } = req.body;
   const session = await mongoose.startSession();
 
   try {
@@ -3757,8 +3754,7 @@ app.post('/api/sales-rebates/complete', async (req, res) => {
 });
 
 // List all sales rebates (main table)
-app.get('/api/sales-rebates', async (req, res) => {
-  try {
+app.get('/api/sales-rebates', authorize('sales_rebates_view'), async (req, res) => {  try {
     const rebates = await SalesRebate.find()
       .populate('customer')
       .populate('sale', 'saleNumber')
@@ -3788,8 +3784,7 @@ app.get('/api/sales-rebates', async (req, res) => {
 });
 
 // Get a single rebate with its line items (for the View modal)
-app.get('/api/sales-rebates/:id', async (req, res) => {
-  try {
+app.get('/api/sales-rebates/:id', authorize('sales_rebates_view'), async (req, res) => {  try {
     const rebate = await SalesRebate.findById(req.params.id)
       .populate('customer')
       .populate('sale', 'saleNumber');
@@ -3805,56 +3800,10 @@ app.get('/api/sales-rebates/:id', async (req, res) => {
   }
 });
 
-// ==================== SALE RATE DIFFERENCE ====================
-// 1. SEARCH SALE FOR RATE DIFFERENCE
-app.get('/api/sale-rate-difference/search', async (req, res) => {
-  const { invoiceNumber } = req.query;
 
-  if (!invoiceNumber || !invoiceNumber.trim()) {
-    return res.status(400).json({ success: false, message: 'Invoice number is required.' });
-  }
-
-  try {
-    const sale = await Sale.findOne({
-      saleNumber: { $regex: new RegExp(`^${invoiceNumber.trim()}$`, 'i') },
-      status: { $nin: ['Hold', 'Cancelled'] } // Cannot do rate diff on held or cancelled sales
-    }).populate('customer');
-
-    if (!sale) {
-      return res.status(404).json({ success: false, message: 'No completed sale found with that invoice number.' });
-    }
-
-    const saleDetails = await SaleDetail.find({ sale: sale._id }).populate('product');
-
-    if (!saleDetails || saleDetails.length === 0) {
-      return res.status(404).json({ success: false, message: 'No items found for this sale.' });
-    }
-
-    const items = saleDetails.map(detail => ({
-      product: detail.product,
-      saleQty: detail.quantity,
-      unitPrice: detail.unitPrice
-    }));
-
-    return res.json({
-      success: true,
-      sale: {
-        _id: sale._id,
-        saleNumber: sale.saleNumber,
-        invoiceNumber: sale.saleNumber,
-        customer: sale.customer
-      },
-      items
-    });
-  } catch (error) {
-    console.error('Error searching sale for rate difference:', error);
-    return res.status(500).json({ success: false, message: 'Server error', error: error.message });
-  }
-});
 
 // 3. GET ALL SALE RATE DIFFERENCES (List ke liye)
-app.get('/api/sale-rate-difference', async (req, res) => {
-  try {
+app.get('/api/sale-rate-difference', authorize('sale_rate_difference_view'), async (req, res) => {  try {
     const records = await SaleRateDifference.find()
       .populate('customerId', 'name customerName')
       .populate('saleId', 'saleNumber invoiceNumber')
@@ -3869,8 +3818,7 @@ app.get('/api/sale-rate-difference', async (req, res) => {
 });
 
 // 4. GET SINGLE SALE RATE DIFFERENCE (Modal/View ke liye)
-app.get('/api/sale-rate-difference/:id', async (req, res) => {
-  try {
+app.get('/api/sale-rate-difference/:id', authorize('sale_rate_difference_view'), async (req, res) => {  try {
     const record = await SaleRateDifference.findById(req.params.id)
       .populate('customerId', 'name customerName')
       .populate('saleId', 'saleNumber invoiceNumber')
@@ -3888,8 +3836,7 @@ app.get('/api/sale-rate-difference/:id', async (req, res) => {
 });
 
 // 2. COMPLETE SALE RATE DIFFERENCE & UPDATE LEDGER
-app.post('/api/sale-rate-difference/complete', async (req, res) => {
-  const { saleId, customerId, invoiceNumber, netDifference, items } = req.body;
+app.post('/api/sale-rate-difference/complete', authorize('sale_rate_difference_add'), async (req, res) => {  const { saleId, customerId, invoiceNumber, netDifference, items } = req.body;
   const session = await mongoose.startSession();
 
   try {
@@ -3967,12 +3914,33 @@ app.post('/api/sale-rate-difference/complete', async (req, res) => {
   }
 });
 
-app.get('/api/users/:id', async (req, res) => {
+// Remove the strict authorize('users_view') string so we can handle it inside
+app.get('/api/users/:id', authorize(), async (req, res) => {
   try {
+    // Determine if the user is requesting their own profile
+    const isRequestingSelf = req.user._id.toString() === req.params.id;
+    
+    // Safely get role name whether it's a string or a populated object
+    let roleName = '';
+    if (typeof req.user.role === 'string') {
+      roleName = req.user.role;
+    } else if (req.user.role && typeof req.user.role === 'object') {
+      roleName = req.user.role.role || req.user.role.name || '';
+    }
+
+    const isAdmin = roleName.trim().toLowerCase() === 'admin' || req.user.email === 'admin@gmail.com';
+    const hasViewPermission = req.user.role?.permissions?.includes('users_view') || isAdmin;
+
+    // Block access if they are snooping on someone else's profile without permission
+    if (!isRequestingSelf && !hasViewPermission) {
+       return res.status(403).json({ message: 'Forbidden: You do not have permission to view other users.' });
+    }
+
     const user = await User.findById(req.params.id).populate('role');
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
+    
     // Return user without sending the password
     const { password: _pw, ...userData } = user.toObject();
     return res.json(userData);
@@ -3982,9 +3950,8 @@ app.get('/api/users/:id', async (req, res) => {
   }
 });
 
-
 // ==================== PROFIT AND LOSS REPORT ====================
-app.get('/api/reports/profit-loss', async (req, res) => {
+app.get('/api/reports/profit-loss', authorize('report_profit_loss_view'), async (req, res) => {
   const { fromDate, toDate } = req.query;
 
   try {
@@ -4051,7 +4018,7 @@ app.get('/api/reports/profit-loss', async (req, res) => {
 });
 
 // ==================== PAYABLE & RECEIVABLE REPORT ====================
-app.get('/api/reports/balances', async (req, res) => {
+app.get('/api/reports/balances', authorize('report_payable_receivable_view'), async (req, res) => {
   try {
     // 1. CUSTOMERS BALANCE
     // Sale: Debit = Goods given (Receivable), Credit = Payment received
@@ -4138,7 +4105,7 @@ app.get('/api/reports/balances', async (req, res) => {
 });
 
 // ==================== BUSINESS CAPITAL REPORT ====================
-app.get('/api/reports/business-capital', async (req, res) => {
+app.get('/api/reports/business-capital', authorize('report_business_capital_view'), async (req, res) => {
   try {
     // 1. CURRENT STOCK VALUE
     // Calculate total value of all active inventory
@@ -4216,7 +4183,7 @@ app.get('/api/reports/business-capital', async (req, res) => {
   }
 });
 // ==================== GET STOCK MOVEMENTS ====================
-app.get('/api/stock-movements', async (req, res) => {
+app.get('/api/stock-movements', authorize('report_stock_movement_view'), async (req, res) => {
   try {
     const movements = await StockMovement.find()
       .populate('product', 'name productCode code')
@@ -4227,7 +4194,7 @@ app.get('/api/stock-movements', async (req, res) => {
   }
 });
 // ==================== DASHBOARD SUMMARY API ====================
-app.get('/api/dashboard/summary', async (req, res) => {
+app.get('/api/dashboard/summary', authorize(), async (req, res) => {
   try {
     // 1. Get Counts
     const customers = await Customer.countDocuments({ status: { $ne: 'Inactive' } }); 
@@ -4323,6 +4290,189 @@ app.get('/api/dashboard/summary', async (req, res) => {
     res.status(500).json({ success: false, message: 'Server error' });
   }
 });
+
+// ==================== ATTENDANCE ROUTES ====================
+
+// GET: Fetch attendance report with date filters
+app.get('/api/attendance/report', authorize('employees_view'), async (req, res) => {
+  try {
+    const { dateFrom, dateTo, employeeId } = req.query;
+    let filter = {};
+
+    // Date Range Filter
+    if (dateFrom && dateTo) {
+      filter.date = { $gte: dateFrom, $lte: dateTo };
+    } else if (dateFrom) {
+      filter.date = { $gte: dateFrom };
+    } else if (dateTo) {
+      filter.date = { $lte: dateTo };
+    }
+
+    // Specific Employee Filter
+    if (employeeId) {
+      filter.employeeId = employeeId;
+    }
+
+    const records = await Attendance.find(filter)
+      .populate('employeeId', 'name designation')
+      .sort({ date: -1 });
+
+    res.status(200).json({ success: true, records });
+  } catch (error) {
+    console.error('Error fetching attendance report:', error);
+    res.status(500).json({ success: false, message: 'Server error while fetching attendance report' });
+  }
+});
+
+// POST: Bulk save/update attendance (Single or All)
+app.post('/api/attendance', authorize('employees_edit'), async (req, res) => {
+  try {
+    const { date, records } = req.body;
+
+    if (!date || !Array.isArray(records)) {
+      return res.status(400).json({ success: false, message: 'Invalid payload. Date and records are required.' });
+    }
+
+    // Validate that every record has a valid employeeId
+    for (const record of records) {
+      const empId = record.employeeId || record.employee;
+      if (!empId) {
+        return res.status(400).json({ success: false, message: 'Validation error: employeeId is missing.' });
+      }
+    }
+
+    // Prepare bulk operations for upsert
+    const bulkOps = records.map(record => {
+      const empId = record.employeeId || record.employee;
+      return {
+        updateOne: {
+          filter: { employeeId: empId, date: date },
+          update: { 
+            $set: { 
+              clockIn: record.clockIn || '',
+              clockOut: record.clockOut || '',
+              status: record.status || 'Present', 
+              remarks: record.remarks || '' 
+            } 
+          },
+          upsert: true
+        }
+      };
+    });
+
+    if (bulkOps.length > 0) {
+      await Attendance.bulkWrite(bulkOps);
+    }
+
+    res.status(200).json({ success: true, message: 'Attendance saved successfully' });
+  } catch (error) {
+    console.error('Error saving attendance:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// DELETE: Remove an attendance record by ID
+app.delete('/api/attendance/:id', authorize('employees_edit'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const deletedRecord = await Attendance.findByIdAndDelete(id);
+
+    if (!deletedRecord) {
+      return res.status(404).json({ success: false, message: 'Attendance record not found' });
+    }
+
+    res.status(200).json({ success: true, message: 'Attendance deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting attendance:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+// GET: Fetch attendance rules
+app.get('/api/attendance-rules', authorize('settings_view'), async (req, res) => {
+  try {
+    let rule = await AttendanceRule.findOne();
+    if (!rule) {
+      rule = await AttendanceRule.create({});
+    }
+    res.status(200).json({ success: true, rule });
+  } catch (error) {
+    console.error('Error fetching rules:', error); // Yahan error terminal mein print hoga
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// PUT: Update attendance rules
+app.put('/api/attendance-rules', authorize('settings_edit'), async (req, res) => {
+  try {
+    let rule = await AttendanceRule.findOne();
+    if (!rule) {
+      rule = new AttendanceRule(req.body);
+    } else {
+      Object.assign(rule, req.body);
+    }
+    await rule.save();
+    res.status(200).json({ success: true, message: 'Rules updated successfully', rule });
+  } catch (error) {
+    console.error('Error updating rules:', error); // Yahan error terminal mein print hoga
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// GET: Fetch Attendance Summary Report (For Payroll / Analytics)
+app.get('/api/reports/attendance-summary', authorize('reports_view'), async (req, res) => {
+  try {
+    const { dateFrom, dateTo } = req.query;
+    
+    if (!dateFrom || !dateTo) {
+      return res.status(400).json({ success: false, message: 'Date range is required' });
+    }
+
+    // 1. Fetch all attendance records in the date range
+    const records = await Attendance.find({
+      date: { $gte: dateFrom, $lte: dateTo }
+    }).populate('employeeId', 'name designation');
+
+    // 2. Group and Summarize data per employee
+    const summaryMap = {};
+
+    records.forEach(rec => {
+      const emp = rec.employeeId;
+      if (!emp) return; // Skip if employee was deleted
+      
+      const empId = emp._id.toString();
+
+      if (!summaryMap[empId]) {
+        summaryMap[empId] = {
+          employeeId: empId,
+          name: emp.name,
+          designation: emp.designation?.designation || 'Staff',
+          totalDays: 0,
+          present: 0,
+          absent: 0,
+          late: 0,
+          halfDay: 0,
+          leave: 0
+        };
+      }
+
+      summaryMap[empId].totalDays += 1;
+      
+      if (rec.status === 'Present') summaryMap[empId].present += 1;
+      else if (rec.status === 'Absent') summaryMap[empId].absent += 1;
+      else if (rec.status === 'Late') summaryMap[empId].late += 1;
+      else if (rec.status === 'Half-day') summaryMap[empId].halfDay += 1;
+      else if (rec.status === 'Leave') summaryMap[empId].leave += 1;
+    });
+
+    const summaryArray = Object.values(summaryMap).sort((a, b) => a.name.localeCompare(b.name));
+
+    res.status(200).json({ success: true, summary: summaryArray });
+  } catch (error) {
+    console.error('Error fetching attendance summary:', error);
+    res.status(500).json({ success: false, message: 'Server error while fetching summary' });
+  }
+});
+
 // ==================== ROOT ROUTE ====================
 app.get('/', (req, res) => {
   res.send('Backend is running and connected to DB!');

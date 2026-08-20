@@ -1,6 +1,4 @@
 import { useState, useEffect } from 'react';
-import './roles.css';
-import './customer.css';
 import AddCustomerModal from './AddCustomerModal';
 
 const API_BASE_URL = 'http://localhost:5000';
@@ -27,7 +25,7 @@ function AvatarImage({ pic, name, size }) {
         onError={() => setFailed(true)}
         style={{
           width: size, height: size, borderRadius: '50%', objectFit: 'cover',
-          border: '1px solid #dee2e6', flexShrink: 0
+          border: '1px solid var(--border-color)', flexShrink: 0
         }}
       />
     );
@@ -35,7 +33,7 @@ function AvatarImage({ pic, name, size }) {
 
   return (
     <div style={{
-      width: size, height: size, borderRadius: '50%', backgroundColor: '#5aa7ef',
+      width: size, height: size, borderRadius: '50%', backgroundColor: 'var(--primary)',
       color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center',
       fontSize: `${size * 0.35}px`, fontWeight: 600, flexShrink: 0
     }}>
@@ -49,7 +47,6 @@ function Customers() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [customerTypes, setCustomerTypes] = useState([]);
   
-  // Pagination states
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
 
@@ -64,12 +61,10 @@ function Customers() {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [uploading, setUploading] = useState({ add: false, edit: false });
 
-  // Inline message states for modals
   const [editMessage, setEditMessage] = useState({ text: '', type: '' });
   const [deleteMessage, setDeleteMessage] = useState({ text: '', type: '' });
   const [imageMessage, setImageMessage] = useState({ text: '', type: '' });
 
-  // Helper functions for formatting CNIC and Contact
   const formatCNIC = (value) => {
     const numbers = value.replace(/\D/g, '').slice(0, 13);
     if (numbers.length <= 5) {
@@ -90,7 +85,6 @@ function Customers() {
     return `+92${numbers}`;
   };
 
-  // Keyboard shortcut handler
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key === 'Escape') {
@@ -98,7 +92,6 @@ function Customers() {
           e.preventDefault();
           setIsAddModalOpen(false);
         }
-        
         if (editCustomerId) {
           e.preventDefault();
           setEditCustomerId(null);
@@ -133,7 +126,6 @@ function Customers() {
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [isAddModalOpen, editCustomerId, viewCustomer, isDeleteModalOpen, editCustomer, deleteTarget]);
 
-  // Pagination logic
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
   const currentItems = customers.slice(indexOfFirstItem, indexOfLastItem);
@@ -143,11 +135,15 @@ function Customers() {
     setCurrentPage(1);
   }, [customers]);
 
+  // CORE ARCHITECTURE: Concurrent retrieval of customer directory records and customer type classifications on mount.
   useEffect(() => {
     fetchCustomers();
     const fetchCustomerTypes = async () => {
       try {
-        const res = await fetch(`${API_BASE_URL}/api/customer-types`);
+        const token = localStorage.getItem('token');
+        const res = await fetch(`${API_BASE_URL}/api/customer-types`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
         const data = await res.json();
         setCustomerTypes(Array.isArray(data) ? data : []);
       } catch (err) {
@@ -180,7 +176,10 @@ function Customers() {
 
   const fetchCustomers = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/customers');
+      const token = localStorage.getItem('token');
+      const res = await fetch('http://localhost:5000/api/customers', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
       const data = await res.json();
       setCustomers(Array.isArray(data) ? data : []);
     } catch (error) {
@@ -197,7 +196,12 @@ function Customers() {
     setUploading(prev => ({ ...prev, [isEditing ? 'edit' : 'add']: true }));
 
     try {
-      const res = await fetch('http://localhost:5000/api/upload', { method: 'POST', body: formData });
+      const token = localStorage.getItem('token');
+      const res = await fetch('http://localhost:5000/api/upload', { 
+        method: 'POST', 
+        headers: { 'Authorization': `Bearer ${token}` },
+        body: formData 
+      });
       const raw = await res.text();
 
       if (!res.ok) {
@@ -255,7 +259,6 @@ function Customers() {
       return;
     }
 
-    // Check if nothing changed
     const originalCustomer = customers.find(c => c._id === editCustomerId);
     if (originalCustomer) {
       const isSame = 
@@ -279,9 +282,13 @@ function Customers() {
     }
 
     try {
+      const token = localStorage.getItem('token');
       const res = await fetch(`http://localhost:5000/api/customers/${editCustomerId}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify(editCustomer)
       });
       if (res.ok) {
@@ -306,14 +313,13 @@ function Customers() {
   };
 
   const handleDelete = async () => {
-    if (!deleteTarget) {
-      console.error('No customer selected for deletion');
-      return;
-    }
+    if (!deleteTarget) return;
     
     try {
+      const token = localStorage.getItem('token');
       const response = await fetch(`http://localhost:5000/api/customers/${deleteTarget._id}`, {
         method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
       });
       
       if (response.ok) {
@@ -361,7 +367,6 @@ function Customers() {
     return found ? found.name : 'N/A';
   };
 
-  // Handle Enter key on input fields
   const handleInputKeyDown = (e, action) => {
     if (e.key === 'Enter') {
       e.preventDefault();
@@ -369,27 +374,24 @@ function Customers() {
     }
   };
 
-  // Inline Message Component
   const InlineMessage = ({ message, type }) => {
     if (!message) return null;
-    
     const colors = {
-      success: { bg: '#d4edda', text: '#155724', border: '#c3e6cb', icon: '✅' },
-      error: { bg: '#fdecea', text: '#dc3545', border: '#f5c6cb', icon: '⚠️' },
-      info: { bg: '#e7f3ff', text: '#0056b3', border: '#b8d4f0', icon: 'ℹ️' }
+      success: { bg: 'var(--success-bg)', text: 'var(--success)', border: 'var(--success)', icon: '✅' },
+      error: { bg: 'var(--danger-bg)', text: 'var(--danger)', border: 'var(--danger)', icon: '⚠️' },
+      info: { bg: 'var(--primary-light)', text: 'var(--primary)', border: 'var(--primary)', icon: 'ℹ️' }
     };
-
     const style = colors[type] || colors.info;
 
     return (
       <div style={{
         padding: '10px 14px',
-        marginBottom: '15px',
-        borderRadius: '6px',
+        marginBottom: '16px',
+        borderRadius: 'var(--radius-sm)',
         backgroundColor: style.bg,
         color: style.text,
         border: `1px solid ${style.border}`,
-        fontSize: '14px',
+        fontSize: '13px',
         fontWeight: 500
       }}>
         {style.icon} {message}
@@ -398,287 +400,240 @@ function Customers() {
   };
 
   return (
-    <div className="roles-container">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', width: '100%' }}>
-        <h4 style={{fontWeight:'200px',fontSize:'20px'}}>Manage Customers</h4>
-        <button style={{ width: '16%', padding: '10px 20px', color: 'white', backgroundColor: '#5aa7ef', whiteSpace: 'nowrap', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 600 }} onClick={() => { setIsAddModalOpen(true); }}>
+    <div className="dashboard-wrapper">
+      
+      {/* HEADER SECTION */}
+      <div className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
+        <div>
+          <h4 style={{ color: 'var(--text-main)', fontSize: '18px', fontWeight: '600', margin: '0 0 4px 0' }}>Manage Customers</h4>
+        </div>
+        <button className="btn btn-primary" onClick={() => setIsAddModalOpen(true)}>
           + Add Customer
         </button>
       </div>
 
-      {/* RESULTS COUNT */}
-      <div style={{
-        marginBottom: '15px',
-        fontSize: '14px',
-        color: '#555',
-        display: 'flex',
-        justifyContent: 'space-between'
-      }}>
-        <span>Showing {currentItems.length} of {customers.length} customers</span>
-      </div>
-
-      {/* TABLE WRAPPED IN SCROLLABLE DIV */}
-      <div className="table-scroll-wrapper" style={{ overflowX: 'auto', width: '100%' }}>
-        <table className="roles-table" style={{ width: '100%', tableLayout: 'fixed' }}>
-          <thead>
-            <tr>
-              <th style={{ width: '8%', textAlign: 'left' }}>Sr #</th>
-              <th style={{ width: '20%', textAlign: 'left' }}>Name</th>
-              <th style={{ width: '23%', textAlign: 'left' }}>Email</th>
-              <th style={{ width: '23%', textAlign: 'left' }}>Contact</th>
-              <th style={{ width: '25%', textAlign: 'center' }}>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {currentItems.length > 0 ? (
-              currentItems.map((c, index) => {
-                const serialNumber = (currentPage - 1) * itemsPerPage + index + 1;
-                return (
-                  <tr key={c._id}>
-                    <td style={{ textAlign: 'left' }}>{serialNumber}</td>
-                    <td style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        <AvatarImage pic={c.pic} name={c.name} size={32} />
-                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.name}</span>
-                      </div>
-                    </td>
-                    <td style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.email || 'N/A'}</td>
-                    <td style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.contact}</td>
-                    <td className="actions-cell" style={{ textAlign: 'center', marginLeft: '27px' }}>
-                       <div style={styles.actionGroup}>
-                        {/* View Button */}
-                        <button style={styles.iconBtnView} onClick={() => setViewCustomer(c)} title="View">
-                          <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
-                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                            <circle cx="12" cy="12" r="3"></circle>
-                          </svg>
-                        </button>
-
-                        {/* Edit Button */}
-                        <button style={styles.iconBtnEdit} onClick={() => startEdit(c)} title="Edit">
-                          <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
-                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-                          </svg>
-                        </button>
-
-                        {/* Delete Button */}
-                        <button
-                          style={styles.iconBtnDelete}
-                          onClick={() => requestDelete(c)}
-                          title="Delete"
-                        >
-                          <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
-                            <polyline points="3 6 5 6 21 6"></polyline>
-                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                            <line x1="10" y1="11" x2="10" y2="17"></line>
-                            <line x1="14" y1="11" x2="14" y2="17"></line>
-                          </svg>
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })
-            ) : (
-              <tr>
-                <td colSpan="6" style={{ textAlign: 'center', padding: '40px', color: '#6c757d' }}>
-                  No customers found. Click "Add Customer" to create one.
-                </td>
+      {/* TABLE SECTION */}
+      <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+        
+        <div style={{ overflowX: 'auto', width: '100%' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '800px', tableLayout: 'fixed' }}>
+            <thead>
+              <tr style={{ backgroundColor: 'var(--header)' }}>
+                <th style={{ padding: '12px 16px', color: 'white', textAlign: 'left', fontSize: '13px', fontWeight: '600', width: '8%' }}>Sr #</th>
+                <th style={{ padding: '12px 16px', color: 'white', textAlign: 'left', fontSize: '13px', fontWeight: '600', width: '25%' }}>Name</th>
+                <th style={{ padding: '12px 16px', color: 'white', textAlign: 'left', fontSize: '13px', fontWeight: '600', width: '27%' }}>Email</th>
+                <th style={{ padding: '12px 16px', color: 'white', textAlign: 'left', fontSize: '13px', fontWeight: '600', width: '25%' }}>Contact</th>
+                <th style={{ padding: '12px 16px', color: 'white', textAlign: 'center', fontSize: '13px', fontWeight: '600', width: '15%' }}>Actions</th>
               </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              {currentItems.length > 0 ? (
+                currentItems.map((c, index) => {
+                  const serialNumber = (currentPage - 1) * itemsPerPage + index + 1;
+                  return (
+                    <tr 
+                      key={c._id}
+                      style={{ borderBottom: '1px solid var(--border-color)', transition: 'background-color 0.2s' }}
+                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--bg-app)'}
+                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                    >
+                      <td style={{ padding: '10px 16px', fontSize: '13px', color: 'var(--text-main)', textAlign: 'left' }}>{serialNumber}</td>
+                      <td style={{ padding: '10px 16px', fontSize: '13px', color: 'var(--text-main)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          <AvatarImage pic={c.pic} name={c.name} size={32} />
+                          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', fontWeight: '500' }}>{c.name}</span>
+                        </div>
+                      </td>
+                      <td style={{ padding: '10px 16px', fontSize: '13px', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.email || 'N/A'}</td>
+                      <td style={{ padding: '10px 16px', fontSize: '13px', color: 'var(--text-main)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.contact}</td>
+                      <td style={{ padding: '10px 16px', textAlign: 'center' }}>
+                        <div style={{ display: 'flex', justifyContent: 'center', gap: '8px' }}>
+                          
+                          {/* View Button */}
+                          <button style={{ backgroundColor: 'var(--view)', color: 'var(--success)', border: 'none', padding: '6px', borderRadius: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center' }} onClick={() => setViewCustomer(c)} title="View">
+                            <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+                              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                              <circle cx="12" cy="12" r="3"></circle>
+                            </svg>
+                          </button>
 
-      {/* PAGINATION */}
-      {customers.length > itemsPerPage && (
-        <div style={{
-          marginTop: '20px',
-          display: 'flex',
-          gap: '15px',
-          justifyContent: 'center',
-          alignItems: 'center',
-          padding: '10px 0'
-        }}>
-          <button
-            disabled={currentPage === 1}
-            onClick={() => setCurrentPage(prev => prev - 1)}
-            style={{
-              padding: '8px 16px',
-              backgroundColor: currentPage === 1 ? '#e9ecef' : '#5aa7ef',
-              color: currentPage === 1 ? '#6c757d' : 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
-              fontWeight: '600'
-            }}
-          >
-            ←
-          </button>
+                          {/* Edit Button */}
+                          <button style={{ backgroundColor: 'var(--primary-light)', color: 'var(--primary)', border: 'none', padding: '6px', borderRadius: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center' }} onClick={() => startEdit(c)} title="Edit">
+                            <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+                              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                            </svg>
+                          </button>
 
-          <span style={{fontSize: '12px', fontWeight: '400',color:'#868484'}}>
-            Page {currentPage} of {totalPages || 1}
-          </span>
+                          {/* Delete Button */}
+                          <button style={{ backgroundColor: 'var(--danger-bg)', color: 'var(--danger)', border: 'none', padding: '6px', borderRadius: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center' }} onClick={() => requestDelete(c)} title="Delete">
+                            <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+                              <polyline points="3 6 5 6 21 6"></polyline>
+                              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                              <line x1="10" y1="11" x2="10" y2="17"></line>
+                              <line x1="14" y1="11" x2="14" y2="17"></line>
+                            </svg>
+                          </button>
 
-          <button
-            disabled={currentPage >= totalPages}
-            onClick={() => setCurrentPage(prev => prev + 1)}
-            style={{
-              padding: '8px 16px',
-              backgroundColor: currentPage >= totalPages ? '#e9ecef' : '#5aa7ef',
-              color: currentPage >= totalPages ? '#6c757d' : 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: currentPage >= totalPages ? 'not-allowed' : 'pointer',
-              fontWeight: '600'
-            }}
-          >
-            →
-          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              ) : (
+                <tr>
+                  <td colSpan="5" style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '14px' }}>
+                    No customers found. Click "+ Add Customer" to create one.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
-      )}
+
+        {/* PAGINATION */}
+        {customers.length > itemsPerPage && (
+          <div style={{ display: 'flex', gap: '15px', justifyContent: 'center', alignItems: 'center', padding: '16px' }}>
+            <button className="btn btn-secondary" disabled={currentPage === 1} onClick={() => setCurrentPage(prev => prev - 1)} style={{ padding: '6px 12px' }}>
+              ←
+            </button>
+            <span style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-muted)' }}>Page {currentPage} of {totalPages || 1}</span>
+            <button className="btn btn-secondary" disabled={currentPage >= totalPages} onClick={() => setCurrentPage(prev => prev + 1)} style={{ padding: '6px 12px' }}>
+              →
+            </button>
+          </div>
+        )}
+      </div>
 
       {/* ADD MODAL */}
       {isAddModalOpen && (
         <AddCustomerModal 
           existingCustomers={customers} 
           onClose={() => { setIsAddModalOpen(false); }}
-          onSuccess={(newCust) => {
-            fetchCustomers();
-          }}
+          onSuccess={() => { fetchCustomers(); }}
         />
       )}
 
       {/* EDIT MODAL */}
       {editCustomerId && (
         <div className="modal-overlay">
-          <div className="modal-content" style={{ maxWidth: '600px', position: 'relative' }}>
-            <h3>Edit Customer</h3>
+          <div className="modal-container" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '600px', padding: 0 }}>
+            <div className="modal-header" style={{ backgroundColor: 'var(--bg-app)', borderBottom: '1px solid var(--border-color)' }}>
+              <h3 className="modal-title" style={{ fontSize: '18px', color: 'var(--text-main)' }}>Edit Customer</h3>
+              <button className="modal-close" onClick={() => { setEditCustomerId(null); setEditMessage({ text: '', type: '' }); setImageMessage({ text: '', type: '' }); }}>✕</button>
+            </div>
 
-            {/* Inline Message */}
-            <InlineMessage message={editMessage.text} type={editMessage.type} />
+            <div className="modal-body">
+              <InlineMessage message={editMessage.text} type={editMessage.type} />
+              {imageMessage.text && <InlineMessage message={imageMessage.text} type={imageMessage.type} />}
 
-            {/* Image Upload Inline Message */}
-            {imageMessage.text && (
-              <div style={{
-                padding: '8px 12px',
-                marginBottom: '12px',
-                borderRadius: '4px',
-                backgroundColor: imageMessage.type === 'error' ? '#fdecea' : '#d4edda',
-                color: imageMessage.type === 'error' ? '#dc3545' : '#155724',
-                border: `1px solid ${imageMessage.type === 'error' ? '#f5c6cb' : '#c3e6cb'}`,
-                fontSize: '13px'
-              }}>
-                {imageMessage.text}
-              </div>
-            )}
-
-            <div className="user-form" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', fontSize: '0.7rem' }}>
-              <div>
-                <label style={{ fontSize: '0.7rem' }}>Full Name *</label>
-                <input 
-                  style={{ fontSize: '0.7rem', width: '100%', padding: '8px', boxSizing: 'border-box' }} 
-                  value={editCustomer.name} 
-                  onChange={(e) => setEditCustomer({ ...editCustomer, name: e.target.value })}
-                  onKeyDown={(e) => handleInputKeyDown(e, handleUpdateCustomer)}
-                  autoFocus
-                />
-              </div>
-              
-              {/* Email with suffix */}
-              <div>
-                <label style={{ fontSize: '0.7rem' }}>Email Address *</label>
-                <div style={{ position: 'relative', width: '100%', display: 'flex', alignItems: 'center' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                <div className="form-group">
+                  <label className="form-label">Full Name *</label>
                   <input 
-                    style={{ fontSize: '0.7rem', width: '100%', padding: '8px', paddingRight: '85px', boxSizing: 'border-box' }} 
-                    value={editCustomer.emailPrefix} 
-                    onChange={(e) => setEditCustomer({ ...editCustomer, emailPrefix: e.target.value.replace(/@.*/, ''), email: `${e.target.value.replace(/@.*/, '')}@gmail.com` })} 
-                    placeholder="username"
+                    className="form-input"
+                    value={editCustomer.name} 
+                    onChange={(e) => setEditCustomer({ ...editCustomer, name: e.target.value })}
                     onKeyDown={(e) => handleInputKeyDown(e, handleUpdateCustomer)}
+                    autoFocus
                   />
-                  <span style={{ position: 'absolute', right: '10px', color: '#888', fontSize: '11px', pointerEvents: 'none' }}>
-                    @gmail.com
-                  </span>
                 </div>
-              </div>
-
-              <div>
-                <label style={{ fontSize: '0.7rem' }}>Contact Number *</label>
-                <input 
-                  style={{ fontSize: '0.7rem', width: '100%', padding: '8px', boxSizing: 'border-box' }} 
-                  value={editCustomer.contact} 
-                  onChange={(e) => setEditCustomer({ ...editCustomer, contact: formatContact(e.target.value) })} 
-                  onKeyDown={(e) => handleInputKeyDown(e, handleUpdateCustomer)}
-                />
-              </div>
-              
-              <div>
-                <label style={{ fontSize: '0.7rem' }}>Customer Type</label>
-                <select
-                  style={{ width: '100%', padding: '8px 12px', border: '1px solid #ced4da', borderRadius: '4px', fontSize: '0.7rem', boxSizing: 'border-box' }}
-                  value={editCustomer.customerTypeId || ''}
-                  onChange={(e) => setEditCustomer({ ...editCustomer, customerTypeId: e.target.value })}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      handleUpdateCustomer();
-                    }
-                  }}
-                >
-                  <option value="">-- Select Type --</option>
-                  {customerTypes.map(ct => (
-                    <option key={ct._id} value={ct._id}>{ct.name}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label style={{ fontSize: '0.7rem' }}>CNIC</label>
-                <input 
-                  style={{ fontSize: '0.7rem', width: '100%', padding: '8px', boxSizing: 'border-box' }} 
-                  value={editCustomer.cnic || ''} 
-                  maxLength={15}
-                  onChange={(e) => setEditCustomer({ ...editCustomer, cnic: formatCNIC(e.target.value) })} 
-                  placeholder="64822-1648208-2"
-                  onKeyDown={(e) => handleInputKeyDown(e, handleUpdateCustomer)}
-                />
-              </div>
-
-              <div style={{ gridColumn: 'span 2' }}>
-                <label style={{ fontSize: '0.7rem' }}>Address</label>
-                <textarea
-                  style={{ fontSize: '0.7rem', backgroundColor: '#f8f9fa', color: '#212529', width: '100%', minHeight: '80px', resize: 'vertical', fontFamily: 'inherit', padding: '8px', boxSizing: 'border-box' }}
-                  value={editCustomer.address}
-                  onChange={(e) => setEditCustomer({ ...editCustomer, address: e.target.value })}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && e.ctrlKey) {
-                      e.preventDefault();
-                      handleUpdateCustomer();
-                    }
-                  }}
-                />
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gridColumn: 'span 2' }}>
-                <label style={{ fontSize: '0.7rem' }}>Update Image</label>
-                <input style={{ fontSize: '0.7rem' }} type="file" accept="image/*" onChange={(e) => handleImageUpload(e, true)} disabled={uploading.edit} />
-                {uploading.edit ? (
-                  <span style={{ fontSize: '0.7rem', color: '#6c757d', marginTop: '8px' }}>Uploading image…</span>
-                ) : (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '8px' }}>
-                    <AvatarImage pic={editCustomer.pic} name={editCustomer.name} size={40} />
-                    <span style={{ fontSize: '0.7rem', color: editCustomer.pic ? '#28a745' : '#6c757d' }}>
-                      {editCustomer.pic ? '✓ Current image — pick a new file to replace it' : 'No image on file yet'}
+                
+                <div className="form-group">
+                  <label className="form-label">Email Address *</label>
+                  <div style={{ position: 'relative', width: '100%', display: 'flex', alignItems: 'center' }}>
+                    <input 
+                      className="form-input"
+                      style={{ paddingRight: '90px' }}
+                      value={editCustomer.emailPrefix} 
+                      onChange={(e) => setEditCustomer({ ...editCustomer, emailPrefix: e.target.value.replace(/@.*/, ''), email: `${e.target.value.replace(/@.*/, '')}@gmail.com` })} 
+                      placeholder="username"
+                      onKeyDown={(e) => handleInputKeyDown(e, handleUpdateCustomer)}
+                    />
+                    <span style={{ position: 'absolute', right: '12px', color: 'var(--text-muted)', fontSize: '12px', pointerEvents: 'none' }}>
+                      @gmail.com
                     </span>
                   </div>
-                )}
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Contact Number *</label>
+                  <input 
+                    className="form-input"
+                    value={editCustomer.contact} 
+                    onChange={(e) => setEditCustomer({ ...editCustomer, contact: formatContact(e.target.value) })} 
+                    onKeyDown={(e) => handleInputKeyDown(e, handleUpdateCustomer)}
+                  />
+                </div>
+                
+                <div className="form-group">
+                  <label className="form-label">Customer Type</label>
+                  <select
+                    className="form-input"
+                    value={editCustomer.customerTypeId || ''}
+                    onChange={(e) => setEditCustomer({ ...editCustomer, customerTypeId: e.target.value })}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleUpdateCustomer();
+                      }
+                    }}
+                  >
+                    <option value="">-- Select Type --</option>
+                    {customerTypes.map(ct => (
+                      <option key={ct._id} value={ct._id}>{ct.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">CNIC</label>
+                  <input 
+                    className="form-input"
+                    value={editCustomer.cnic || ''} 
+                    maxLength={15}
+                    onChange={(e) => setEditCustomer({ ...editCustomer, cnic: formatCNIC(e.target.value) })} 
+                    placeholder="64822-1648208-2"
+                    onKeyDown={(e) => handleInputKeyDown(e, handleUpdateCustomer)}
+                  />
+                </div>
+
+                <div className="form-group" style={{ gridColumn: 'span 2' }}>
+                  <label className="form-label">Address</label>
+                  <textarea
+                    className="form-input"
+                    style={{ minHeight: '80px', resize: 'vertical' }}
+                    value={editCustomer.address}
+                    onChange={(e) => setEditCustomer({ ...editCustomer, address: e.target.value })}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && e.ctrlKey) {
+                        e.preventDefault();
+                        handleUpdateCustomer();
+                      }
+                    }}
+                  />
+                </div>
+
+                <div className="form-group" style={{ gridColumn: 'span 2', marginBottom: 0 }}>
+                  <label className="form-label">Update Image</label>
+                  <input type="file" accept="image/*" onChange={(e) => handleImageUpload(e, true)} disabled={uploading.edit} style={{ fontSize: '13px', color: 'var(--text-muted)' }} />
+                  {uploading.edit ? (
+                    <span style={{ fontSize: '13px', color: 'var(--text-muted)', display: 'block', marginTop: '8px' }}>Uploading image…</span>
+                  ) : (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '8px' }}>
+                      <AvatarImage pic={editCustomer.pic} name={editCustomer.name} size={40} />
+                      <span style={{ fontSize: '13px', color: editCustomer.pic ? 'var(--success)' : 'var(--text-muted)' }}>
+                        {editCustomer.pic ? '✓ Current image — pick a new file to replace it' : 'No image on file yet'}
+                      </span>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 
-            <div className="modal-actions" style={{ marginTop: '25px', display: 'flex', gap: '10px', alignItems: 'right', justifyContent: 'flex-end' }}>
+            <div className="modal-footer" style={{ borderTop: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)' }}>
+              <button className="btn btn-secondary" onClick={() => { setEditCustomerId(null); setEditMessage({ text: '', type: '' }); setImageMessage({ text: '', type: '' }); }}>Cancel</button>
               <button className="btn btn-primary" onClick={handleUpdateCustomer}>Save Changes</button>
-              <button className="btn btn-cancel" onClick={() => { setEditCustomerId(null); setEditMessage({ text: '', type: '' }); setImageMessage({ text: '', type: '' }); }}>Cancel</button>
             </div>
           </div>
         </div>
@@ -686,52 +641,51 @@ function Customers() {
 
       {/* VIEW MODAL */}
       {viewCustomer && (
-        <div className="modal-overlay">
-          <div className="modal-content" style={{ height: 'auto', maxWidth: '520px', padding: 0, position: 'relative' }}>
+        <div className="modal-overlay" onClick={() => setViewCustomer(null)}>
+          <div className="modal-container" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '520px', padding: 0 }}>
+            
             <div style={{
-              backgroundColor: '#5aa7ef', padding: '24px 24px', display: 'flex',
-              flexDirection: 'column', alignItems: 'center', gap: '10px'
+              backgroundColor: 'var(--primary)', padding: '24px', display: 'flex',
+              flexDirection: 'column', alignItems: 'center', gap: '10px', borderTopLeftRadius: 'var(--radius-lg)', borderTopRightRadius: 'var(--radius-lg)'
             }}>
-              <div style={{ borderRadius: '50%' }}>
-                <AvatarImage pic={viewCustomer.pic} name={viewCustomer.name} size={84} />
-              </div>
-              <h3 style={{ color: 'white', margin: 0 }}>{viewCustomer.name}</h3>
+              <AvatarImage pic={viewCustomer.pic} name={viewCustomer.name} size={84} />
+              <h3 style={{ color: 'white', margin: 0, fontSize: '20px', fontWeight: '600' }}>{viewCustomer.name}</h3>
             </div>
 
-            <div style={{ padding: '24px' }}>
+            <div className="modal-body" style={{ padding: '24px' }}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '18px', marginBottom: '18px' }}>
                 <div>
-                  <label style={{ fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.04em', color: '#212529', fontWeight: 600 }}>Email Address</label>
-                  <p style={{ fontSize: '0.77rem', margin: '4px 0 0', color: '#6c757d', wordBreak: 'break-word' }}>{viewCustomer.email || 'N/A'}</p>
+                  <label className="form-label">Email Address</label>
+                  <p style={{ fontSize: '13px', margin: '4px 0 0', color: 'var(--text-muted)', wordBreak: 'break-word' }}>{viewCustomer.email || 'N/A'}</p>
                 </div>
                 <div>
-                  <label style={{ fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.04em', color: '#212529', fontWeight: 600 }}>Contact Number</label>
-                  <p style={{ fontSize: '0.77rem', margin: '4px 0 0', color: '#6c757d' }}>{viewCustomer.contact || 'N/A'}</p>
+                  <label className="form-label">Contact Number</label>
+                  <p style={{ fontSize: '13px', margin: '4px 0 0', color: 'var(--text-muted)' }}>{viewCustomer.contact || 'N/A'}</p>
                 </div>
                 <div>
-                  <label style={{ fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.04em', color: '#212529', fontWeight: 600 }}>Customer Type</label>
-                  <p style={{ fontSize: '0.77rem', margin: '4px 0 0', color: '#6c757d' }}>{getCustomerTypeName(viewCustomer.customerTypeId)}</p>
+                  <label className="form-label">Customer Type</label>
+                  <p style={{ fontSize: '13px', margin: '4px 0 0', color: 'var(--text-muted)' }}>{getCustomerTypeName(viewCustomer.customerTypeId)}</p>
                 </div>
                 <div>
-                  <label style={{ fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.04em', color: '#212529', fontWeight: 600 }}>CNIC</label>
-                  <p style={{ fontSize: '0.77rem', margin: '4px 0 0', color: '#6c757d' }}>{viewCustomer.cnic || 'N/A'}</p>
+                  <label className="form-label">CNIC</label>
+                  <p style={{ fontSize: '13px', margin: '4px 0 0', color: 'var(--text-muted)' }}>{viewCustomer.cnic || 'N/A'}</p>
                 </div>
               </div>
 
               <div>
-                <label style={{ fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.04em', color: '#212529', fontWeight: 600 }}>Address</label>
+                <label className="form-label">Address</label>
                 <div style={{
-                  marginTop: '6px', padding: '12px', minHeight: '70px', borderRadius: '8px',
-                  backgroundColor: '#f4f6f8', border: '1px solid #e2e6ea', fontSize: '0.9rem',
-                  color: '#212529', whiteSpace: 'pre-wrap', lineHeight: 1.5
+                  marginTop: '6px', padding: '12px', minHeight: '70px', borderRadius: 'var(--radius-sm)',
+                  backgroundColor: 'var(--bg-app)', border: '1px solid var(--border-color)', fontSize: '13px',
+                  color: 'var(--text-main)', whiteSpace: 'pre-wrap', lineHeight: 1.5
                 }}>
                   {viewCustomer.address || 'N/A'}
                 </div>
               </div>
             </div>
 
-            <div className="modal-actions" style={{ padding: '16px 24px', borderTop: '1px solid #e9ecef', display: 'flex', justifyContent: 'flex-end' }}>
-              <button onClick={() => setViewCustomer(null)} style={{ backgroundColor: '#6c757d', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '4px', cursor: 'pointer', fontWeight: 600 }}>Close</button>
+            <div className="modal-footer" style={{ borderTop: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)' }}>
+              <button className="btn btn-secondary" onClick={() => setViewCustomer(null)}>Close</button>
             </div>
           </div>
         </div>
@@ -739,38 +693,35 @@ function Customers() {
 
       {/* DELETE CONFIRMATION MODAL */}
       {isDeleteModalOpen && deleteTarget && (
-        <div className="modal-overlay">
-          <div className="modal-content" style={{ maxWidth: '380px', textAlign: 'center', position: 'relative' }}>
-            
-            {/* Inline Message */}
-            <InlineMessage message={deleteMessage.text} type={deleteMessage.type} />
-
-            <div style={{
-              width: '52px', height: '52px', borderRadius: '50%', backgroundColor: '#fdecea',
-              color: '#dc3545', display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: '1.5rem', fontWeight: 700, margin: '0 auto 14px'
-            }}>
-              !
+        <div className="modal-overlay" onClick={() => { setDeleteTarget(null); setIsDeleteModalOpen(false); setDeleteMessage({ text: '', type: '' }); }}>
+          <div className="modal-container" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '420px', borderTop: '6px solid var(--danger)' }}>
+            <div className="modal-header" style={{ borderBottom: 'none', paddingBottom: 0 }}>
+              <h3 className="modal-title" style={{ fontSize: '20px', color: 'var(--danger)', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <span style={{ fontSize: '24px' }}>⚠️</span> Delete Customer
+              </h3>
             </div>
-            <h3 style={{ margin: '0 0 8px' }}>Delete Customer</h3>
-            <p style={{ fontSize: '0.9rem', color: '#6c757d', margin: 0 }}>
-              Are you sure you want to delete <strong>{deleteTarget.name}</strong>? This action cannot be undone.
-            </p>
+            
+            <div className="modal-body">
+              <InlineMessage message={deleteMessage.text} type={deleteMessage.type} />
+              <p style={{ fontSize: '14px', color: 'var(--text-muted)', margin: 0, lineHeight: '1.5' }}>
+                Are you sure you want to delete <strong style={{ color: 'var(--text-main)' }}>{deleteTarget.name}</strong>? This action cannot be undone.
+              </p>
+            </div>
 
-            <div className="modal-actions" style={{ marginTop: '22px', display: 'flex', justifyContent: 'center', gap: '10px' }}>
+            <div className="modal-footer" style={{ borderTop: 'none', backgroundColor: 'transparent' }}>
               <button 
+                className="btn btn-secondary"
                 onClick={() => {
                   setDeleteTarget(null);
                   setIsDeleteModalOpen(false);
                   setDeleteMessage({ text: '', type: '' });
                 }} 
-                style={{ backgroundColor: '#6c757d', color: 'white', border: 'none', padding: '10px 24px', borderRadius: '4px', cursor: 'pointer', fontWeight: 600 }}
               >
                 Cancel
               </button>
               <button 
+                className="btn btn-danger"
                 onClick={handleDelete} 
-                style={{ backgroundColor: '#dc3545', color: 'white', border: 'none', padding: '10px 24px', borderRadius: '4px', cursor: 'pointer', fontWeight: 600 }}
               >
                 Delete
               </button>
@@ -780,48 +731,6 @@ function Customers() {
       )}
     </div>
   );
-}
-
-const styles = {
-    actionGroup: {
-        display: 'flex',
-        justifyContent: 'left',
-        gap: '12px',
-    },
-     iconBtnView: {
-        background: '#f0fdf4',
-        color: '#59956f',
-        border: 'none',
-        padding: '8px',
-        borderRadius: '6px',
-        cursor: 'pointer',
-        display: 'flex',
-        alignItems: 'center',
-        transition: 'all 0.2s',
-        backgroundColor:'#e9f2e9'
-    },
-    iconBtnEdit: {
-        background: '#eff6ff',
-        color: '#3b82f6',
-        border: 'none',
-        padding: '8px',
-        borderRadius: '6px',
-        cursor: 'pointer',
-        display: 'flex',
-        alignItems: 'center',
-        transition: 'all 0.2s',
-    },
-    iconBtnDelete: {
-        background: '#fef2f2',
-        color: '#ef4444',
-        border: 'none',
-        padding: '8px',
-        borderRadius: '6px',
-        cursor: 'pointer',
-        display: 'flex',
-        alignItems: 'center',
-        transition: 'all 0.2s',
-    },
 }
 
 export default Customers;

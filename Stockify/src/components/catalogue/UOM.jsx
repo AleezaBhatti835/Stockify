@@ -1,8 +1,5 @@
 // src/components/catalogue/UOM.js
 import { useState, useEffect } from 'react';
-import './catalogue.css';
-import '../roles.css';
-import '../customer.css';
 
 function UOM() {
   const [uoms, setUoms] = useState([]);
@@ -43,7 +40,7 @@ function UOM() {
     fetchProducts();
   }, []);
 
-  // Keyboard shortcut handler (Safely scoped to prevent duplicate triggers)
+  // Keyboard shortcut handler
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key === 'Escape') {
@@ -93,9 +90,13 @@ function UOM() {
     }, 3000);
   };
 
+  // ================= FETCH UOMS =================
   const fetchUOMs = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/uoms');
+      const token = localStorage.getItem('token');
+      const res = await fetch('http://localhost:5000/api/uoms', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
       if (res.ok) {
         const data = await res.json();
         setUoms(Array.isArray(data) ? data : []);
@@ -108,9 +109,13 @@ function UOM() {
     }
   };
 
+  // ================= FETCH PRODUCTS =================
   const fetchProducts = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/products');
+      const token = localStorage.getItem('token');
+      const res = await fetch('http://localhost:5000/api/products', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
       if (res.ok) {
         const data = await res.json();
         setProducts(Array.isArray(data) ? data : []);
@@ -123,8 +128,9 @@ function UOM() {
     }
   };
 
+  // ================= HANDLE ADD UOM =================
   const handleAddUOM = async () => {
-    if (isSubmitting) return; // Prevent multiple requests
+    if (isSubmitting) return;
 
     if (!newUOM.code.trim() || !newUOM.name.trim()) {
       showAddMessage('Code and Name are required!', 'error');
@@ -134,19 +140,13 @@ function UOM() {
     const codeToCheck = newUOM.code.trim().toUpperCase();
     const nameToCheck = newUOM.name.trim();
 
-    // Check for duplicate code (case insensitive)
-    const duplicateCode = uoms.find(
-      u => u.code.toUpperCase() === codeToCheck
-    );
+    const duplicateCode = uoms.find(u => u.code.toUpperCase() === codeToCheck);
     if (duplicateCode) {
       showAddMessage(`UOM code "${codeToCheck}" already exists!`, 'error');
       return;
     }
 
-    // Check for duplicate name (case insensitive)
-    const duplicateName = uoms.find(
-      u => u.name.toLowerCase() === nameToCheck.toLowerCase()
-    );
+    const duplicateName = uoms.find(u => u.name.toLowerCase() === nameToCheck.toLowerCase());
     if (duplicateName) {
       showAddMessage(`UOM name "${nameToCheck}" already exists!`, 'error');
       return;
@@ -155,13 +155,14 @@ function UOM() {
     setIsSubmitting(true);
 
     try {
+      const token = localStorage.getItem('token');
       const res = await fetch('http://localhost:5000/api/uoms', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          code: codeToCheck,
-          name: nameToCheck,
-        })
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ code: codeToCheck, name: nameToCheck })
       });
 
       if (res.ok) {
@@ -190,14 +191,11 @@ function UOM() {
 
   const startEdit = (uom) => {
     setEditMessage({ text: '', type: '' });
-    setEditUOM({
-      id: uom._id,
-      code: uom.code,
-      name: uom.name,
-    });
+    setEditUOM({ id: uom._id, code: uom.code, name: uom.name });
     setIsEditModalOpen(true);
   };
 
+  // ================= HANDLE UPDATE UOM =================
   const handleUpdateUOM = async () => {
     if (isSubmitting) return;
 
@@ -215,17 +213,13 @@ function UOM() {
       return;
     }
 
-    const duplicateCode = uoms.find(
-      u => u.code.toUpperCase() === codeToCheck && u._id !== editUOM.id
-    );
+    const duplicateCode = uoms.find(u => u.code.toUpperCase() === codeToCheck && u._id !== editUOM.id);
     if (duplicateCode) {
       showEditMessage(`UOM code "${codeToCheck}" already exists!`, 'error');
       return;
     }
 
-    const duplicateName = uoms.find(
-      u => u.name.toLowerCase() === nameToCheck.toLowerCase() && u._id !== editUOM.id
-    );
+    const duplicateName = uoms.find(u => u.name.toLowerCase() === nameToCheck.toLowerCase() && u._id !== editUOM.id);
     if (duplicateName) {
       showEditMessage(`UOM name "${nameToCheck}" already exists!`, 'error');
       return;
@@ -234,13 +228,14 @@ function UOM() {
     setIsSubmitting(true);
 
     try {
+      const token = localStorage.getItem('token');
       const res = await fetch(`http://localhost:5000/api/uoms/${editUOM.id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          code: codeToCheck,
-          name: nameToCheck,
-        })
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ code: codeToCheck, name: nameToCheck })
       });
 
       if (res.ok) {
@@ -273,16 +268,15 @@ function UOM() {
 
   const confirmDelete = (id) => {
     setDeleteMessage({ text: '', type: '' });
-
     if (isUOMInUse(id)) {
       showDeleteMessage('This UOM is assigned to one or more products and cannot be deleted.', 'error');
       return;
     }
-
     setDeleteTargetId(id);
     setIsDeleteModalOpen(true);
   };
 
+  // ================= HANDLE DELETE UOM =================
   const handleDelete = async () => {
     if (!deleteTargetId || isSubmitting) return;
 
@@ -294,8 +288,10 @@ function UOM() {
     setIsSubmitting(true);
 
     try {
+      const token = localStorage.getItem('token');
       const res = await fetch(`http://localhost:5000/api/uoms/${deleteTargetId}`, {
-        method: 'DELETE'
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
       });
 
       if (res.ok) {
@@ -320,141 +316,169 @@ function UOM() {
 
   const InlineMessage = ({ message, type }) => {
     if (!message) return null;
+    const isError = type === 'error';
+    const isSuccess = type === 'success';
 
-    const colors = {
-      success: { bg: '#d4edda', text: '#155724', border: '#c3e6cb', icon: '✅' },
-      error: { bg: '#fdecea', text: '#dc3545', border: '#f5c6cb', icon: '⚠️' },
-      info: { bg: '#e7f3ff', text: '#0056b3', border: '#b8d4f0', icon: 'ℹ️' }
-    };
-
-    const style = colors[type] || colors.info;
+    const bg = isError ? 'var(--danger-bg)' : isSuccess ? 'var(--success-bg)' : 'var(--info-bg)';
+    const text = isError ? 'var(--danger)' : isSuccess ? 'var(--success)' : 'var(--info)';
+    const icon = isError ? '⚠️' : isSuccess ? '✅' : 'ℹ️';
 
     return (
       <div style={{
         padding: '10px 14px',
-        marginBottom: '15px',
-        borderRadius: '6px',
-        backgroundColor: style.bg,
-        color: style.text,
-        border: `1px solid ${style.border}`,
+        marginBottom: 'var(--space-md)',
+        borderRadius: 'var(--radius-md)',
+        backgroundColor: bg,
+        color: text,
+        border: `1px solid ${text}`,
         fontSize: '14px',
-        fontWeight: 500
+        fontWeight: 500,
+        display: 'flex',
+        alignItems: 'center',
+        gap: '8px'
       }}>
-        {style.icon} {message}
+        <span>{icon}</span> {message}
       </div>
     );
   };
 
   return (
-    <div className="roles-container">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', width: '100%' }}>
-        <h4>Units of Measure</h4>
-        <button style={{ width: '16%', padding: '10px 20px', color: 'white', backgroundColor: '#5aa7ef', whiteSpace: 'nowrap', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 600 }} onClick={() => { setAddMessage({ text: '', type: '' }); setIsAddModalOpen(true); }}>
+    <div className="dashboard-wrapper">
+      
+      {/* TOP HEADER */}
+      <div className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <h4 style={{ margin: 0, color: 'var(--text-main)', fontSize: '18px' }}>Units of Measure</h4>
+        <button className="btn btn-primary" onClick={() => { setAddMessage({ text: '', type: '' }); setIsAddModalOpen(true); }}>
           + Add UOM
         </button>
       </div>
 
-      <div style={{  fontSize: '13px', color: '#555', display: 'flex', justifyContent: 'space-between',textAlign: 'right',marginLeft:'82%' }}>
-        <span>Showing {currentItems.length} of {uoms.length} UOMs</span>
-      </div>
-
-      <div className="table-scroll-wrapper" style={{ overflowX: 'auto', width: '100%' }}>
-        <table className="roles-table" style={{ width: '100%', tableLayout: 'fixed' }}>
-          <thead>
-            <tr style={{ padding: '30px 0' }}>
-              <th style={{ width: '7%', textAlign: 'left' }}>Sr#</th>
-              <th style={{ width: '10%', textAlign: 'left' }}>Name</th>
-              <th style={{ width: '20%', textAlign: 'left' }}>Code</th>
-              <th style={{ width: '9%', textAlign: 'center' }}>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {currentItems.length > 0 ? (
-              currentItems.map((u, index) => {
-                const serialNumber = (currentPage - 1) * itemsPerPage + index + 1;
-                return (
-                  <tr key={u._id}>
-                    <td style={{ textAlign: 'left', color: '#424345', fontWeight: 500 }}>{serialNumber}</td>
-
-                    <td style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{u.name}</td>
-                    <td style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', fontWeight: 600 }}>{u.code}</span>
-                    </td>
-                    <td className="actions-cell" style={{ textAlign: 'left' }}>
-                      <div style={styles.actionGroup}>
-                        <button style={styles.iconBtnEdit} onClick={() => startEdit(u)} title="Edit">
-                          <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
-                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-                          </svg>
-                        </button>
-                        <button style={styles.iconBtnDelete} onClick={() => confirmDelete(u._id)} title="Delete">
-                          <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
-                            <polyline points="3 6 5 6 21 6"></polyline>
-                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                            <line x1="10" y1="11" x2="10" y2="17"></line>
-                            <line x1="14" y1="11" x2="14" y2="17"></line>
-                          </svg>
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })
-            ) : (
+      {/* TABLE SECTION */}
+      <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+        <div style={{ overflowX: 'auto', width: '100%' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+            <thead>
               <tr>
-                <td colSpan="4" style={{ textAlign: 'center', padding: '40px', color: '#6c757d' }}>
-                  No UOMs found. Click "Add UOM" to create one.
-                </td>
+                <th style={{ ...tableStyles.th, width: '10%' }}>Sr#</th>
+                <th style={{ ...tableStyles.th, width: '40%' }}>Name</th>
+                <th style={{ ...tableStyles.th, width: '30%' }}>Code</th>
+                <th style={{ ...tableStyles.th, width: '20%' }}>Actions</th>
               </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-
-      {uoms.length > itemsPerPage && (
-        <div style={{ marginTop: '20px', display: 'flex', gap: '15px', justifyContent: 'center', alignItems: 'center', padding: '10px 0' }}>
-          <button disabled={currentPage === 1} onClick={() => setCurrentPage(prev => prev - 1)}
-            style={{ padding: '8px 16px', backgroundColor: currentPage === 1 ? '#e9ecef' : '#5aa7ef', color: currentPage === 1 ? '#6c757d' : 'white', border: 'none', borderRadius: '4px', cursor: currentPage === 1 ? 'not-allowed' : 'pointer', fontWeight: '600' }}>
-            ←
-          </button>
-          <span style={{ fontSize: '12px', fontWeight: '400', color: '#868484' }}>
-            Page {currentPage} of {totalPages || 1}
-          </span>
-          <button disabled={currentPage >= totalPages} onClick={() => setCurrentPage(prev => prev + 1)}
-            style={{ padding: '8px 16px', backgroundColor: currentPage >= totalPages ? '#e9ecef' : '#5aa7ef', color: currentPage >= totalPages ? '#6c757d' : 'white', border: 'none', borderRadius: '4px', cursor: currentPage >= totalPages ? 'not-allowed' : 'pointer', fontWeight: '600' }}>
-            →
-          </button>
+            </thead>
+            <tbody>
+              {currentItems.length > 0 ? (
+                currentItems.map((u, index) => {
+                  const serialNumber = (currentPage - 1) * itemsPerPage + index + 1;
+                  return (
+                    <tr 
+                      key={u._id}
+                      style={{ borderBottom: '1px solid var(--border-color)', transition: 'background-color 0.2s' }}
+                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--bg-app)'}
+                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                    >
+                      <td style={{ ...tableStyles.td, fontWeight: 500, color: 'var(--text-muted)' }}>{serialNumber}</td>
+                      <td style={{ ...tableStyles.td, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{u.name}</td>
+                      <td style={{ ...tableStyles.td, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 600 }}>{u.code}</td>
+                      <td style={tableStyles.td}>
+                        <div style={styles.actionGroup}>
+                          <button style={styles.iconBtnEdit} onClick={() => startEdit(u)} title="Edit">
+                            <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+                              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                            </svg>
+                          </button>
+                          <button style={styles.iconBtnDelete} onClick={() => confirmDelete(u._id)} title="Delete">
+                            <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+                              <polyline points="3 6 5 6 21 6"></polyline>
+                              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                              <line x1="10" y1="11" x2="10" y2="17"></line>
+                              <line x1="14" y1="11" x2="14" y2="17"></line>
+                            </svg>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              ) : (
+                <tr>
+                  <td colSpan="4" style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)', fontSize: '14px' }}>
+                    No UOMs found. Click "+ Add UOM" to create one.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
-      )}
+
+        {/* PAGINATION */}
+        {uoms.length > itemsPerPage && (
+          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 'var(--space-md)', padding: 'var(--space-md)' }}>
+            <button 
+              className="btn btn-secondary" 
+              disabled={currentPage === 1} 
+              onClick={() => setCurrentPage(prev => prev - 1)}
+              style={{ padding: '6px 12px' }}
+            >
+              ← 
+            </button>
+            <span style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-muted)' }}>
+              Page {currentPage} of {totalPages || 1}
+            </span>
+            <button 
+              className="btn btn-secondary" 
+              disabled={currentPage >= totalPages} 
+              onClick={() => setCurrentPage(prev => prev + 1)}
+              style={{ padding: '6px 12px' }}
+            >
+              →
+            </button>
+          </div>
+        )}
+      </div>
 
       {/* ADD MODAL */}
       {isAddModalOpen && (
         <div className="modal-overlay">
-          <div className="modal-content" style={{ maxWidth: '550px', position: 'relative' }}>
-            <h3>Add New UOM</h3>
-            <InlineMessage message={addMessage.text} type={addMessage.type} />
+          <div className="modal-container">
+            <div className="modal-header">
+              <h3 className="modal-title">Add New UOM</h3>
+              <button className="modal-close" onClick={() => { setIsAddModalOpen(false); setNewUOM({ code: '', name: '' }); setAddMessage({ text: '', type: '' }); }}>&times;</button>
+            </div>
+            
+            <div className="modal-body">
+              <InlineMessage message={addMessage.text} type={addMessage.type} />
 
-            <div className="user-form" style={{ fontSize: '0.85rem', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
-              <div>
-                <label style={{ fontSize: '0.8rem' }}>Code *</label>
-                <input style={{ fontSize: '0.85rem', width: '100%', padding: '8px', boxSizing: 'border-box' }}
-                  value={newUOM.code} onChange={(e) => setNewUOM({ ...newUOM, code: e.target.value.toUpperCase() })}
-                  onKeyDown={(e) => { if (e.key === 'Enter') handleAddUOM(); }} autoFocus placeholder="e.g., KG" />
-              </div>
-              <div>
-                <label style={{ fontSize: '0.8rem' }}>Name *</label>
-                <input style={{ fontSize: '0.85rem', width: '100%', padding: '8px', boxSizing: 'border-box' }}
-                  value={newUOM.name} onChange={(e) => setNewUOM({ ...newUOM, name: e.target.value })}
-                  onKeyDown={(e) => { if (e.key === 'Enter') handleAddUOM(); }} placeholder="e.g., Kilogram" />
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-md)' }}>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label">Code *</label>
+                  <input 
+                    className="form-input" 
+                    value={newUOM.code} 
+                    onChange={(e) => setNewUOM({ ...newUOM, code: e.target.value.toUpperCase() })}
+                    onKeyDown={(e) => { if (e.key === 'Enter') handleAddUOM(); }} 
+                    autoFocus 
+                    placeholder="e.g., KG" 
+                  />
+                </div>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label">Name *</label>
+                  <input 
+                    className="form-input" 
+                    value={newUOM.name} 
+                    onChange={(e) => setNewUOM({ ...newUOM, name: e.target.value })}
+                    onKeyDown={(e) => { if (e.key === 'Enter') handleAddUOM(); }} 
+                    placeholder="e.g., Kilogram" 
+                  />
+                </div>
               </div>
             </div>
 
-            <div className="modal-actions" style={{ marginTop: '25px', display: 'flex', gap: '10px', alignItems: 'right', justifyContent: 'flex-end' }}>
+            <div className="modal-footer">
+              <button className="btn btn-secondary" disabled={isSubmitting} onClick={() => { setIsAddModalOpen(false); setNewUOM({ code: '', name: '' }); setAddMessage({ text: '', type: '' }); }}>Cancel</button>
               <button className="btn btn-primary" onClick={handleAddUOM} disabled={isSubmitting}>
                 {isSubmitting ? 'Saving...' : 'Save UOM'}
               </button>
-              <button className="btn btn-cancel" disabled={isSubmitting} onClick={() => { setIsAddModalOpen(false); setNewUOM({ code: '', name: '' }); setAddMessage({ text: '', type: '' }); }}>Cancel</button>
             </div>
           </div>
         </div>
@@ -463,30 +487,45 @@ function UOM() {
       {/* EDIT MODAL */}
       {isEditModalOpen && (
         <div className="modal-overlay">
-          <div className="modal-content" style={{ maxWidth: '550px', position: 'relative' }}>
-            <h3>Edit UOM</h3>
-            <InlineMessage message={editMessage.text} type={editMessage.type} />
+          <div className="modal-container">
+            <div className="modal-header">
+              <h3 className="modal-title">Edit UOM</h3>
+              <button className="modal-close" onClick={() => { setIsEditModalOpen(false); setEditUOM({ id: '', code: '', name: '' }); setEditMessage({ text: '', type: '' }); }}>&times;</button>
+            </div>
+            
+            <div className="modal-body">
+              <InlineMessage message={editMessage.text} type={editMessage.type} />
 
-            <div className="user-form" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', fontSize: '0.85rem' }}>
-              <div>
-                <label style={{ fontSize: '0.8rem' }}>Code *</label>
-                <input style={{ fontSize: '0.85rem', width: '100%', padding: '8px', boxSizing: 'border-box' }}
-                  value={editUOM.code} onChange={(e) => setEditUOM({ ...editUOM, code: e.target.value.toUpperCase() })}
-                  onKeyDown={(e) => { if (e.key === 'Enter') handleUpdateUOM(); }} autoFocus placeholder="e.g., KG" />
-              </div>
-              <div>
-                <label style={{ fontSize: '0.8rem' }}>Name *</label>
-                <input style={{ fontSize: '0.85rem', width: '100%', padding: '8px', boxSizing: 'border-box' }}
-                  value={editUOM.name} onChange={(e) => setEditUOM({ ...editUOM, name: e.target.value })}
-                  onKeyDown={(e) => { if (e.key === 'Enter') handleUpdateUOM(); }} placeholder="e.g., Kilogram" />
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-md)' }}>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label">Code *</label>
+                  <input 
+                    className="form-input" 
+                    value={editUOM.code} 
+                    onChange={(e) => setEditUOM({ ...editUOM, code: e.target.value.toUpperCase() })}
+                    onKeyDown={(e) => { if (e.key === 'Enter') handleUpdateUOM(); }} 
+                    autoFocus 
+                    placeholder="e.g., KG" 
+                  />
+                </div>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label">Name *</label>
+                  <input 
+                    className="form-input" 
+                    value={editUOM.name} 
+                    onChange={(e) => setEditUOM({ ...editUOM, name: e.target.value })}
+                    onKeyDown={(e) => { if (e.key === 'Enter') handleUpdateUOM(); }} 
+                    placeholder="e.g., Kilogram" 
+                  />
+                </div>
               </div>
             </div>
 
-            <div className="modal-actions" style={{ marginTop: '25px', display: 'flex', gap: '10px', alignItems: 'right', justifyContent: 'flex-end' }}>
+            <div className="modal-footer">
+              <button className="btn btn-secondary" disabled={isSubmitting} onClick={() => { setIsEditModalOpen(false); setEditUOM({ id: '', code: '', name: '' }); setEditMessage({ text: '', type: '' }); }}>Cancel</button>
               <button className="btn btn-primary" onClick={handleUpdateUOM} disabled={isSubmitting}>
                 {isSubmitting ? 'Saving...' : 'Save Changes'}
               </button>
-              <button className="btn btn-cancel" disabled={isSubmitting} onClick={() => { setIsEditModalOpen(false); setEditUOM({ id: '', code: '', name: '' }); setEditMessage({ text: '', type: '' }); }}>Cancel</button>
             </div>
           </div>
         </div>
@@ -495,19 +534,22 @@ function UOM() {
       {/* DELETE CONFIRMATION MODAL */}
       {isDeleteModalOpen && (
         <div className="modal-overlay">
-          <div className="modal-content" style={{ maxWidth: '380px', textAlign: 'center', position: 'relative' }}>
-            <InlineMessage message={deleteMessage.text} type={deleteMessage.type} />
-            <div style={{ width: '52px', height: '52px', borderRadius: '50%', backgroundColor: '#fdecea', color: '#dc3545', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.5rem', fontWeight: 700, margin: '0 auto 14px' }}>
-              !
+          <div className="modal-container" style={{ maxWidth: '380px', textAlign: 'center' }}>
+            <div className="modal-body">
+              <InlineMessage message={deleteMessage.text} type={deleteMessage.type} />
+              
+              <div style={{ width: '52px', height: '52px', borderRadius: '50%', backgroundColor: 'var(--danger-bg)', color: 'var(--danger)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px', fontWeight: 700, margin: '0 auto var(--space-md)' }}>
+                !
+              </div>
+              <h3 style={{ margin: '0 0 var(--space-sm)', color: 'var(--text-main)', fontSize: '18px' }}>Delete UOM</h3>
+              <p style={{ fontSize: '14px', color: 'var(--text-muted)', margin: 0 }}>
+                Are you sure you want to delete <strong>{uoms.find(u => u._id === deleteTargetId)?.name || 'this UOM'}</strong>? This action cannot be undone.
+              </p>
             </div>
-            <h3 style={{ margin: '0 0 8px' }}>Delete UOM</h3>
-            <p style={{ fontSize: '0.9rem', color: '#6c757d', margin: 0 }}>
-              Are you sure you want to delete <strong>{uoms.find(u => u._id === deleteTargetId)?.name || 'this UOM'}</strong>? This action cannot be undone.
-            </p>
 
-            <div className="modal-actions" style={{ marginTop: '22px', display: 'flex', justifyContent: 'center', gap: '10px' }}>
-              <button disabled={isSubmitting} onClick={() => { setIsDeleteModalOpen(false); setDeleteTargetId(null); setDeleteMessage({ text: '', type: '' }); }} style={{ backgroundColor: '#6c757d', color: 'white', border: 'none', padding: '10px 24px', borderRadius: '4px', cursor: 'pointer', fontWeight: 600 }}>Cancel</button>
-              <button disabled={isSubmitting} onClick={handleDelete} style={{ backgroundColor: '#dc3545', color: 'white', border: 'none', padding: '10px 24px', borderRadius: '4px', cursor: 'pointer', fontWeight: 600 }}>
+            <div className="modal-footer" style={{ justifyContent: 'center' }}>
+              <button className="btn btn-secondary" disabled={isSubmitting} onClick={() => { setIsDeleteModalOpen(false); setDeleteTargetId(null); setDeleteMessage({ text: '', type: '' }); }}>Cancel</button>
+              <button className="btn btn-danger" disabled={isSubmitting} onClick={handleDelete}>
                 {isSubmitting ? 'Deleting...' : 'Delete'}
               </button>
             </div>
@@ -518,10 +560,61 @@ function UOM() {
   );
 }
 
+// Strict Table Styles Rule
+const tableStyles = {
+  th: {
+    padding: '12px 16px',
+    backgroundColor: 'var(--header)',
+    color: '#ffffff',
+    fontWeight: '600',
+    fontSize: '13px',
+    textAlign: 'left'
+  },
+  td: {
+    padding: '8px 16px',
+    color: 'var(--text-main)',
+    fontSize: '13px',
+    textAlign: 'left'
+  }
+};
+
+// Actions styling EXACTLY as requested by user
 const styles = {
-  actionGroup: { display: 'flex', justifyContent: 'left', gap: '12px' },
-  iconBtnEdit: { background: '#eff6ff', color: '#3b82f6', border: 'none', padding: '8px', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', transition: 'all 0.2s' },
-  iconBtnDelete: { background: '#fef2f2', color: '#ef4444', border: 'none', padding: '8px', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', transition: 'all 0.2s' },
+  actionGroup: { 
+    display: 'flex', 
+    justifyContent: 'left', 
+    gap: '12px' 
+  },
+  iconBtnView: {
+    backgroundColor: 'var(--view)',
+    color: 'var(--success)',
+    border: 'none',
+    padding: '6px',
+    borderRadius: '4px',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center'
+  },
+  iconBtnEdit: {
+    background: 'var(--edit)',
+    color: 'var(--primary)',
+    border: 'none',
+    padding: '6px',
+    borderRadius: '4px',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center'
+  },
+  iconBtnDelete: {
+    backgroundColor: 'var(--danger-bg)',
+    color: 'var(--danger)',
+    border: 'none',
+    padding: '6px',
+    borderRadius: '4px',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center'
+  },
 };
 
 export default UOM;

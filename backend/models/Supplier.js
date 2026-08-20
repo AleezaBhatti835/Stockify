@@ -7,7 +7,7 @@ const supplierSchema = new mongoose.Schema({
   email: { type: String },
   address: { type: String },
   city: { type: String },
-  ntn: { type: String },
+  cnic: { type: String },
   status: {
     type: String,
     default: 'Active'

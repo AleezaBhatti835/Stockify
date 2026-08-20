@@ -43,13 +43,19 @@ function CatalogueReport() {
     setCurrentPage(1);
   }, [selectedCategory, selectedUom]);
 
+  // ================= FETCH ALL (WITH TOKEN) =================
   const fetchAll = async () => {
     setLoading(true);
     try {
+      const token = localStorage.getItem('token');
+      const headers = {
+        'Authorization': `Bearer ${token}`
+      };
+
       const [prodRes, catRes, uomRes] = await Promise.all([
-        fetch(`${API_BASE_URL}/api/products`),
-        fetch(`${API_BASE_URL}/api/categories`),
-        fetch(`${API_BASE_URL}/api/uoms`),
+        fetch(`${API_BASE_URL}/api/products`, { headers }),
+        fetch(`${API_BASE_URL}/api/categories`, { headers }),
+        fetch(`${API_BASE_URL}/api/uoms`, { headers }),
       ]);
       const [prodData, catData, uomData] = await Promise.all([
         prodRes.json(), catRes.json(), uomRes.json()
@@ -163,7 +169,7 @@ function CatalogueReport() {
             p { margin: 0; color: #64748b; font-size: 11px; }
             table { width: 100%; border-collapse: collapse; font-size: 11px; table-layout: fixed; }
             th, td { border: 1px solid #cbd5e1; padding: 8px 10px; word-wrap: break-word; }
-            th { background: #f1f5f9; color: #334155; text-align: left; text-transform: uppercase; font-size: 10px; font-weight: 700; border-bottom: 2px solid #94a3b8; }
+            th { background: #0c514b; color: #ffffff; text-align: left; text-transform: uppercase; font-size: 10px; font-weight: 700; border-bottom: 2px solid #94a3b8; }
             tr:nth-child(even) { background-color: #f8fafc; }
           </style>
         </head>
@@ -205,10 +211,10 @@ function CatalogueReport() {
       head: [columns],
       body: filtered.map((item, idx) => getRow(item, idx)),
       styles: { fontSize: 9, cellPadding: 5, lineColor: [203, 213, 225], lineWidth: 0.1 },
-      headStyles: { fillColor: [241, 245, 249], textColor: [51, 65, 85], fontStyle: 'bold' },
+      headStyles: { fillColor: [12, 81, 75], textColor: [255, 255, 255], fontStyle: 'bold' },
       alternateRowStyles: { fillColor: [248, 250, 252] },
       columnStyles: {
-        0: { cellWidth: 15, halign: 'center' } // Making Sr# column narrow in PDF
+        0: { cellWidth: 15, halign: 'center' } 
       }
     });
     doc.save(`${activeTab}-report-${new Date().toISOString().slice(0, 10)}.pdf`);
@@ -225,31 +231,15 @@ function CatalogueReport() {
 
     const worksheet = XLSX.utils.json_to_sheet(rows);
 
-    // Setting optimal column widths for Excel based on active tab
     if (activeTab === 'product') {
       worksheet['!cols'] = [
-        { wch: 8 },  // Sr#
-        { wch: 15 }, // Date
-        { wch: 30 }, // Product Name
-        { wch: 20 }, // Category
-        { wch: 15 }, // UOM
-        { wch: 15 }, // Cost Price
-        { wch: 15 }, // Retail Price
-        { wch: 15 }  // Stock Qty
+        { wch: 8 },  { wch: 15 }, { wch: 30 }, { wch: 20 }, 
+        { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 } 
       ];
     } else if (activeTab === 'category') {
-      worksheet['!cols'] = [
-        { wch: 8 },  // Sr#
-        { wch: 30 }, // Category Name
-        { wch: 20 }  // Date Added
-      ];
+      worksheet['!cols'] = [ { wch: 8 }, { wch: 30 }, { wch: 20 } ];
     } else if (activeTab === 'uom') {
-      worksheet['!cols'] = [
-        { wch: 8 },  // Sr#
-        { wch: 25 }, // UOM Name
-        { wch: 20 }, // Code / Symbol
-        { wch: 20 }  // Added Date
-      ];
+      worksheet['!cols'] = [ { wch: 8 }, { wch: 25 }, { wch: 20 }, { wch: 20 } ];
     }
 
     const workbook = XLSX.utils.book_new();
@@ -264,161 +254,181 @@ function CatalogueReport() {
   const totalPages = Math.ceil(filtered.length / itemsPerPage);
 
   return (
-    <div style={styles.page}>
-      <div style={styles.headerRow}>
-        <div style={styles.tabContainer}>
+    <div className="dashboard-wrapper">
+      
+      {/* HEADER TABS & ACTIONS */}
+      <div className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 'var(--space-md)' }}>
+        
+        {/* TABS */}
+        <div style={{ display: 'flex', gap: 'var(--space-sm)', flexWrap: 'wrap' }}>
           {TABS.map(t => (
             <button
               key={t.key}
-              style={activeTab === t.key ? styles.activeTab : styles.tab}
+              className={activeTab === t.key ? "btn btn-primary" : "btn btn-secondary"}
+              style={{ borderRadius: '3px', padding: '10px 20px' }}
               onClick={() => setActiveTab(t.key)}
             >
               {t.label}
             </button>
           ))}
+        </div>
 
-          <button style={{ ...styles.actionBtn, backgroundColor: '#409fb0', marginLeft: 'auto' }} onClick={handlePrint}><FontAwesomeIcon icon={faPrint} /> Print</button>
-          <button style={{ ...styles.actionBtn, backgroundColor: '#d66336' }} onClick={handleExportPDF}><FontAwesomeIcon icon={faFilePdf} /> PDF</button>
-          <button style={{ ...styles.actionBtn, backgroundColor: '#296f3f' }} onClick={handleExportExcel}><FontAwesomeIcon icon={faFileExcel} /> Excel</button>
+      <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+          <button className="btn btn-secondary" onClick={handlePrint} disabled={loading || filtered.length === 0}><FontAwesomeIcon icon={faPrint} /> Print</button>
+          <button className="btn btn-secondary" onClick={handleExportPDF} disabled={loading || filtered.length === 0}><FontAwesomeIcon icon={faFilePdf} /> PDF</button>
+          <button className="btn btn-secondary" onClick={handleExportExcel} disabled={loading || filtered.length === 0}><FontAwesomeIcon icon={faFileExcel} /> Excel</button>
         </div>
       </div>
 
       {/* ==================== FILTERS ==================== */}
-      <div style={styles.filterRow}>
-        {activeTab === 'product' && (
-          <>
-            <div style={styles.filterGroup}>
-              <label style={styles.filterLabel}>Category</label>
-              <select style={styles.filterInput} value={selectedCategory} onChange={(e) => setSelectedCategory(e.target.value)}>
-                <option value="">All Categories</option>
-                {categories.map(cat => (
-                  <option key={cat._id || cat.id} value={cat._id || cat.id}>{cat.name}</option>
-                ))}
-              </select>
-            </div>
-
-            <div style={styles.filterGroup}>
-              <label style={styles.filterLabel}>UOM</label>
-              <select style={styles.filterInput} value={selectedUom} onChange={(e) => setSelectedUom(e.target.value)}>
-                <option value="">All UOMs</option>
-                {uoms.map(uom => (
-                  <option key={uom._id || uom.id} value={uom._id || uom.id}>{uom.name || uom.abbreviation}</option>
-                ))}
-              </select>
-            </div>
-          </>
-        )}
-
-       
-
-        <div style={{ marginLeft: 'auto', fontSize: '13px', color: '#64748b', fontWeight: 400 }}>
-          Showing {currentRows.length} of {filtered.length} record(s)
-        </div>
-      </div>
-
-      {/* ==================== TABLE ==================== */}
-      <div style={styles.tableWrapper}>
-        <table style={styles.table}>
-          <thead>
-            <tr>
-              {columns.map((c, i) => (
-                <th key={i} style={{ ...styles.th, textAlign: i === 0 ? 'center' : 'left', width: i === 0 ? '50px' : 'auto' }}>{c}</th>
+      {activeTab === 'product' && (
+        <div className="card" style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-md)', alignItems: 'flex-end' }}>
+          <div className="form-group" style={{ marginBottom: 0, flex: '1 1 200px' }}>
+            <label className="form-label">Category</label>
+            <select className="form-input" value={selectedCategory} onChange={(e) => setSelectedCategory(e.target.value)}>
+              <option value="">All Categories</option>
+              {categories.map(cat => (
+                <option key={cat._id || cat.id} value={cat._id || cat.id}>{cat.name}</option>
               ))}
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <tr><td colSpan={columns.length} style={styles.emptyCell}>Loading...</td></tr>
-            ) : currentRows.length === 0 ? (
-              <tr><td colSpan={columns.length} style={styles.emptyCell}>No records found matching your filters.</td></tr>
-            ) : (
-              currentRows.map((item, idx) => {
-                const serialNumber = (currentPage - 1) * itemsPerPage + idx + 1;
-                const row = getRow(item, idx);
-                row[0] = serialNumber;
+            </select>
+          </div>
 
-                const qty = item.quantity ?? 0;
-                const reorderLvl = item.reorderLevel ?? 0;
-                const isLowStock = qty <= reorderLvl;
+          <div className="form-group" style={{ marginBottom: 0, flex: '1 1 200px' }}>
+            <label className="form-label">UOM</label>
+            <select className="form-input" value={selectedUom} onChange={(e) => setSelectedUom(e.target.value)}>
+              <option value="">All UOMs</option>
+              {uoms.map(uom => (
+                <option key={uom._id || uom.id} value={uom._id || uom.id}>{uom.name || uom.abbreviation}</option>
+              ))}
+            </select>
+          </div>
 
-                return (
-                  <tr key={item._id || idx} style={idx % 2 === 1 ? styles.altRow : null}>
-                    {row.map((cell, colIdx) => {
-                      let cellStyle = { ...styles.td, textAlign: colIdx === 0 ? 'center' : 'left' };
-                      if (activeTab === 'product' && columns[colIdx] === 'Stock Qty') {
-                        cellStyle = { ...cellStyle, fontWeight: 'bold', color: isLowStock ? '#ef4444' : '#16a34a' };
-                      }
-                      if (activeTab === 'product' && colIdx === 2) cellStyle = { ...cellStyle, fontWeight: 600 };
-                      if (activeTab !== 'product' && colIdx === 1) cellStyle = { ...cellStyle, fontWeight: 600 };
-                      return <td key={colIdx} style={cellStyle}>{cell}</td>;
-                    })}
-                  </tr>
-                );
-              })
-            )}
-          </tbody>
-        </table>
-      </div>
-
-      {/* ==================== PAGINATION ==================== */}
-      {filtered.length > itemsPerPage && (
-        <div style={{ marginTop: '20px', display: 'flex', gap: '15px', justifyContent: 'center', alignItems: 'center', paddingBottom: '20px' }}>
-          <button
-            disabled={currentPage <= 1}
-            onClick={() => setCurrentPage(prev => prev - 1)}
-            style={{
-              padding: '8px 16px',
-              backgroundColor: currentPage <= 1 ? '#e9ecef' : '#3c4e6b',
-              color: currentPage <= 1 ? '#6c757d' : 'white',
-              border: 'none', borderRadius: '4px',
-              cursor: currentPage <= 1 ? 'not-allowed' : 'pointer', fontWeight: '600'
-            }}
-          >
-            ←
-          </button>
-          <span style={{ fontSize: '13px', fontWeight: '600', color: '#475569' }}>
-            Page {currentPage} of {totalPages || 1}
-          </span>
-          <button
-            disabled={currentPage >= totalPages || totalPages === 0}
-            onClick={() => setCurrentPage(prev => prev + 1)}
-            style={{
-              padding: '8px 16px',
-              backgroundColor: (currentPage >= totalPages || totalPages === 0) ? '#e9ecef' : '#3c4e6b',
-              color: (currentPage >= totalPages || totalPages === 0) ? '#6c757d' : 'white',
-              border: 'none', borderRadius: '4px',
-              cursor: (currentPage >= totalPages || totalPages === 0) ? 'not-allowed' : 'pointer', fontWeight: '600'
-            }}
-          >
-            →
-          </button>
+          {(selectedCategory || selectedUom) && (
+            <button className="btn btn-secondary" onClick={clearFilters}>
+              Clear Filters
+            </button>
+          )}
         </div>
       )}
+
+      {/* ==================== TABLE SECTION ==================== */}
+      <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+        
+        <div style={{ padding: 'var(--space-sm) var(--space-md)', textAlign: 'right', fontSize: '13px', color: 'var(--text-muted)', borderBottom: '1px solid var(--border-color)' }}>
+          Showing {currentRows.length} of {filtered.length} record(s)
+        </div>
+
+        <div style={{ overflowX: 'auto', width: '100%' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '800px' }}>
+            <thead>
+              <tr>
+                {columns.map((c, i) => (
+                  <th key={i} style={{ ...tableStyles.th, textAlign: i === 0 ? 'center' : 'left', width: i === 0 ? '60px' : 'auto' }}>
+                    {c}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr><td colSpan={columns.length} style={tableStyles.emptyCell}>Loading...</td></tr>
+              ) : currentRows.length === 0 ? (
+                <tr><td colSpan={columns.length} style={tableStyles.emptyCell}>No records found matching your criteria.</td></tr>
+              ) : (
+                currentRows.map((item, idx) => {
+                  const serialNumber = (currentPage - 1) * itemsPerPage + idx + 1;
+                  const row = getRow(item, idx);
+                  row[0] = serialNumber;
+
+                  const qty = item.quantity ?? 0;
+                  const reorderLvl = item.reorderLevel ?? 0;
+                  const isLowStock = qty <= reorderLvl;
+
+                  return (
+                    <tr 
+                      key={item._id || idx} 
+                      style={{ borderBottom: '1px solid var(--border-color)' }}
+                    >
+                      {row.map((cell, colIdx) => {
+                        let cellStyle = { ...tableStyles.td, textAlign: colIdx === 0 ? 'center' : 'left' };
+                        
+                        // Conditionals for Product Tab
+                        if (activeTab === 'product') {
+                          if (columns[colIdx] === 'Stock Qty') {
+                            cellStyle = { ...cellStyle, fontWeight: 'bold', color: isLowStock ? 'var(--danger)' : 'var(--success)' };
+                          }
+                          if (columns[colIdx] === 'Product Name') {
+                            cellStyle = { ...cellStyle, fontWeight: 600 };
+                          }
+                        }
+
+                        // Conditionals for Category/UOM Tabs
+                        if (activeTab !== 'product' && colIdx === 1) {
+                          cellStyle = { ...cellStyle, fontWeight: 600 };
+                        }
+
+                        return <td key={colIdx} style={cellStyle}>{cell}</td>;
+                      })}
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {/* ==================== PAGINATION ==================== */}
+        {filtered.length > itemsPerPage && (
+          <div style={{ display: 'flex', gap: 'var(--space-md)', justifyContent: 'center', alignItems: 'center', padding: 'var(--space-md)' }}>
+            <button
+              className="btn btn-secondary"
+              disabled={currentPage <= 1}
+              onClick={() => setCurrentPage(prev => prev - 1)}
+              style={{ padding: '6px 12px' }}
+            >
+              ←
+            </button>
+            <span style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-muted)' }}>
+              Page {currentPage} of {totalPages || 1}
+            </span>
+            <button
+              className="btn btn-secondary"
+              disabled={currentPage >= totalPages || totalPages === 0}
+              onClick={() => setCurrentPage(prev => prev + 1)}
+              style={{ padding: '6px 12px' }}
+            >
+              →
+            </button>
+          </div>
+        )}
+      </div>
+
     </div>
   );
 }
 
-const styles = {
-  page: { padding: '24px 16px', width: '100%', boxSizing: 'border-box', background: '#f8fafc', minHeight: '100vh', marginBottom: '60px' },
-  headerRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', flexWrap: 'wrap', gap: '10px' },
-  actionBtn: { color: '#fff', border: 'none', padding: '9px 16px', borderRadius: '8px', cursor: 'pointer', fontWeight: 600, fontSize: '13px' },
-
-  tabContainer: { display: 'flex', gap: '10px', flexWrap: 'wrap', width: '100%', alignItems: 'center' },
-  tab: { padding: '10px 18px', borderRadius: '6px', border: '1px solid #cbd5e1', backgroundColor: '#fff', color: '#475569', fontWeight: 600, cursor: 'pointer', fontSize: '13px', transition: 'all 0.2s ease-in-out' },
-  activeTab: { padding: '10px 18px', borderRadius: '6px', border: '1px solid #3c4e6b', backgroundColor: '#3c4e6b', color: '#fff', fontWeight: 600, cursor: 'pointer', fontSize: '13px', transition: 'all 0.2s ease-in-out' },
-
-  filterRow: { marginTop: '10px', display: 'flex', gap: '16px', alignItems: 'flex-end', flexWrap: 'wrap' },
-  filterGroup: { display: 'flex', flexDirection: 'column', minWidth: '180px', maxWidth: '220px' },
-  filterLabel: { fontSize: '11px', fontWeight: 500, color: '#475569', textAlign: 'left' },
-  filterInput: { color: '#343a42', padding: '6.4px 12px', borderRadius: '4px', border: '1px solid #cbd5e1', fontSize: '14px', backgroundColor: '#fff', outline: 'none', width: '100%', boxSizing: 'border-box' },
-  clearFilterBtn: { padding: '10px 18px', background: '#6c757d', color: '#f9f9f9', border: '1px solid #cfcece', borderRadius: '8px', cursor: 'pointer', fontWeight: 600, fontSize: '13px', whiteSpace: 'nowrap' },
-
-  tableWrapper: { marginTop: '20px', background: '#fff', borderRadius: '8px', border: '1px solid #cbd5e1', overflowX: 'auto', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', width: '100%' },
-  table: { width: '100%', borderCollapse: 'collapse', tableLayout: 'auto' },
-  th: { padding: '10px 12px', background: '#3c4e6b', fontSize: '11px', color: '#fefefe', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', borderBottom: '2px solid #94a3b8', borderRight: '1px solid #44576e', whiteSpace: 'nowrap' },
-  td: { padding: '9px 12px', fontSize: '13px', borderBottom: '1px solid #e2e8f0', borderRight: '1px solid #e2e8f0', color: '#334155', whiteSpace: 'nowrap' },
-  altRow: { backgroundColor: '#f8fafc' },
-  emptyCell: { textAlign: 'center', padding: '40px 0', color: '#94a3b8', fontSize: '14px' },
+// Strict Table Styles Rule
+const tableStyles = {
+  th: {
+    padding: '12px 16px',
+    backgroundColor: 'var(--header)',
+    color: '#ffffff',
+    fontWeight: '600',
+    fontSize: '13px',
+    textAlign: 'left'
+  },
+  td: {
+    padding: '8px 16px',
+    color: 'var(--text-main)',
+    fontSize: '13px',
+    textAlign: 'left'
+  },
+  emptyCell: {
+    padding: '40px',
+    textAlign: 'center',
+    color: 'var(--text-muted)',
+    fontSize: '14px'
+  }
 };
 
 export default CatalogueReport;

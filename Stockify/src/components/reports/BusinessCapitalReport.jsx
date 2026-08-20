@@ -17,11 +17,17 @@ function BusinessCapitalReport() {
     fetchReport();
   }, []);
 
+  // ================= FETCH REPORT (WITH TOKEN) =================
   const fetchReport = async () => {
     setLoading(true);
     setFetchError(false);
     try {
-      const res = await fetch(`${API_BASE_URL}/api/reports/business-capital`);
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${API_BASE_URL}/api/reports/business-capital`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
       if (!res.ok) throw new Error('Failed to fetch');
       const json = await res.json();
 
@@ -105,7 +111,7 @@ function BusinessCapitalReport() {
             h2 { margin: 0; font-size: 20px; letter-spacing: 0.5px; }
             p { margin: 6px 0 0 0; color: #64748b; font-size: 12px; }
             table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 20px; }
-            th { text-align: left; padding: 12px 16px; background-color: #1e293b; color: #fff; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
+            th { text-align: left; padding: 12px 16px; background-color: #0c514b; color: #fff; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
             th.right-align { text-align: right; }
           </style>
         </head>
@@ -150,21 +156,21 @@ function BusinessCapitalReport() {
         // Format Grand Total row
         if (r.type === 'grandTotal') {
           return [
-            { content: r.title, styles: { fontStyle: 'bold', fillColor: [241, 245, 249], textColor: [15, 23, 42] } }, 
-            { content: `Rs. ${formatCurrency(r.amount)}`, styles: { fontStyle: 'bold', halign: 'right', fillColor: [241, 245, 249], textColor: [15, 23, 42] } }
+            { content: r.title, styles: { fontStyle: 'bold', fillColor: [204, 251, 241], textColor: [12, 81, 75] } }, 
+            { content: `Rs. ${formatCurrency(r.amount)}`, styles: { fontStyle: 'bold', halign: 'right', fillColor: [204, 251, 241], textColor: [12, 81, 75] } }
           ];
         }
         
         // Format Standard Items
         const isNegative = r.amount < 0;
         return [
-          { content: `   ${r.title}`, styles: { textColor: [51, 65, 85] } }, 
-          { content: formatCurrency(r.amount), styles: { halign: 'right', textColor: isNegative ? [220, 38, 38] : [71, 85, 105] } }
+          { content: `   ${r.title}`, styles: { textColor: [34, 78, 67] } }, 
+          { content: formatCurrency(r.amount), styles: { halign: 'right', textColor: isNegative ? [225, 29, 72] : [34, 78, 67] } }
         ];
       }),
       theme: 'plain',
       styles: { fontSize: 10, cellPadding: 6 },
-      headStyles: { fillColor: [30, 41, 59], textColor: [255, 255, 255] }
+      headStyles: { fillColor: [12, 81, 75], textColor: [255, 255, 255] }
     });
     doc.save(`Business-Capital-Report-${new Date().toISOString().slice(0, 10)}.pdf`);
   };
@@ -193,94 +199,125 @@ function BusinessCapitalReport() {
 
     worksheet['!cols'] = [{ wch: 40 }, { wch: 20 }];
     const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Capital Report');
+    XLS.utils.book_append_sheet(workbook, worksheet, 'Capital Report');
     XLSX.writeFile(workbook, `Business-Capital-${new Date().toISOString().slice(0, 10)}.xlsx`);
   };
 
   return (
-    <div style={styles.page}>
+    <div className="dashboard-wrapper">
       
       {/* Top Header & Actions Area */}
-      <div style={styles.headerRow}>
-        <div style={styles.actionGroup}>
-          <button style={{ ...styles.actionBtn, backgroundColor: '#0891b2' }} onClick={handlePrint} disabled={loading || !reportData}>
-            <FontAwesomeIcon icon={faPrint} /> Print
-          </button>
-          <button style={{ ...styles.actionBtn, backgroundColor: '#ea580c' }} onClick={handleExportPDF} disabled={loading || !reportData}>
-            <FontAwesomeIcon icon={faFilePdf} /> PDF
-          </button>
-          <button style={{ ...styles.actionBtn, backgroundColor: '#15803d' }} onClick={handleExportExcel} disabled={loading || !reportData}>
-            <FontAwesomeIcon icon={faFileExcel} /> Excel
-          </button>
-        </div>
+      <div className="card" style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--space-sm)' }}>
+        <button className="btn btn-secondary" onClick={handlePrint} disabled={loading || !reportData}>
+          <FontAwesomeIcon icon={faPrint} /> Print
+        </button>
+        <button className="btn btn-secondary" onClick={handleExportPDF} disabled={loading || !reportData}>
+          <FontAwesomeIcon icon={faFilePdf} /> PDF
+        </button>
+        <button className="btn btn-secondary" onClick={handleExportExcel} disabled={loading || !reportData}>
+          <FontAwesomeIcon icon={faFileExcel} /> Excel
+        </button>
       </div>
 
       {/* Main Report Table Area */}
-      <div style={styles.tableWrapper}>
-        <div style={styles.tableHeader}>
-          Business Capital Statement
-          <span style={styles.dateLabel}>{currentDateLabel}</span>
+      <div className="card" style={{ padding: 0, overflow: 'hidden', maxWidth: '820px', margin: '0 auto', width: '100%' }}>
+        
+        {/* Header Ribbon */}
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          backgroundColor: 'var(--header)',
+          padding: '16px 24px',
+          color: '#ffffff',
+          borderBottom: '1px solid var(--border-color)'
+        }}>
+          <span style={{ fontSize: '16px', fontWeight: 700 }}>Business Capital Statement</span>
+          <span style={{ fontSize: '13px', fontWeight: 400 }}>{currentDateLabel}</span>
         </div>
-        <table style={styles.table}>
-          <tbody>
-            {loading ? (
-              <tr><td colSpan={2} style={styles.emptyCell}>Calculating Business Capital...</td></tr>
-            ) : fetchError || !reportData ? (
-              <tr><td colSpan={2} style={styles.emptyCell}>Failed to generate report. Check backend connection.</td></tr>
-            ) : (
-              rowsData.map((row, idx) => {
-                
-                // Render Grand Total Row
-                if (row.type === 'grandTotal') {
+
+        {/* Data Table */}
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <tbody>
+              {loading ? (
+                <tr>
+                  <td colSpan={2} style={{ textAlign: 'center', padding: '50px 0', color: 'var(--text-muted)', fontSize: '15px' }}>
+                    Calculating Business Capital...
+                  </td>
+                </tr>
+              ) : fetchError || !reportData ? (
+                <tr>
+                  <td colSpan={2} style={{ textAlign: 'center', padding: '50px 0', color: 'var(--danger)', fontSize: '15px' }}>
+                    Failed to generate report. Check backend connection.
+                  </td>
+                </tr>
+              ) : (
+                rowsData.map((row, idx) => {
+                  
+                  // Render Grand Total Row
+                  if (row.type === 'grandTotal') {
+                    return (
+                      <tr key={idx}>
+                        <td style={{ 
+                          backgroundColor: 'var(--primary-light)', 
+                          padding: '20px 24px', 
+                          fontSize: '18px', 
+                          fontWeight: 700, 
+                          color: 'var(--text-main)', 
+                          borderTop: '2px solid var(--border-color)' 
+                        }}>
+                          {row.title}
+                        </td>
+                        <td style={{ 
+                          backgroundColor: 'var(--primary-light)', 
+                          padding: '20px 24px', 
+                          fontSize: '18px', 
+                          fontWeight: 700, 
+                          textAlign: 'right', 
+                          color: 'var(--text-main)', 
+                          borderTop: '2px solid var(--border-color)', 
+                          fontVariantNumeric: 'tabular-nums' 
+                        }}>
+                          Rs. {formatCurrency(row.amount)}
+                        </td>
+                      </tr>
+                    );
+                  }
+
+                  // Render Standard Item Rows
+                  const isNegative = row.amount < 0;
                   return (
-                    <tr key={idx}>
-                      <td style={styles.grandTotalLabelCell}>{row.title}</td>
-                      <td style={styles.grandTotalValueCell}>
-                        Rs. {formatCurrency(row.amount)}
+                    <tr key={idx} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                      <td style={{ 
+                        textAlign: 'left', 
+                        padding: '12px 24px', 
+                        fontSize: '14px', 
+                        color: 'var(--text-main)', 
+                        fontWeight: 500 
+                      }}>
+                        {row.title}
+                      </td>
+                      <td style={{ 
+                        padding: '12px 24px', 
+                        fontSize: '14px', 
+                        textAlign: 'right', 
+                        fontVariantNumeric: 'tabular-nums', 
+                        fontWeight: 600, 
+                        color: isNegative ? 'var(--danger)' : 'var(--text-main)' 
+                      }}>
+                        {formatCurrency(row.amount)}
                       </td>
                     </tr>
                   );
-                }
-
-                // Render Standard Item Rows (Liabilities shown in Red)
-                const isNegative = row.amount < 0;
-                return (
-                  <tr key={idx}>
-                    <td style={styles.itemLabelCell}>{row.title}</td>
-                    <td style={{ ...styles.itemValueCell, color: isNegative ? '#dc2626' : '#475569' }}>
-                      {formatCurrency(row.amount)}
-                    </td>
-                  </tr>
-                );
-              })
-            )}
-          </tbody>
-        </table>
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );
 }
-
-// Inline component styles matching the system theme
-const styles = {
-  page: { padding: '28px 20px', width: '100%', boxSizing: 'border-box', background: '#f8fafc', minHeight: '100vh', marginBottom: '60px' },
-  headerRow: { display: 'flex', justifyContent: 'flex-end', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' },
-  actionGroup: { display: 'flex', gap: '8px' },
-  actionBtn: { color: '#fff', border: 'none', padding: '9px 16px', borderRadius: '8px', cursor: 'pointer', fontWeight: 600, fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px', boxShadow: '0 1px 2px rgba(0,0,0,0.08)' },
-  
-  tableWrapper: { background: '#fff', borderRadius: '4px', border: '1px solid #e2e8f0', overflow: 'hidden', boxShadow: '0 1px 2px rgba(0,0,0,0.04)', width: '100%', maxWidth: '820px', margin: '0 auto' },
-  tableHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#303e56', padding: '16px 24px', fontSize: '16px', fontWeight: 700, color: '#ffffff', borderBottom: '1px solid #e2e8f0' },
-  dateLabel: { fontSize: '13px', fontWeight: 400, color: '#fcfdfe' },
-  
-  table: { width: '100%', borderCollapse: 'collapse' },
-  
-  itemLabelCell: { textAlign: 'left', padding: '7px 24px', fontSize: '13px', color: '#334155', fontWeight: '400', borderBottom: '1px solid #f1f5f9' },
-  itemValueCell: { padding: '7px 24px', fontSize: '14px', textAlign: 'right', fontVariantNumeric: 'tabular-nums', fontWeight: '500', borderBottom: '1px solid #f1f5f9' },
-  
-  grandTotalLabelCell: { backgroundColor: '#f1f5f9', padding: '20px 4px', fontSize: '18px', fontWeight: 700, color: '#263558', borderTop: '2px solid #cbd5e1'},
-  grandTotalValueCell: { backgroundColor: '#f1f5f9', padding: '20px 74px', fontSize: '18px', fontWeight: 700, textAlign: 'center', color: '#283657', borderTop: '2px solid #cbd5e1', fontVariantNumeric: 'tabular-nums' },
-  
-  emptyCell: { textAlign: 'center', padding: '50px 0', color: '#94a3b8', fontSize: '15px' },
-};
 
 export default BusinessCapitalReport;

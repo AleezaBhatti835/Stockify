@@ -12,14 +12,12 @@ function StockMovementReport() {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // ================= FILTER STATES =================
   const [selectedProduct, setSelectedProduct] = useState('');
-  const [movementType, setMovementType] = useState(''); // 'IN' or 'OUT'
+  const [movementType, setMovementType] = useState(''); 
   const [referenceType, setReferenceType] = useState(''); 
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
 
-  // ================= PAGINATION =================
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(15);
 
@@ -27,12 +25,18 @@ function StockMovementReport() {
     fetchData();
   }, []);
 
+  // CORE ARCHITECTURE: Synchronous multi-resource data retrieval engine fetching stock movements and inventory catalogs concurrently.
   const fetchData = async () => {
     setLoading(true);
     try {
+      const token = localStorage.getItem('token');
       const [movRes, prodRes] = await Promise.all([
-        fetch(`${API_BASE_URL}/api/stock-movements`),
-        fetch(`${API_BASE_URL}/api/products`)
+        fetch(`${API_BASE_URL}/api/stock-movements`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        }),
+        fetch(`${API_BASE_URL}/api/products`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        })
       ]);
       const movData = await movRes.json();
       const prodData = await prodRes.json();
@@ -47,12 +51,10 @@ function StockMovementReport() {
     }
   };
 
-  // Reset pagination when filters change
   useEffect(() => {
     setCurrentPage(1);
   }, [selectedProduct, movementType, referenceType, fromDate, toDate]);
 
-  // ================= HELPERS =================
   const formatDate = (dateString) => {
     if (!dateString) return '—';
     return new Date(dateString).toLocaleDateString('en-GB');
@@ -71,13 +73,11 @@ function StockMovementReport() {
     setToDate('');
   };
 
-  // Get dynamic unique reference types from the data (e.g., Sale, Purchase, StockBreakage)
   const uniqueRefTypes = useMemo(() => {
     const types = new Set(movements.map(m => m.referenceType).filter(Boolean));
     return Array.from(types);
   }, [movements]);
 
-  // ================= FILTER LOGIC =================
   const filtered = useMemo(() => {
     let result = [...movements];
 
@@ -109,7 +109,6 @@ function StockMovementReport() {
     return result;
   }, [movements, selectedProduct, movementType, referenceType, fromDate, toDate]);
 
-  // ================= COLUMN CONFIG =================
   const columns = ['Sr#', 'Date', 'Product Name', 'Movement Type', 'Qty', 'Reference', 'Notes'];
 
   const getRow = (item, idx) => [
@@ -122,7 +121,7 @@ function StockMovementReport() {
     item.notes || '—'
   ];
 
-  // ==================== PRINT ====================
+  // DATA EXPORT ENGINE: Automated multi-format export utility converting filter datasets into printable HTML documents, native PDF vectors, and formatted spreadsheets.
   const handlePrint = () => {
     const rowsHtml = filtered.map((item, idx) => {
       const row = getRow(item, idx);
@@ -130,8 +129,8 @@ function StockMovementReport() {
       const isOUT = row[3] === 'OUT';
       
       let typeStyle = '';
-      if (isIN) typeStyle = 'color: #16a34a; font-weight: bold;';
-      if (isOUT) typeStyle = 'color: #ef4444; font-weight: bold;';
+      if (isIN) typeStyle = 'color: var(--success); font-weight: bold;';
+      if (isOUT) typeStyle = 'color: var(--danger); font-weight: bold;';
 
       return `<tr>
         <td style="text-align:center; width:40px;">${row[0]}</td>
@@ -199,7 +198,6 @@ function StockMovementReport() {
     }, 300);
   };
 
-  // ==================== PDF EXPORT ====================
   const handleExportPDF = () => {
     const doc = new jsPDF({ orientation: 'landscape' });
     doc.setFontSize(14);
@@ -224,15 +222,14 @@ function StockMovementReport() {
       didParseCell: function (data) {
         if (data.section === 'body' && (data.column.index === 3 || data.column.index === 4)) {
           const type = data.row.raw[3];
-          if (type === 'IN') data.cell.styles.textColor = [22, 163, 74];
-          if (type === 'OUT') data.cell.styles.textColor = [220, 38, 38];
+          if (type === 'IN') data.cell.styles.textColor = [16, 185, 129];
+          if (type === 'OUT') data.cell.styles.textColor = [225, 29, 72];
         }
       }
     });
     doc.save(`stock-movement-${new Date().toISOString().slice(0, 10)}.pdf`);
   };
 
-  // ==================== EXCEL EXPORT ====================
   const handleExportExcel = () => {
     const rows = filtered.map((item, idx) => {
       const obj = {};
@@ -244,13 +241,13 @@ function StockMovementReport() {
     const worksheet = XLSX.utils.json_to_sheet(rows);
 
     worksheet['!cols'] = [
-      { wch: 6 },   // Sr#
-      { wch: 12 },  // Date
-      { wch: 35 },  // Product Name
-      { wch: 18 },  // Movement Type
-      { wch: 12 },  // Qty
-      { wch: 20 },  // Reference
-      { wch: 40 }   // Notes
+      { wch: 6 },  
+      { wch: 12 }, 
+      { wch: 35 }, 
+      { wch: 18 }, 
+      { wch: 12 }, 
+      { wch: 20 }, 
+      { wch: 40 }  
     ];
 
     const workbook = XLSX.utils.book_new();
@@ -258,29 +255,27 @@ function StockMovementReport() {
     XLSX.writeFile(workbook, `stock-movements-${new Date().toISOString().slice(0, 10)}.xlsx`);
   };
 
-  // ================= PAGINATION =================
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
   const currentRows = filtered.slice(indexOfFirstItem, indexOfLastItem);
   const totalPages = Math.ceil(filtered.length / itemsPerPage);
 
   return (
-    <div style={styles.page}>
-      <div style={styles.headerRow}>
-        <div style={{ ...styles.actions, marginLeft: 'auto' }}>
-          <button style={{ ...styles.actionBtn, backgroundColor: '#409fb0' }} onClick={handlePrint}><FontAwesomeIcon icon={faPrint} /> Print</button>
-          <button style={{ ...styles.actionBtn, backgroundColor: '#d66336' }} onClick={handleExportPDF}><FontAwesomeIcon icon={faFilePdf} /> PDF</button>
-          <button style={{ ...styles.actionBtn, backgroundColor: '#296f3f' }} onClick={handleExportExcel}><FontAwesomeIcon icon={faFileExcel} /> Excel</button>
-        </div>
+    <div className="dashboard-wrapper">
+      
+      {/* HEADER ACTIONS TOP BAR */}
+      <div className="card" style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+        <button className="btn btn-secondary" onClick={handlePrint} disabled={loading || filtered.length === 0}><FontAwesomeIcon icon={faPrint} /> Print</button>
+        <button className="btn btn-secondary" onClick={handleExportPDF} disabled={loading || filtered.length === 0}><FontAwesomeIcon icon={faFilePdf} /> PDF</button>
+        <button className="btn btn-secondary" onClick={handleExportExcel} disabled={loading || filtered.length === 0}><FontAwesomeIcon icon={faFileExcel} /> Excel</button>
       </div>
 
-      {/* ==================== FILTERS ==================== */}
-      <div style={styles.filterRow}>
-        
-        <div style={styles.filterGroup}>
-          <label style={styles.filterLabel}>Select Product</label>
+      {/* FILTER BAR */}
+      <div className="card" style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', alignItems: 'flex-end' }}>
+        <div className="form-group" style={{ marginBottom: 0, flex: '1 1 200px' }}>
+          <label className="form-label">Select Product</label>
           <select 
-            style={styles.filterInput} 
+            className="form-input"
             value={selectedProduct} 
             onChange={(e) => setSelectedProduct(e.target.value)}
           >
@@ -291,10 +286,10 @@ function StockMovementReport() {
           </select>
         </div>
 
-        <div style={styles.filterGroup}>
-          <label style={styles.filterLabel}>Movement Type</label>
+        <div className="form-group" style={{ marginBottom: 0, flex: '1 1 160px' }}>
+          <label className="form-label">Movement Type</label>
           <select 
-            style={styles.filterInput} 
+            className="form-input"
             value={movementType} 
             onChange={(e) => setMovementType(e.target.value)}
           >
@@ -304,10 +299,10 @@ function StockMovementReport() {
           </select>
         </div>
 
-        <div style={styles.filterGroup}>
-          <label style={styles.filterLabel}>Reference (Source)</label>
+        <div className="form-group" style={{ marginBottom: 0, flex: '1 1 180px' }}>
+          <label className="form-label">Reference (Source)</label>
           <select 
-            style={styles.filterInput} 
+            className="form-input"
             value={referenceType} 
             onChange={(e) => setReferenceType(e.target.value)}
           >
@@ -318,127 +313,105 @@ function StockMovementReport() {
           </select>
         </div>
 
-        <div style={styles.filterGroup}>
-          <label style={styles.filterLabel}>From Date</label>
-          <input type="date" style={styles.filterInput} value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
+        <div className="form-group" style={{ marginBottom: 0, flex: '1 1 150px' }}>
+          <label className="form-label">From Date</label>
+          <input type="date" className="form-input" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
         </div>
 
-        <div style={styles.filterGroup}>
-          <label style={styles.filterLabel}>To Date</label>
-          <input type="date" style={styles.filterInput} value={toDate} onChange={(e) => setToDate(e.target.value)} />
+        <div className="form-group" style={{ marginBottom: 0, flex: '1 1 150px' }}>
+          <label className="form-label">To Date</label>
+          <input type="date" className="form-input" value={toDate} onChange={(e) => setToDate(e.target.value)} />
         </div>
 
-        <button style={styles.clearFilterBtn} onClick={clearFilters}>Clear Filters</button>
-
+        <button className="btn btn-secondary" onClick={clearFilters}>Clear Filters</button>
       </div>
       
-      <div style={{ fontSize: '13px', color: '#64748b', fontWeight: 400, textAlign: 'right', marginTop: '10px' }}>
-        Showing {currentRows.length} of {filtered.length} record(s)
-      </div>
-
-      {/* ==================== TABLE ==================== */}
-      <div style={styles.tableWrapper}>
-        <table style={styles.table}>
-          <thead>
-            <tr>
-              {columns.map((c, i) => (
-                <th key={i} style={{ ...styles.th, textAlign: i === 0 ? 'center' : 'left', width: i === 0 ? '50px' : 'auto' }}>{c}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <tr><td colSpan={columns.length} style={styles.emptyCell}>Loading stock movements...</td></tr>
-            ) : currentRows.length === 0 ? (
-              <tr><td colSpan={columns.length} style={styles.emptyCell}>No stock movements found.</td></tr>
-            ) : (
-              currentRows.map((item, idx) => {
-                const serialNumber = (currentPage - 1) * itemsPerPage + idx + 1;
-                const row = getRow(item, idx);
-                row[0] = serialNumber;
-
-                const isIN = item.movementType === 'IN';
-                const isOUT = item.movementType === 'OUT';
-
-                return (
-                  <tr key={item._id || idx} style={idx % 2 === 1 ? styles.altRow : null}>
-                    {row.map((cell, colIdx) => {
-                      let cellStyle = { ...styles.td, textAlign: colIdx === 0 ? 'center' : 'left' };
-                      
-                      // Highlight Product Name
-                      if (colIdx === 2) cellStyle = { ...cellStyle, fontWeight: 600 };
-                      
-                      // Color IN and OUT
-                      if ((colIdx === 3 || colIdx === 4) && isIN) cellStyle = { ...cellStyle, color: '#16a34a', fontWeight: 'bold' };
-                      if ((colIdx === 3 || colIdx === 4) && isOUT) cellStyle = { ...cellStyle, color: '#ef4444', fontWeight: 'bold' };
-                      
-                      return <td key={colIdx} style={cellStyle}>{cell}</td>;
-                    })}
-                  </tr>
-                );
-              })
-            )}
-          </tbody>
-        </table>
-      </div>
-
-      {/* ==================== PAGINATION ==================== */}
-      {filtered.length > itemsPerPage && (
-        <div style={{ marginTop: '20px', display: 'flex', gap: '15px', justifyContent: 'center', alignItems: 'center', paddingBottom: '20px' }}>
-          <button
-            disabled={currentPage <= 1}
-            onClick={() => setCurrentPage(prev => prev - 1)}
-            style={{
-              padding: '8px 16px',
-              backgroundColor: currentPage <= 1 ? '#e9ecef' : '#5aa7ef',
-              color: currentPage <= 1 ? '#6c757d' : 'white',
-              border: 'none', borderRadius: '4px',
-              cursor: currentPage <= 1 ? 'not-allowed' : 'pointer', fontWeight: '600'
-            }}
-          >
-            ←
-          </button>
-          <span style={{ fontSize: '12px', fontWeight: '400', color: '#8f959b' }}>
-            Page {currentPage} of {totalPages || 1}
+      {/* DATA TABLE */}
+      <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+        <div style={{ padding: '16px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'flex-end' }}>
+          <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
+            Showing {currentRows.length} of {filtered.length} record(s)
           </span>
-          <button
-            disabled={currentPage >= totalPages || totalPages === 0}
-            onClick={() => setCurrentPage(prev => prev + 1)}
-            style={{
-              padding: '8px 16px',
-              backgroundColor: (currentPage >= totalPages || totalPages === 0) ? '#e9ecef' : '#5aa7ef',
-              color: (currentPage >= totalPages || totalPages === 0) ? '#6c757d' : 'white',
-              border: 'none', borderRadius: '4px',
-              cursor: (currentPage >= totalPages || totalPages === 0) ? 'not-allowed' : 'pointer', fontWeight: '600'
-            }}
-          >
-            →
-          </button>
         </div>
-      )}
+
+        <div style={{ overflowX: 'auto', width: '100%' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '900px' }}>
+            <thead>
+              <tr style={{ backgroundColor: 'var(--header)' }}>
+                {columns.map((c, i) => (
+                  <th key={i} style={{ padding: '12px 16px', color: 'white', textAlign: i === 0 ? 'center' : 'left', fontSize: '13px', fontWeight: '600', width: i === 0 ? '60px' : 'auto' }}>
+                    {c}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr><td colSpan={columns.length} style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '14px' }}>Loading stock movements...</td></tr>
+              ) : currentRows.length === 0 ? (
+                <tr><td colSpan={columns.length} style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '14px' }}>No stock movements found.</td></tr>
+              ) : (
+                currentRows.map((item, idx) => {
+                  const serialNumber = (currentPage - 1) * itemsPerPage + idx + 1;
+                  const row = getRow(item, idx);
+                  row[0] = serialNumber;
+
+                  const isIN = item.movementType === 'IN';
+                  const isOUT = item.movementType === 'OUT';
+
+                  return (
+                    <tr 
+                      key={item._id || idx} 
+                      style={{ borderBottom: '1px solid var(--border-color)', transition: 'background-color 0.2s' }}
+                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--bg-app)'}
+                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                    >
+                      {row.map((cell, colIdx) => {
+                        let cellStyle = { 
+                          padding: '10px 16px', 
+                          fontSize: '13px', 
+                          color: 'var(--text-main)',
+                          textAlign: colIdx === 0 ? 'center' : 'left' 
+                        };
+                        
+                        if (colIdx === 2) cellStyle.fontWeight = 500;
+                        if ((colIdx === 3 || colIdx === 4) && isIN) {
+                          cellStyle.color = 'var(--success)';
+                          cellStyle.fontWeight = '700';
+                        }
+                        if ((colIdx === 3 || colIdx === 4) && isOUT) {
+                          cellStyle.color = 'var(--danger)';
+                          cellStyle.fontWeight = '700';
+                        }
+                        
+                        return <td key={colIdx} style={cellStyle}>{cell}</td>;
+                      })}
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {/* PAGINATION */}
+        {filtered.length > itemsPerPage && (
+          <div style={{ display: 'flex', gap: '15px', justifyContent: 'center', alignItems: 'center', padding: '16px' }}>
+            <button className="btn btn-secondary" disabled={currentPage <= 1} onClick={() => setCurrentPage(prev => prev - 1)} style={{ padding: '6px 12px' }}>
+              ←
+            </button>
+            <span style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-muted)' }}>
+              Page {currentPage} of {totalPages || 1}
+            </span>
+            <button className="btn btn-secondary" disabled={currentPage >= totalPages || totalPages === 0} onClick={() => setCurrentPage(prev => prev + 1)} style={{ padding: '6px 12px' }}>
+              →
+            </button>
+          </div>
+        )}
+      </div>
+
     </div>
   );
 }
-
-const styles = {
-  page: { padding: '24px 16px', width: '100%', boxSizing: 'border-box', background: '#f8fafc', minHeight: '100vh', marginBottom: '60px' },
-  headerRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' },
-  title: { margin: 0, fontSize: '20px', fontWeight: 700, color: '#0f172a' },
-  actionBtn: { color: '#fff', border: 'none', padding: '9px 16px', borderRadius: '8px', cursor: 'pointer', fontWeight: 600, fontSize: '13px' },
-  actions: { display: 'flex', gap: '10px' },
-
-  filterRow: { marginTop: '7px', display: 'flex', gap: '16px', alignItems: 'flex-end', flexWrap: 'wrap' },
-  filterGroup: { display: 'flex', flexDirection: 'column', minWidth: '100px', maxWidth: '220px', flex: 1 },
-  filterLabel: { fontSize: '11px', fontWeight: 500, color: '#475569', textAlign: 'left' },
-  filterInput: { color: '#343a42', padding: '6.4px 12px', borderRadius: '4px', border: '1px solid #cbd5e1', fontSize: '14px', backgroundColor: '#fff', outline: 'none', width: '100%', boxSizing: 'border-box' },
-  clearFilterBtn: { padding: '10px 18px', background: '#6c757d', color: '#f9f9f9', border: '1px solid #cfcece', borderRadius: '8px', cursor: 'pointer', fontWeight: 600, fontSize: '13px', whiteSpace: 'nowrap' },
-
-  tableWrapper: { marginTop: '10px', background: '#fff', borderRadius: '8px', border: '1px solid #cbd5e1', overflowX: 'auto', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', width: '100%' },
-  table: { width: '100%', borderCollapse: 'collapse', tableLayout: 'auto' },
-  th: { padding: '12px 14px', background: '#3c4e6b', fontSize: '11px', color: '#fefefe', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', borderBottom: '2px solid #94a3b8', borderRight: '1px solid #44576e', whiteSpace: 'nowrap' },
-  td: { padding: '10px 14px', fontSize: '13px', borderBottom: '1px solid #e2e8f0', borderRight: '1px solid #e2e8f0', color: '#334155' },
-  altRow: { backgroundColor: '#f8fafc' },
-  emptyCell: { textAlign: 'center', padding: '40px 0', color: '#94a3b8', fontSize: '14px' },
-};
 
 export default StockMovementReport;

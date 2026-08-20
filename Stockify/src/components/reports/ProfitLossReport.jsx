@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import XLSX from 'xlsx-js-style';
+import * as XLSX from 'xlsx';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPrint, faFilePdf, faFileExcel } from '@fortawesome/free-solid-svg-icons';
 
@@ -21,15 +21,21 @@ function ProfitLossReport() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fromDate, toDate]);
 
+  // ================= FETCH REPORT (WITH TOKEN) =================
   const fetchReport = async () => {
     setLoading(true);
     setFetchError(false);
     try {
+      const token = localStorage.getItem('token');
       const params = new URLSearchParams();
       if (fromDate) params.append('fromDate', fromDate);
       if (toDate) params.append('toDate', toDate);
 
-      const res = await fetch(`${API_BASE_URL}/api/reports/profit-loss?${params.toString()}`);
+      const res = await fetch(`${API_BASE_URL}/api/reports/profit-loss?${params.toString()}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
       if (!res.ok) throw new Error('Failed to fetch');
       const json = await res.json();
 
@@ -103,28 +109,25 @@ function ProfitLossReport() {
   const handlePrint = () => {
     const rowsHtml = rowsData.map(r => {
       if (r.type === 'subtotal') {
-        const valColor = r.amount < 0 ? 'color: #dc2626;' : 'color: #1e293b;'; // Red if negative balance
+        const valColor = r.amount < 0 ? 'color: #e11d48;' : 'color: #224e43;';
         return `<tr>
-          <td style="padding: 12px 16px 12px 32px; font-weight: 700; font-size: 14px; color: #1e293b; border-top: 1px solid #cbd5e1; border-bottom: 1px solid #e2e8f0; background-color: #f8fafc;">${r.title}</td>
-          <td style="padding: 12px 16px; font-weight: 700; font-size: 14px; text-align: left; border-top: 1px solid #cbd5e1; border-bottom: 1px solid #e2e8f0; background-color: #f8fafc; ${valColor}">${formatCurrency(r.amount)}</td>
+          <td style="padding: 12px 16px 12px 32px; font-weight: 700; font-size: 14px; color: #224e43; border-top: 1px solid #e2f0ec; border-bottom: 1px solid #e2f0ec; background-color: #f8fafc;">${r.title}</td>
+          <td style="padding: 12px 16px; font-weight: 700; font-size: 14px; text-align: left; border-top: 1px solid #e2f0ec; border-bottom: 1px solid #e2f0ec; background-color: #f8fafc; ${valColor}">${formatCurrency(r.amount)}</td>
         </tr>`;
       }
       if (r.type === 'finalSummary') {
         const isProfit = r.amount >= 0;
-        const bgColor = isProfit ? '#dcfce7' : '#fee2e2';
-        const fontWeight = '400';
-        const fontSize = '12px';
-        const textColor = isProfit ? '#14532d' : '#de9999';
-        const borderColor = isProfit ? '#adf4c7' : '#fb9e9e';
+        const bgColor = isProfit ? '#d1fae5' : '#ffe4e6';
+        const textColor = isProfit ? '#10b981' : '#e11d48';
+        const borderColor = isProfit ? '#10b981' : '#e11d48';
         return `<tr>
           <td style="padding: 20px 24px; font-weight: 900; font-size: 16px; background-color: ${bgColor}; color: ${textColor}; border-top: 3px solid ${borderColor}; border-bottom: 3px solid ${borderColor}; text-transform: uppercase;">${r.title}</td>
           <td style="padding: 20px 24px; font-weight: 900; font-size: 18px; text-align: left; background-color: ${bgColor}; color: ${textColor}; border-top: 3px solid ${borderColor}; border-bottom: 3px solid ${borderColor};">Rs. ${formatCurrency(r.amount)}</td>
         </tr>`;
       }
-      // Standard items use neutral gray, no red color here
       return `<tr>
-        <td style="padding: 10px 16px 10px 24px; color: #475569; font-size: 13px;">${r.title}</td>
-        <td style="padding: 10px 16px; text-align: left; color: #475569; font-size: 13px;">${formatCurrency(r.amount)}</td>
+        <td style="padding: 10px 16px 10px 24px; color: #64748b; font-size: 13px;">${r.title}</td>
+        <td style="padding: 10px 16px; text-align: left; color: #64748b; font-size: 13px;">${formatCurrency(r.amount)}</td>
       </tr>`;
     }).join('');
 
@@ -140,12 +143,12 @@ function ProfitLossReport() {
           <style>
             * { box-sizing: border-box; }
             @page { size: A4 portrait; margin: 15mm; }
-            body { font-family: 'Segoe UI', Arial, sans-serif; color: #0f172a; margin: 0; }
+            body { font-family: 'Segoe UI', Arial, sans-serif; color: #224e43; margin: 0; }
             .header-container { text-align: center; margin-bottom: 28px; }
             h2 { margin: 0; font-size: 20px; letter-spacing: 0.5px; }
             p { margin: 6px 0 0 0; color: #64748b; font-size: 12px; }
             table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 20px; }
-            th { text-align: left; padding: 12px 16px; background-color: #1e293b; color: #fff; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
+            th { text-align: left; padding: 12px 16px; background-color: #0c514b; color: #fff; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
           </style>
         </head>
         <body>
@@ -189,23 +192,22 @@ function ProfitLossReport() {
         if (r.type === 'subtotal') {
           const isNegative = r.amount < 0; 
           return [
-            { content: r.title, styles: { fontStyle: 'bold', fillColor: [241, 245, 249] } }, 
-            { content: formatCurrency(r.amount), styles: { fontStyle: 'bold', halign: 'left', fillColor: [241, 245, 249], textColor: isNegative ? [220, 38, 38] : [15, 23, 42] } }
+            { content: r.title, styles: { fontStyle: 'bold', fillColor: [248, 250, 252], textColor: [34, 78, 67] } }, 
+            { content: formatCurrency(r.amount), styles: { fontStyle: 'bold', halign: 'left', fillColor: [248, 250, 252], textColor: isNegative ? [225, 29, 72] : [34, 78, 67] } }
           ];
         }
         if (r.type === 'finalSummary') {
           const isProfit = r.amount >= 0;
           return [
-            { content: r.title, styles: { fontStyle: 'bold',fontSize: 12, fillColor: isProfit ? [220, 252, 231] : [254, 226, 226], textColor: isProfit ? [20, 83, 45] : [127, 29, 29] } }, 
-            { content: `Rs. ${formatCurrency(r.amount)}`, styles: { fontStyle: 'bold', halign: 'left', fillColor: isProfit ? [220, 252, 231] : [254, 226, 226], textColor: isProfit ? [20, 83, 45] : [127, 29, 29] } }
+            { content: r.title, styles: { fontStyle: 'bold', fontSize: 12, fillColor: isProfit ? [209, 250, 229] : [255, 228, 230], textColor: isProfit ? [16, 185, 129] : [225, 29, 72] } }, 
+            { content: `Rs. ${formatCurrency(r.amount)}`, styles: { fontStyle: 'bold', halign: 'left', fillColor: isProfit ? [209, 250, 229] : [255, 228, 230], textColor: isProfit ? [16, 185, 129] : [225, 29, 72] } }
           ];
         }
-        // Standard items use neutral gray
-        return [{ content: `   ${r.title}` }, { content: formatCurrency(r.amount), styles: { halign: 'left', textColor: [71, 85, 105] } }];
+        return [{ content: `   ${r.title}` }, { content: formatCurrency(r.amount), styles: { halign: 'left', textColor: [100, 116, 139] } }];
       }),
       theme: 'plain',
       styles: { fontSize: 10, cellPadding: 6 },
-      headStyles: { fillColor: [30, 41, 59], textColor: [255, 255, 255] }
+      headStyles: { fillColor: [12, 81, 75], textColor: [255, 255, 255] }
     });
     doc.save(`P&L-Report-${new Date().toISOString().slice(0, 10)}.pdf`);
   };
@@ -237,45 +239,56 @@ function ProfitLossReport() {
   };
 
   return (
-    <div style={styles.page}>
-      {/* ==================== FILTERS ==================== */}
-      <div style={styles.filterRow}>
-        <div style={styles.filterGroup}>
-          <label style={styles.filterLabel}>From Date</label>
-          <input type="date" style={styles.filterInput} value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
+    <div className="dashboard-wrapper">
+      
+      {/* ==================== FILTERS & ACTIONS ==================== */}
+      <div className="card" style={{ display: 'flex', gap: 'var(--space-md)', alignItems: 'flex-end', flexWrap: 'wrap' }}>
+        <div className="form-group" style={{ marginBottom: 0, minWidth: '170px' }}>
+          <label className="form-label">From Date</label>
+          <input type="date" className="form-input" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
         </div>
-        <div style={styles.filterGroup}>
-          <label style={styles.filterLabel}>To Date</label>
-          <input type="date" style={styles.filterInput} value={toDate} onChange={(e) => setToDate(e.target.value)} />
+        <div className="form-group" style={{ marginBottom: 0, minWidth: '170px' }}>
+          <label className="form-label">To Date</label>
+          <input type="date" className="form-input" value={toDate} onChange={(e) => setToDate(e.target.value)} />
         </div>
-        <button style={styles.clearFilterBtn} onClick={clearFilters}>Clear Filters</button>
+        
+        <button className="btn btn-secondary" onClick={clearFilters}>Clear Filters</button>
 
-        <button style={{ ...styles.actionBtn, backgroundColor: '#0891b2', marginLeft: 'auto' }} onClick={handlePrint} disabled={loading || !reportData}>
-          <FontAwesomeIcon icon={faPrint} /> Print
-        </button>
-        <button style={{ ...styles.actionBtn, backgroundColor: '#ea580c' }} onClick={handleExportPDF} disabled={loading || !reportData}>
-          <FontAwesomeIcon icon={faFilePdf} /> PDF
-        </button>
-       
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: 'var(--space-sm)' }}>
+          <button className="btn btn-secondary"  onClick={handlePrint} disabled={loading || !reportData}>
+            <FontAwesomeIcon icon={faPrint} /> Print
+          </button>
+          <button className="btn btn-secondary" onClick={handleExportPDF} disabled={loading || !reportData}>
+            <FontAwesomeIcon icon={faFilePdf} /> PDF
+          </button>
+          <button className="btn btn-secondary"  onClick={handleExportExcel} disabled={loading || !reportData}>
+            <FontAwesomeIcon icon={faFileExcel} /> Excel
+          </button>
+        </div>
       </div>
 
-      {/* ==================== DETAILED STATEMENT ==================== */}
-      <div style={styles.tableWrapper}>
-        <div style={styles.tableHeader}>Profit & Loss Statement</div>
-        <table style={styles.table}>
+      {/* ==================== DETAILED STATEMENT TABLE ==================== */}
+      <div className="card" style={{ padding: 0, overflow: 'hidden', maxWidth: '700px', margin: 'var(--space-xl) auto', width: '100%' }}>
+        <div style={{ backgroundColor: 'var(--header)', padding: '16px 24px', fontSize: '16px', fontWeight: 700, color: '#ffffff', borderBottom: '1px solid var(--border-color)' }}>
+          Profit & Loss Statement
+        </div>
+        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <tbody>
             {loading ? (
-              <tr><td colSpan={2} style={styles.emptyCell}>Calculating Profit &amp; Loss...</td></tr>
+              <tr><td colSpan={2} style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-muted)' }}>Calculating Profit &amp; Loss...</td></tr>
             ) : fetchError || !reportData ? (
-              <tr><td colSpan={2} style={styles.emptyCell}>Failed to generate report. Check backend connection.</td></tr>
+              <tr><td colSpan={2} style={{ textAlign: 'center', padding: '40px 0', color: 'var(--danger)' }}>Failed to generate report. Check backend connection.</td></tr>
             ) : (
               rowsData.map((row, idx) => {
+                
                 if (row.type === 'subtotal') {
-                  const isNegative = row.amount < 0; // Check if value is negative
+                  const isNegative = row.amount < 0;
                   return (
                     <tr key={idx}>
-                      <td style={styles.subtotalLabelCell}>{row.title}</td>
-                      <td style={{ ...styles.subtotalValueCell, color: isNegative ? '#dc2626' : '#0f172a' }}>
+                      <td style={{ textAlign: 'left', padding: '6px 24px', fontSize: '14px', fontWeight: 700, color: 'var(--text-main)', borderTop: '1px solid var(--border-color)', borderBottom: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)' }}>
+                        {row.title}
+                      </td>
+                      <td style={{ padding: '12px 24px', fontSize: '14px', fontWeight: 700, textAlign: 'right', color: isNegative ? 'var(--danger)' : 'var(--text-main)', borderTop: '1px solid var(--border-color)', borderBottom: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)', fontVariantNumeric: 'tabular-nums' }}>
                         {formatCurrency(row.amount)}
                       </td>
                     </tr>
@@ -284,36 +297,23 @@ function ProfitLossReport() {
 
                 if (row.type === 'finalSummary') {
                   const isProfit = row.amount >= 0;
-                  const bgColor = isProfit ? '#dcfce7' : '#f5ebeb'; 
-                  const textColor = isProfit ? '#14532d' : '#7f1d1d'; 
-                  const borderColor = isProfit ? '#d7efe0' : '#ef9292'; 
-
                   return (
                     <tr key={idx}>
                       <td style={{ 
-                        padding: '10px 14px', 
-                        fontSize: '15px',     
-                        fontWeight: 800,      
-                        backgroundColor: bgColor, 
-                        color: textColor, 
-                        borderTop: `2px solid ${borderColor}`,    
-                        borderBottom: `2px solid ${borderColor}`, 
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.5px',
-                        textAlign: 'center'
+                        padding: '6px 24px', fontSize: '16px', fontWeight: 800, textAlign: 'center', textTransform: 'uppercase', letterSpacing: '0.5px',
+                        backgroundColor: isProfit ? 'var(--success-bg)' : 'var(--danger-bg)', 
+                        color: isProfit ? 'var(--success)' : 'var(--danger)', 
+                        borderTop: `2px solid ${isProfit ? 'var(--success)' : 'var(--danger)'}`, 
+                        borderBottom: `2px solid ${isProfit ? 'var(--success)' : 'var(--danger)'}`
                       }}>
                         {row.title}
                       </td>
                       <td style={{ 
-                        padding: '13px 24px', 
-                        fontSize: '17px',     
-                        fontWeight: 900, 
-                        textAlign: 'center', 
-                        backgroundColor: bgColor, 
-                        color: textColor, 
-                        borderTop: `2px solid ${borderColor}`,
-                        borderBottom: `2px solid ${borderColor}`,
-                        fontVariantNumeric: 'tabular-nums'
+                        padding: '10px 24px', fontSize: '16px', fontWeight: 700, textAlign: 'center', fontVariantNumeric: 'tabular-nums',
+                        backgroundColor: isProfit ? 'var(--success-bg)' : 'var(--danger-bg)', 
+                        color: isProfit ? 'var(--success)' : 'var(--danger)', 
+                        borderTop: `2px solid ${isProfit ? 'var(--success)' : 'var(--danger)'}`,
+                        borderBottom: `2px solid ${isProfit ? 'var(--success)' : 'var(--danger)'}`
                       }}>
                         Rs. {formatCurrency(row.amount)}
                       </td>
@@ -321,11 +321,12 @@ function ProfitLossReport() {
                   );
                 }
 
-                // Normal items (No red color here anymore)
                 return (
                   <tr key={idx}>
-                    <td style={styles.itemLabelCell}>{row.title}</td>
-                    <td style={{ ...styles.itemValueCell, color: '#475569' }}>
+                    <td style={{ textAlign: 'left', padding: '10px 24px', fontSize: '13px', color: 'var(--text-main)' }}>
+                      {row.title}
+                    </td>
+                    <td style={{ padding: '10px 24px', fontSize: '13px', textAlign: 'right', fontVariantNumeric: 'tabular-nums', color: 'var(--text-muted)' }}>
                       {formatCurrency(row.amount)}
                     </td>
                   </tr>
@@ -335,30 +336,9 @@ function ProfitLossReport() {
           </tbody>
         </table>
       </div>
+
     </div>
   );
 }
-
-const styles = {
-  page: { padding: '8px 20px', width: '100%', boxSizing: 'border-box', background: '#f8fafc', minHeight: '100vh', marginBottom: '60px' },
-  actionBtn: { color: '#fff', border: 'none', padding: '9px 16px', borderRadius: '8px', cursor: 'pointer', fontWeight: 600, fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px', boxShadow: '0 1px 2px rgba(0,0,0,0.08)' },
-  filterRow: { display: 'flex', gap: '14px', alignItems: 'flex-end', flexWrap: 'wrap', marginBottom: '30px',  padding: '6px 18px', borderRadius: '10px' },
-  filterGroup: { display: 'flex', flexDirection: 'column', minWidth: '170px' },
-  filterLabel: { fontSize: '11px', fontWeight: 600, color: '#64748b', textAlign: 'left', letterSpacing: '0.4px' },
-  filterInput: { color: '#0f172a', padding: '7.5px 12px', borderRadius: '4px', border: '1px solid #e2e8f0', fontSize: '14px', backgroundColor: '#ffffff', outline: 'none' },
-  clearFilterBtn: { padding: '9px 18px', background: '#919596', color: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '7px', cursor: 'pointer', fontWeight: 600, fontSize: '13px' },
-  
-  tableWrapper: { background: '#fff', borderRadius: '5px', border: '1px solid #e2e8f0', overflow: 'hidden', boxShadow: '0 1px 2px rgba(0,0,0,0.04)', width: '100%', maxWidth: '700px', margin: '5% auto' },
-  tableHeader: { backgroundColor: '#2d394e', padding: '16px 24px', fontSize: '16px', fontWeight: 700, color: '#ffffff', borderBottom: '1px solid #e2e8f0' },
-  table: { width: '100%', borderCollapse: 'collapse' },
-  
-  itemLabelCell: { textAlign: 'left', padding: '7px 24px 14px 24px', fontSize: '14px', color: '#334155', fontWeight: '500' },
-  itemValueCell: { padding: '5px 24px', fontSize: '14px', textAlign: 'right', fontVariantNumeric: 'tabular-nums', fontWeight: '500' },
-  
-  subtotalLabelCell: { textAlign: 'left', padding: '12px 4px 14px 24px', fontSize: '15px', fontWeight: 700, color: '#0f172a', borderTop: '1px solid #cbd5e1', borderBottom: '1px solid #e2e8f0', backgroundColor: '#f8fafc' },
-  subtotalValueCell: { padding: '14px 14px', fontSize: '15px', fontWeight: 700, textAlign: 'right', color: '#0f172a', borderTop: '1px solid #cbd5e1', borderBottom: '1px solid #e2e8f0', backgroundColor: '#f8fafc', fontVariantNumeric: 'tabular-nums' },
-  
-  emptyCell: { textAlign: 'center', padding: '10px 0', color: '#94a3b8', fontSize: '15px' },
-};
 
 export default ProfitLossReport;

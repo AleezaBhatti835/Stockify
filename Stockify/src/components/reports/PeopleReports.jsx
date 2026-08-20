@@ -23,13 +23,10 @@ function PeopleReport() {
   const [suppliers, setSuppliers] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // ================= FILTER STATES =================
-  const [selectedType, setSelectedType] = useState(''); // customer type / designation
+  const [selectedType, setSelectedType] = useState(''); 
 
-  // ================= PAGINATION =================
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(15);
-
 
   useEffect(() => {
     fetchAll();
@@ -44,19 +41,24 @@ function PeopleReport() {
     setCurrentPage(1);
   }, [selectedType]);
 
+  // CORE ARCHITECTURE: Unified multi-endpoint data aggregation to populate cross-entity people reports simultaneously.
   const fetchAll = async () => {
     setLoading(true);
     try {
+      const token = localStorage.getItem('token');
+      const headers = { 'Authorization': `Bearer ${token}` };
+
       const [custRes, typeRes, empRes, desigRes, supRes] = await Promise.all([
-        fetch(`${API_BASE_URL}/api/customers`),
-        fetch(`${API_BASE_URL}/api/customer-types`),
-        fetch(`${API_BASE_URL}/api/employees`),
-        fetch(`${API_BASE_URL}/api/designations`),
-        fetch(`${API_BASE_URL}/api/suppliers`),
+        fetch(`${API_BASE_URL}/api/customers`, { headers }),
+        fetch(`${API_BASE_URL}/api/customer-types`, { headers }),
+        fetch(`${API_BASE_URL}/api/employees`, { headers }),
+        fetch(`${API_BASE_URL}/api/designations`, { headers }),
+        fetch(`${API_BASE_URL}/api/suppliers`, { headers }),
       ]);
       const [custData, typeData, empData, desigData, supData] = await Promise.all([
         custRes.json(), typeRes.json(), empRes.json(), desigRes.json(), supRes.json()
       ]);
+      
       setCustomers(Array.isArray(custData) ? custData : []);
       setCustomerTypes(Array.isArray(typeData) ? typeData : []);
       setEmployees(Array.isArray(empData) ? empData : (empData.employees || []));
@@ -69,7 +71,6 @@ function PeopleReport() {
     }
   };
 
-  // ================= GENERIC DATE HELPER (handles missing createdAt via _id fallback) =================
   const getEntityDate = (e) => {
     if (!e) return null;
     const fields = ['createdAt', 'created_at', 'createdDate', 'date', 'joinDate', 'joiningDate', 'hireDate', 'addedAt', 'addedDate', 'registrationDate'];
@@ -86,12 +87,12 @@ function PeopleReport() {
     }
     return null;
   };
+
   const formatEntityDate = (e) => {
     const d = getEntityDate(e);
     return d ? d.toLocaleDateString('en-GB') : '—';
   };
 
-  // ================= CUSTOMER HELPERS =================
   const getCustomerTypeName = (c) => {
     const t = c.customerTypeId;
     if (!t) return '—';
@@ -103,7 +104,6 @@ function PeopleReport() {
     return typeof t === 'object' ? t._id : t;
   };
 
-  // ================= EMPLOYEE HELPERS =================
   const getEmployeeName = (e) => e.name || e.fullName || e.employeeName || '—';
   const getDesignation = (e) => {
     const d = e.designation || e.role;
@@ -116,11 +116,9 @@ function PeopleReport() {
     return typeof d === 'object' ? d._id : d;
   };
 
-  // ================= SUPPLIER HELPERS =================
   const getSupplierName = (s) => s.companyName || s.name || s.supplierName || '—';
   const getContactPerson = (s) => s.contactPerson || s.contactName || '—';
 
-  // ================= FILTERED DATA PER TAB =================
   const filtered = useMemo(() => {
     let result = [];
 
@@ -150,7 +148,6 @@ function PeopleReport() {
     setSelectedType('');
   };
 
-  // ================= COLUMN CONFIG PER TAB =================
   const columns = useMemo(() => {
     if (activeTab === 'customer') return ['Sr#', 'Date Created', 'Customer Name', 'Customer Type', 'Email', 'CNIC', 'Contact'];
     if (activeTab === 'employee') return ['Sr#', 'Date Created', 'Employee Name', 'Designation', 'Email', 'Contact', 'CNIC'];
@@ -169,7 +166,7 @@ function PeopleReport() {
 
   const activeTabLabel = TABS.find(t => t.key === activeTab)?.label || '';
 
-  // ==================== PRINT ====================
+  // DATA EXPORT ENGINE: Automated document generation logic outputting raw data to PDF, Excel, and structured iframe printing formats.
   const handlePrint = () => {
     const rowsHtml = filtered.map((item, idx) => {
       const row = getRow(item, idx);
@@ -187,7 +184,7 @@ function PeopleReport() {
         <head>
           <style>
             * { box-sizing: border-box; }
-            @page { size: A4 portrait; margin: 10mm; }
+            @page { size: A4 landscape; margin: 10mm; }
             body { font-family: Arial, sans-serif; color: #000; padding: 0; margin: 0; }
             .header-container { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 12px; border-bottom: 2px solid #cbd5e1; padding-bottom: 8px; }
             h2 { margin: 0; font-size: 18px; color: #0f172a; }
@@ -207,7 +204,7 @@ function PeopleReport() {
             <p><strong>Total:</strong> ${filtered.length} record(s)</p>
           </div>
           <table>
-            <thead><tr>${columns.map(c => `<th>${c}</th>`).join('')}</tr></thead>
+            <thead><tr>${columns.map(c => `<th style="${c === 'Sr#' ? 'width: 40px; text-align: center;' : ''}">${c}</th>`).join('')}</tr></thead>
             <tbody>${rowsHtml}</tbody>
           </table>
         </body>
@@ -221,7 +218,6 @@ function PeopleReport() {
     }, 300);
   };
 
-  // ==================== PDF EXPORT ====================
   const handleExportPDF = () => {
     const doc = new jsPDF({ orientation: 'portrait' });
     doc.setFontSize(14);
@@ -242,7 +238,6 @@ function PeopleReport() {
     doc.save(`${activeTab}-report-${new Date().toISOString().slice(0, 10)}.pdf`);
   };
 
-  // ==================== EXCEL EXPORT ====================
   const handleExportExcel = () => {
     const rows = filtered.map((item, idx) => {
       const obj = {};
@@ -252,16 +247,14 @@ function PeopleReport() {
     });
 
     const worksheet = XLSX.utils.json_to_sheet(rows);
-    
-    // Setting optimal column widths for Excel
     worksheet['!cols'] = [
-      { wch: 8 },   // Sr#
-      { wch: 15 },  // Date Created
-      { wch: 25 },  // Name / Company Name
-      { wch: 20 },  // Type / Designation / Name
-      { wch: 30 },  // Email
-      { wch: 18 },  // CNIC / Contact
-      { wch: 18 }   // Contact
+      { wch: 8 },   
+      { wch: 15 },  
+      { wch: 25 },  
+      { wch: 20 },  
+      { wch: 30 },  
+      { wch: 18 },  
+      { wch: 18 }   
     ];
 
     const workbook = XLSX.utils.book_new();
@@ -269,155 +262,137 @@ function PeopleReport() {
     XLSX.writeFile(workbook, `${activeTab}-report-${new Date().toISOString().slice(0, 10)}.xlsx`);
   };
 
-  // ================= PAGINATION =================
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
   const currentRows = filtered.slice(indexOfFirstItem, indexOfLastItem);
   const totalPages = Math.ceil(filtered.length / itemsPerPage);
 
   return (
-    <div style={styles.page}>
-      <div style={styles.headerRow}>
-        <div style={styles.tabContainer}>
+    <div className="dashboard-wrapper">
+      
+      {/* TABS & EXPORTS TOP BAR */}
+      <div className="card" style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: '16px' }}>
+        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
           {TABS.map(t => (
             <button
               key={t.key}
-              style={activeTab === t.key ? styles.activeTab : styles.tab}
+              className={`btn ${activeTab === t.key ? 'btn-primary' : 'btn-secondary'}`}
               onClick={() => setActiveTab(t.key)}
             >
               {t.label}
             </button>
           ))}
-
-          <button style={{ ...styles.actionBtn, backgroundColor: '#409fb0', marginLeft: 'auto' }} onClick={handlePrint}><FontAwesomeIcon icon={faPrint} /> Print</button>
-          <button style={{ ...styles.actionBtn, backgroundColor: '#d66336' }} onClick={handleExportPDF}><FontAwesomeIcon icon={faFilePdf} /> PDF</button>
-          <button style={{ ...styles.actionBtn, backgroundColor: '#296f3f' }} onClick={handleExportExcel}><FontAwesomeIcon icon={faFileExcel} /> Excel</button>
+        </div>
+        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+          <button className="btn btn-secondary" onClick={handlePrint} disabled={loading || filtered.length === 0}><FontAwesomeIcon icon={faPrint} /> Print</button>
+          <button className="btn btn-secondary" onClick={handleExportPDF} disabled={loading || filtered.length === 0}><FontAwesomeIcon icon={faFilePdf} /> PDF</button>
+          <button className="btn btn-secondary" onClick={handleExportExcel} disabled={loading || filtered.length === 0}><FontAwesomeIcon icon={faFileExcel} /> Excel</button>
         </div>
       </div>
 
-      {/* ==================== FILTERS ==================== */}
-      <div style={styles.filterRow}>
-        {activeTab === 'customer' && (
-          <div style={styles.filterGroup}>
-            <label style={styles.filterLabel}>Customer Type</label>
-            <select style={styles.filterInput} value={selectedType} onChange={(e) => setSelectedType(e.target.value)}>
-              <option value="">All Types</option>
-              {customerTypes.map(t => <option key={t._id} value={t._id}>{t.name}</option>)}
-            </select>
-          </div>
-        )}
+      {/* FILTER BAR (Conditionally Rendered) */}
+      {(activeTab === 'customer' || activeTab === 'employee') && (
+        <div className="card" style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', alignItems: 'flex-end' }}>
+          
+          {activeTab === 'customer' && (
+            <div className="form-group" style={{ marginBottom: 0, flex: '1 1 200px' }}>
+              <label className="form-label">Customer Type</label>
+              <select className="form-input" value={selectedType} onChange={(e) => setSelectedType(e.target.value)}>
+                <option value="">All Types</option>
+                {customerTypes.map(t => <option key={t._id} value={t._id}>{t.name}</option>)}
+              </select>
+            </div>
+          )}
 
-        {activeTab === 'employee' && (
-          <div style={styles.filterGroup}>
-            <label style={styles.filterLabel}>Designation</label>
-            <select style={styles.filterInput} value={selectedType} onChange={(e) => setSelectedType(e.target.value)}>
-              <option value="">All Designations</option>
-              {designations.map(d => <option key={d._id} value={d._id}>{d.designation || d.name}</option>)}
-            </select>
-          </div>
-        )}
+          {activeTab === 'employee' && (
+            <div className="form-group" style={{ marginBottom: 0, flex: '1 1 200px' }}>
+              <label className="form-label">Designation</label>
+              <select className="form-input" value={selectedType} onChange={(e) => setSelectedType(e.target.value)}>
+                <option value="">All Designations</option>
+                {designations.map(d => <option key={d._id} value={d._id}>{d.designation || d.name}</option>)}
+              </select>
+            </div>
+          )}
 
-       
-
-        <div style={{ marginLeft: 'auto', fontSize: '13px', color: '#64748b', fontWeight: 400 }}>
-          Showing {currentRows.length} of {filtered.length} record(s)
+          <button className="btn btn-secondary" onClick={clearFilters}>Clear Filters</button>
         </div>
-      </div>
+      )}
 
-      {/* ==================== TABLE ==================== */}
-      <div style={styles.tableWrapper}>
-        <table style={styles.table}>
-          <thead>
-            <tr>
-              {columns.map((c, i) => (
-                <th key={i} style={{ ...styles.th, textAlign: i === 0 ? 'center' : 'left' }}>{c}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <tr><td colSpan={columns.length} style={styles.emptyCell}>Loading...</td></tr>
-            ) : currentRows.length === 0 ? (
-              <tr><td colSpan={columns.length} style={styles.emptyCell}>No records found matching your filters.</td></tr>
-            ) : (
-              currentRows.map((item, idx) => {
-                const serialNumber = (currentPage - 1) * itemsPerPage + idx + 1;
-                const row = getRow(item, idx);
-                row[0] = serialNumber;
-                return (
-                  <tr key={item._id || idx} style={idx % 2 === 1 ? styles.altRow : null}>
-                    {row.map((cell, colIdx) => {
-                      let cellStyle = { ...styles.td, textAlign: colIdx === 0 || colIdx === 1 ? 'center' : 'left' };
-                      if (colIdx === 2) cellStyle = { ...cellStyle, fontWeight: 600 };
-                      return <td key={colIdx} style={cellStyle}>{cell}</td>;
-                    })}
-                  </tr>
-                );
-              })
-            )}
-          </tbody>
-        </table>
-      </div>
-
-      {/* ==================== PAGINATION ==================== */}
-      
-        <div style={{ marginTop: '20px', display: 'flex', gap: '15px', justifyContent: 'center', alignItems: 'center', paddingBottom: '20px' }}>
-          <button
-            disabled={currentPage <= 1}
-            onClick={() => setCurrentPage(prev => prev - 1)}
-            style={{
-              padding: '8px 16px',
-              backgroundColor: currentPage <= 1 ? '#e9ecef' : '#3c4e6b',
-              color: currentPage <= 1 ? '#6c757d' : 'white',
-              border: 'none', borderRadius: '4px',
-              cursor: currentPage <= 1 ? 'not-allowed' : 'pointer', fontWeight: '600'
-            }}
-          >
-            ←
-          </button>
-          <span style={{ fontSize: '13px', fontWeight: '600', color: '#475569' }}>
-            Page {currentPage} of {totalPages || 1}
+      {/* DATA TABLE */}
+      <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+        <div style={{ padding: '16px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'flex-end' }}>
+          <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
+            Showing {currentRows.length} of {filtered.length} record(s)
           </span>
-          <button
-            disabled={currentPage >= totalPages || totalPages === 0}
-            onClick={() => setCurrentPage(prev => prev + 1)}
-            style={{
-              padding: '8px 16px',
-              backgroundColor: (currentPage >= totalPages || totalPages === 0) ? '#e9ecef' : '#3c4e6b',
-              color: (currentPage >= totalPages || totalPages === 0) ? '#6c757d' : 'white',
-              border: 'none', borderRadius: '4px',
-              cursor: (currentPage >= totalPages || totalPages === 0) ? 'not-allowed' : 'pointer', fontWeight: '600'
-            }}
-          >
-            →
-          </button>
         </div>
-       
+
+        <div style={{ overflowX: 'auto', width: '100%' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '800px' }}>
+            <thead>
+              <tr style={{ backgroundColor: 'var(--header)' }}>
+                {columns.map((c, i) => (
+                  <th key={i} style={{ padding: '12px 16px', color: 'white', textAlign: i === 0 ? 'center' : 'left', fontSize: '13px', fontWeight: '600', width: i === 0 ? '60px' : 'auto' }}>
+                    {c}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr><td colSpan={columns.length} style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '14px' }}>Loading reports...</td></tr>
+              ) : currentRows.length === 0 ? (
+                <tr><td colSpan={columns.length} style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '14px' }}>No records found matching your filters.</td></tr>
+              ) : (
+                currentRows.map((item, idx) => {
+                  const serialNumber = indexOfFirstItem + idx + 1;
+                  const row = getRow(item, idx);
+                  row[0] = serialNumber;
+
+                  return (
+                    <tr 
+                      key={item._id || idx} 
+                      style={{ borderBottom: '1px solid var(--border-color)', transition: 'background-color 0.2s' }}
+                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--bg-app)'}
+                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                    >
+                      {row.map((cell, colIdx) => (
+                        <td 
+                          key={colIdx} 
+                          style={{ 
+                            padding: '10px 16px', 
+                            fontSize: '13px', 
+                            color: colIdx === 2 || colIdx === 3 ? 'var(--text-main)' : 'var(--text-muted)',
+                            fontWeight: colIdx === 2 ? '500' : '400',
+                            textAlign: colIdx === 0 ? 'center' : 'left'
+                          }}
+                        >
+                          {cell}
+                        </td>
+                      ))}
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {/* PAGINATION */}
+        {filtered.length > itemsPerPage && (
+          <div style={{ display: 'flex', gap: '15px', justifyContent: 'center', alignItems: 'center', padding: '16px' }}>
+            <button className="btn btn-secondary" disabled={currentPage === 1} onClick={() => setCurrentPage(prev => prev - 1)} style={{ padding: '6px 12px' }}>
+              ←
+            </button>
+            <span style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-muted)' }}>Page {currentPage} of {totalPages || 1}</span>
+            <button className="btn btn-secondary" disabled={currentPage >= totalPages || totalPages === 0} onClick={() => setCurrentPage(prev => prev + 1)} style={{ padding: '6px 12px' }}>
+              →
+            </button>
+          </div>
+        )}
+      </div>
+
     </div>
   );
 }
-
-const styles = {
-  page: { padding: '24px 16px', width: '100%', boxSizing: 'border-box', background: '#f8fafc', minHeight: '100vh', marginBottom: '60px' },
-  headerRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', flexWrap: 'wrap', gap: '10px' },
-  actionBtn: { color: '#fff', border: 'none', padding: '9px 16px', borderRadius: '8px', cursor: 'pointer', fontWeight: 600, fontSize: '13px' },
-
-  tabContainer: { display: 'flex', gap: '10px', flexWrap: 'wrap', width: '100%', alignItems: 'center' },
-  tab: { padding: '10px 18px', borderRadius: '6px', border: '1px solid #cbd5e1', backgroundColor: '#fff', color: '#475569', fontWeight: 600, cursor: 'pointer', fontSize: '13px', transition: 'all 0.2s ease-in-out' },
-  activeTab: { padding: '10px 18px', borderRadius: '6px', border: '1px solid #3c4e6b', backgroundColor: '#3c4e6b', color: '#fff', fontWeight: 600, cursor: 'pointer', fontSize: '13px', transition: 'all 0.2s ease-in-out' },
-
-  filterRow: { marginTop: '10px', display: 'flex', gap: '16px', alignItems: 'flex-end', flexWrap: 'wrap' },
-  filterGroup: { display: 'flex', flexDirection: 'column', minWidth: '180px', maxWidth: '220px' },
-  filterLabel: { fontSize: '11px', fontWeight: 500, color: '#475569', textAlign: 'left' },
-  filterInput: { color: '#343a42', padding: '6.4px 12px', borderRadius: '4px', border: '1px solid #cbd5e1', fontSize: '14px', backgroundColor: '#fff', outline: 'none', width: '100%', boxSizing: 'border-box' },
-  clearFilterBtn: { padding: '10px 18px', background: '#6c757d', color: '#f9f9f9', border: '1px solid #cfcece', borderRadius: '8px', cursor: 'pointer', fontWeight: 600, fontSize: '13px', whiteSpace: 'nowrap' },
-
-  tableWrapper: { marginTop: '20px', background: '#fff', borderRadius: '8px', border: '1px solid #cbd5e1', overflowX: 'auto', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', width: '100%' },
-  table: { width: '100%', borderCollapse: 'collapse', tableLayout: 'auto' },
-  th: { padding: '10px 12px', background: '#3c4e6b', fontSize: '11px', color: '#fefefe', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', borderBottom: '2px solid #94a3b8', borderRight: '1px solid #44576e', whiteSpace: 'nowrap' },
-  td: { padding: '9px 12px', fontSize: '13px', borderBottom: '1px solid #e2e8f0', borderRight: '1px solid #e2e8f0', color: '#334155', whiteSpace: 'nowrap' },
-  altRow: { backgroundColor: '#f8fafc' },
-  emptyCell: { textAlign: 'center', padding: '40px 0', color: '#94a3b8', fontSize: '14px' },
-};
 
 export default PeopleReport;

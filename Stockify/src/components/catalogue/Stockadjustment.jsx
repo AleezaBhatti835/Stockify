@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { usePrintSettings } from '../../context/PrintSettingsContext';
-import '../roles.css';
 
 const REASONS = ['Damaged', 'Lost / Stolen', 'Expired', 'Found / Recount', 'Correction', 'Other'];
 
@@ -10,7 +9,7 @@ const getPaperConfig = (paperSize) => {
       return {
         maxWidth: '360px',
         bodyPadding: '18px',
-        fontSize: '15px',
+        fontSize: '14px',
         mono: true,
         narrow: true,
         printCss: `@page { size: 58mm auto; margin: 4mm; }`
@@ -18,19 +17,18 @@ const getPaperConfig = (paperSize) => {
     case 'A5':
       return {
         maxWidth: '540px',
-        bodyPadding: '28px',
-        fontSize: '16px',
+        bodyPadding: '24px',
+        fontSize: '15px',
         mono: false,
         narrow: false,
         printCss: `@page { size: A5; margin: 12mm; }`
       };
-
     case 'A4':
     default:
       return {
-        maxWidth: '900px',
-        bodyPadding: '36px',
-        fontSize: '18px',
+        maxWidth: '760px',
+        bodyPadding: '30px',
+        fontSize: '15px',
         mono: false,
         narrow: false,
         printCss: `@page { size: A4; margin: 20mm; }`
@@ -45,7 +43,6 @@ const StockAdjustment = () => {
   const [historyLoading, setHistoryLoading] = useState(false);
   const [viewModalData, setViewModalData] = useState(null);
 
-  // VIEW MODE STATE (Abstract vs Product)
   const [viewMode, setViewMode] = useState('summary'); 
 
   const [activeTab, setActiveTab] = useState('Increase');
@@ -97,6 +94,7 @@ const StockAdjustment = () => {
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
+    // eslint-disable-next-line
   }, []);
 
   useEffect(() => {
@@ -148,6 +146,7 @@ const StockAdjustment = () => {
 
     window.addEventListener('keydown', handleGlobalKeyDown);
     return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+    // eslint-disable-next-line
   }, [viewModalData, isDropdownOpen, showFormView, pendingItems]);
 
   useEffect(() => {
@@ -165,12 +164,16 @@ const StockAdjustment = () => {
     }
 
     setFilteredHistory(filtered);
-    setCurrentPage(1); // Reset page when filters OR viewMode change
+    setCurrentPage(1); 
   }, [filterStartDate, filterEndDate, adjustments, viewMode]);
 
+  // CORE ARCHITECTURE: Centralized data retrieval for stock adjustment dependencies.
   const fetchProducts = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/products');
+      const token = localStorage.getItem('token');
+      const res = await fetch('http://localhost:5000/api/products', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
       const data = await res.json();
       setProducts(data);
       setFilteredProducts(data);
@@ -182,10 +185,14 @@ const StockAdjustment = () => {
   const fetchAdjustments = async () => {
     try {
       setHistoryLoading(true);
-      const res = await fetch('http://localhost:5000/api/stock-adjustment', { cache: 'no-store' });
+      const token = localStorage.getItem('token');
+      const res = await fetch('http://localhost:5000/api/stock-adjustment', {
+        cache: 'no-store',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
       const data = await res.json();
       const sortedData = (Array.isArray(data) ? data : []).sort((a, b) => {
-        return new Date(a.createdAt) - new Date(b.createdAt);
+        return new Date(b.createdAt) - new Date(a.createdAt); // Sorted newest first
       });
       setAdjustments(sortedData);
     } catch (error) {
@@ -305,9 +312,13 @@ const StockAdjustment = () => {
     setErrorMsg('');
 
     try {
+      const token = localStorage.getItem('token');
       const res = await fetch('http://localhost:5000/api/stock-adjustment/batch', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({ adjustments: pendingItems })
       });
       const result = await res.json();
@@ -336,6 +347,7 @@ const StockAdjustment = () => {
     setFilterEndDate(todayDateStr);
   };
 
+  // UI ENGINE: Advanced printing mechanism isolating receipt contents in a specialized iframe to prevent CSS bleeding.
   const handlePrint = () => {
     const paperConfig = getPaperConfig(printSettings?.paperSize);
     const contentEl = document.getElementById('receipt-content');
@@ -376,6 +388,11 @@ const StockAdjustment = () => {
                         color: #000;
                         ${paperConfig.mono ? 'width: 58mm;' : ''}
                     }
+                    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+                    th { text-align: left; padding: 8px; border-bottom: 2px solid #000; font-size: 13px; text-transform: uppercase; }
+                    td { padding: 8px; border-bottom: 1px solid #ccc; font-size: 14px; }
+                    .text-success { color: #10b981; font-weight: bold; }
+                    .text-danger { color: #ef4444; font-weight: bold; }
                 </style>
             </head>
             <body>${contentEl.innerHTML}</body>
@@ -396,27 +413,22 @@ const StockAdjustment = () => {
     const invoiceItems = viewModalData.items;
 
     return (
-      <div style={styles.receiptOverlay} onClick={() => setViewModalData(null)}>
-        <div style={{ ...styles.receiptContainer, maxWidth: paperConfig.maxWidth }} onClick={(e) => e.stopPropagation()}>
-          <div style={{ ...styles.receiptHeader, flexDirection: paperConfig.narrow ? 'column' : 'row', gap: paperConfig.narrow ? '10px' : '0' }}>
-            <h3 style={{ margin: 0, color: '#000' }}>CAPOBIZ</h3>
-            <div style={{ ...styles.receiptActions, width: paperConfig.narrow ? '100%' : 'auto' }}>
-              <button className="receipt-print-btn" style={{ ...styles.printReceiptBtn, ...(paperConfig.narrow ? { flex: 1 } : {}) }} onClick={handlePrint}>
-                🖨️ Print
-              </button>
-              <button className="receipt-close-btn" style={{ ...styles.closeReceiptBtn, ...(paperConfig.narrow ? { flex: 1 } : {}) }} onClick={() => setViewModalData(null)}>
-                ✕ Close
-              </button>
-            </div>
+      <div className="modal-overlay" onClick={() => setViewModalData(null)}>
+        <div className="modal-container" style={{ width:'900px', padding: 0, display: 'flex', flexDirection: 'column', maxHeight: '90vh' }} onClick={(e) => e.stopPropagation()}>
+          
+          <div className="modal-header" style={{ backgroundColor: 'var(--bg-app)' }}>
+            <h3 style={{ margin: 0, color: 'var(--text-main)' }}>CAPOBIZ</h3>
+            <button className="modal-close" onClick={() => setViewModalData(null)}>×</button>
           </div>
 
-          <div style={{ ...styles.receiptBody, padding: paperConfig.bodyPadding, fontSize: paperConfig.fontSize, fontFamily: paperConfig.mono ? "'Courier New', monospace" : 'inherit' }} id="receipt-content">
-            <div style={styles.receiptHeaderInfo}>
-              <h4 style={{ margin: '4px 0', color: '#333' }}>STOCK ADJUSTMENT</h4>
-              <p style={{ margin: '4px 0', color: '#333' }}>Invoice #: {viewModalData.invoiceNumber || 'N/A'}</p>
-              <p style={{ margin: '4px 0', color: '#333' }}>Date: {formatDate(viewModalData.createdAt)}</p>
+          <div className="modal-body" style={{ padding: paperConfig.bodyPadding, overflowY: 'auto' }} id="receipt-content">
+            <div style={{ textAlign: 'center', marginBottom: '20px' }}>
+              <h4 style={{ margin: '0 0 8px 0', fontSize: '18px', textDecoration: 'underline' }}>STOCK ADJUSTMENT</h4>
+              <p style={{ margin: '4px 0', fontSize: '14px' }}>Invoice #: <strong>{viewModalData.invoiceNumber || 'N/A'}</strong></p>
+              <p style={{ margin: '4px 0', fontSize: '14px' }}>Date: <strong>{formatDate(viewModalData.createdAt)}</strong></p>
             </div>
-            <div style={styles.receiptDivider}></div>
+            
+            <div style={{ borderTop: '2px dashed var(--border-color)', margin: '16px 0' }}></div>
 
             {paperConfig.mono ? (
               <div>
@@ -424,7 +436,7 @@ const StockAdjustment = () => {
                   <div key={idx} style={styles.thermalItemRow}>
                     <div style={styles.thermalItemLine1}>
                       <span>{item.product?.name || item.productName || 'Unknown Product'}</span>
-                      <span style={{ color: item.adjustmentType === 'Increase' ? '#28a745' : '#dc3545' }}>
+                      <span style={{ color: item.adjustmentType === 'Increase' ? 'var(--success)' : 'var(--danger)' }}>
                         {item.adjustmentType === 'Increase' ? '+' : '-'}{item.quantity}
                       </span>
                     </div>
@@ -436,24 +448,24 @@ const StockAdjustment = () => {
                 ))}
               </div>
             ) : (
-              <table style={styles.receiptTable}>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
                   <tr>
-                    <th style={{ ...styles.receiptTh, width: '30%' }}>Product Name</th>
-                    <th style={{ ...styles.receiptTh, textAlign: 'left', width: '25%' }}>Reason</th>
-                    <th style={{ ...styles.receiptTh, textAlign: 'left', width: '20%' }}>Qty</th>
-                    <th style={{ ...styles.receiptTh, textAlign: 'left', width: '25%' }}>Stock Shift</th>
+                    <th style={{ textAlign: 'left',color:'#fff', padding: '10px', backgroundColor: 'var(--header)', borderBottom: '2px solid var(--border-color)', fontSize: '13px' }}>Product Name</th>
+                    <th style={{ textAlign: 'left',color:'#fff', padding: '10px', backgroundColor: 'var(--header)', borderBottom: '2px solid var(--border-color)', fontSize: '13px' }}>Reason</th>
+                    <th style={{ textAlign: 'left',color:'#fff', padding: '10px', backgroundColor: 'var(--header)', borderBottom: '2px solid var(--border-color)', fontSize: '13px' }}>Qty</th>
+                    <th style={{ textAlign: 'center',color:'#fff', padding: '10px', backgroundColor: 'var(--header)', borderBottom: '2px solid var(--border-color)', fontSize: '13px' }}>Stock Shift</th>
                   </tr>
                 </thead>
                 <tbody>
                   {invoiceItems.map((item, idx) => (
                     <tr key={idx}>
-                      <td style={styles.receiptTdName}>{item.product?.name || item.productName || 'Unknown Product'}</td>
-                      <td style={{ ...styles.receiptTd, textAlign: 'left' }}>{item.reason}</td>
-                      <td style={{ ...styles.receiptTd, textAlign: 'left', fontWeight: 'bold', color: item.adjustmentType === 'Increase' ? '#28a745' : '#dc3545' }}>
+                      <td style={{ padding: '10px', borderBottom: '1px solid var(--border-color)', fontSize: '14px' }}>{item.product?.name || item.productName || 'Unknown Product'}</td>
+                      <td style={{ padding: '10px', borderBottom: '1px solid var(--border-color)', fontSize: '14px' }}>{item.reason}</td>
+                      <td style={{ padding: '10px', borderBottom: '1px solid var(--border-color)', fontSize: '14px', fontWeight: 'bold', color: item.adjustmentType === 'Increase' ? 'var(--success)' : 'var(--danger)' }}>
                         {item.adjustmentType === 'Increase' ? '+' : '-'}{item.quantity}
                       </td>
-                      <td style={{ ...styles.receiptTd, textAlign: 'left' }}>
+                      <td style={{ padding: '10px', textAlign: 'center',borderBottom: '1px solid var(--border-color)', fontSize: '14px' }}>
                         {item.previousQuantity} → {item.newQuantity}
                       </td>
                     </tr>
@@ -461,13 +473,22 @@ const StockAdjustment = () => {
                 </tbody>
               </table>
             )}
+            
+            <div style={{ borderTop: '2px dashed var(--border-color)', margin: '30px 0 16px 0' }}></div>
+            <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>
+              <p>System Generated Receipt</p>
+            </div>
+          </div>
+
+          <div className="modal-footer" style={{ borderTop: '1px solid var(--border-color)', backgroundColor: 'var(--bg-surface)' }}>
+            <button className="btn btn-secondary" onClick={() => setViewModalData(null)}>Close</button>
+            <button className="btn btn-primary" onClick={handlePrint}>🖨️ Print</button>
           </div>
         </div>
       </div>
     );
   };
 
-  // Group raw adjustments by invoiceNumber for Abstract View
   const groupedHistory = React.useMemo(() => {
     const map = {};
     filteredHistory.forEach(adj => {
@@ -497,7 +518,7 @@ const StockAdjustment = () => {
         map[inv].productNames.push(pName);
       }
     });
-    return Object.values(map).sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+    return Object.values(map).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
   }, [filteredHistory]);
 
   const listToPaginate = viewMode === 'summary' ? groupedHistory : filteredHistory;
@@ -507,8 +528,6 @@ const StockAdjustment = () => {
   const currentItems = listToPaginate.slice(indexOfFirstItem, indexOfLastItem);
   const totalPages = Math.ceil(listToPaginate.length / itemsPerPage);
 
-  const accentColor = activeTab === 'Increase' ? '#28a745' : '#dc3545';
-
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleDateString('en-US', {
       month: 'short', day: 'numeric', year: 'numeric'
@@ -516,13 +535,13 @@ const StockAdjustment = () => {
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', position: 'relative' }}>
+    <div className="dashboard-wrapper">
 
       {showSuccessPopup && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
-          <div style={{ background: 'white', padding: '40px', borderRadius: '8px', textAlign: 'center', boxShadow: '0 4px 15px rgba(0,0,0,0.2)' }}>
-            <h2 style={{ color: '#28a745', margin: '0 0 10px 0' }}>✓ Success!</h2>
-            <p style={{ margin: 0, color: '#555', fontSize: '16px' }}>Stock adjustments saved successfully.</p>
+        <div className="modal-overlay">
+          <div className="modal-container" style={{ padding: 'var(--space-xl)', textAlign: 'center' }}>
+            <h2 style={{ color: 'var(--success)', margin: '0 0 var(--space-md) 0' }}>✓ Success!</h2>
+            <p style={{ margin: 0, color: 'var(--text-main)', fontSize: '16px' }}>Stock adjustments saved successfully.</p>
           </div>
         </div>
       )}
@@ -530,185 +549,175 @@ const StockAdjustment = () => {
       {viewModalData && renderReceipt()}
 
       {!showFormView ? (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', textAlign: 'left' }}>
-          <div className="panel" style={{ padding: '25px', borderRadius: '8px', backgroundColor: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
-            
-            <div style={{  textAlign: 'left', display: 'flex', flexWrap: 'wrap', gap: '15px', alignItems: 'flex-end', backgroundColor: 'transparent' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-md)' }}>
+          
+          {/* Filters Bar */}
+          <div className="card">
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-md)', alignItems: 'flex-end' }}>
               
-              {/* VIEW MODE RADIO BUTTONS */}
-              <div style={{ width: 'auto' }}>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: '500', color: '#555' }}>View Mode</label>
-                <div style={{ display: 'flex', gap: '12px', alignItems: 'center', padding: '9px 12px', border: '1px solid #ced4da', borderRadius: '4px', backgroundColor: '#fff', boxSizing: 'border-box', height: '39px' }}>
-                  <label style={{ fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', color: '#475569', fontWeight: 500 }}>
-                    <input 
-                      type="radio" 
-                      name="viewMode" 
-                      value="summary" 
-                      checked={viewMode === 'summary'} 
-                      onChange={(e) => setViewMode(e.target.value)} 
-                    />
+              <div className="form-group" style={{ marginBottom: 0,width:'24%' }}>
+                <label className="form-label">View Mode</label>
+                <div style={{ 
+                  display: 'flex', gap: 'var(--space-md)', alignItems: 'center', 
+                  padding: '7px 12px', border: '1px solid var(--border-color)', 
+                  borderRadius: 'var(--radius-sm)', backgroundColor: 'var(--bg-surface)', 
+                  height: '38px', boxSizing: 'border-box' 
+                }}>
+                  <label style={{ fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', color: 'var(--text-main)', fontWeight: 500 }}>
+                    <input type="radio" name="viewMode" value="summary" checked={viewMode === 'summary'} onChange={(e) => setViewMode(e.target.value)} />
                     Abstract
                   </label>
-                  <label style={{ fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', color: '#475569', fontWeight: 500 }}>
-                    <input 
-                      type="radio" 
-                      name="viewMode" 
-                      value="detailed" 
-                      checked={viewMode === 'detailed'} 
-                      onChange={(e) => setViewMode(e.target.value)} 
-                    />
+                  <label style={{ fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', color: 'var(--text-main)', fontWeight: 500 }}>
+                    <input type="radio" name="viewMode" value="detailed" checked={viewMode === 'detailed'} onChange={(e) => setViewMode(e.target.value)} />
                     Product
                   </label>
                 </div>
               </div>
 
-              <div style={{ width: '20%' }}>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: '500', color: '#555' }}>Start Date</label>
+              <div className="form-group" style={{ marginBottom: 0, minWidth: '200px' }}>
+                <label className="form-label">Start Date</label>
                 <input
-                  type="date" value={filterStartDate} onChange={(e) => setFilterStartDate(e.target.value)}
+                  type="date" className="form-input"
+                  value={filterStartDate} onChange={(e) => setFilterStartDate(e.target.value)}
                   max={filterEndDate || todayDateStr}
-                  style={{ width: '100%', padding: '10px',backgroundColor:'#ffffff', borderRadius: '4px', border: '1px solid #ced4da', boxSizing: 'border-box' }}
                 />
               </div>
 
-              <div style={{ width: '20%' }}>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: '500', color: '#555' }}>End Date</label>
+              <div className="form-group" style={{ marginBottom: 0, minWidth: '200px' }}>
+                <label className="form-label">End Date</label>
                 <input
-                  type="date" value={filterEndDate} onChange={(e) => setFilterEndDate(e.target.value)}
+                  type="date" className="form-input"
+                  value={filterEndDate} onChange={(e) => setFilterEndDate(e.target.value)}
                   min={filterStartDate}
                   max={todayDateStr}
-                  style={{ width: '100%', padding: '10px',backgroundColor:'#ffffff', borderRadius: '4px', border: '1px solid #ced4da', boxSizing: 'border-box' }}
                 />
               </div>
 
-              <div style={{ display: 'flex', gap: '10px' }}>
-                <button onClick={handleClearFilter} style={{ padding: '10px 20px', backgroundColor: '#6c757d', color: '#fff', border: '1px solid #cfcece', borderRadius: '4px', cursor: 'pointer', fontWeight: 600 }}>
+              <div style={{ display: 'flex', gap: 'var(--space-sm)'}}>
+                <button className="btn btn-secondary" onClick={handleClearFilter}>
                   Reset to Today
                 </button>
-                <button
-                  onClick={() => setShowFormView(!showFormView)}
-                  style={{ padding: '10px 20px', backgroundColor: '#5aa7ef', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
-                >
+                <button className="btn btn-primary" onClick={() => setShowFormView(!showFormView)}>
                   {showFormView ? '← Back to List' : '+ Add Adjustment'}
                 </button>
               </div>
             </div>
+          </div>
 
-            <div style={{ overflowX: 'auto', borderRadius: '6px', marginTop: '20px' }}>
-              <table className="roles-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
+          {/* Table Area */}
+          <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+            
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
-                  <tr style={{ backgroundColor: '#2b3a4a', color: 'white', textAlign: 'left', textTransform: 'uppercase', fontSize: '12px' }}>
-                    <th style={{ padding: '7px', width: '7%' }}>Sr#</th>
-                    <th style={{ padding: '7px', width: '15%' }}>Date</th>
-                    <th style={{ padding: '7px', width: '15%' }}>Invoice#</th>
-                    
+                  <tr>
+                    <th style={tableStyles.th}>Sr#</th>
+                    <th style={tableStyles.th}>Date</th>
+                    <th style={tableStyles.th}>Invoice#</th>
                     {viewMode === 'summary' ? (
-                      <th style={{ padding: '7px', width: '12%',textAlign:'center' }}>Summary</th>
+                      <th style={{ ...tableStyles.th, textAlign: 'center' }}>Summary</th>
                     ) : (
                       <>
-                        <th style={{ padding: '7px', width: '10%' }}>Product</th>
-                        <th style={{ padding: '7px', width: '20%' }}>Type</th>
-                        <th style={{ padding: '7px', width: '10%' }}>Qty</th>
+                        <th style={tableStyles.th}>Product</th>
+                        <th style={tableStyles.th}>Type</th>
+                        <th style={tableStyles.th}>Qty</th>
                       </>
                     )}
-                    
-                    <th style={{ padding: '15px', textAlign: 'center', width: '15%' }}>Action</th>
+                    <th style={{ ...tableStyles.th, textAlign: 'center' }}>Action</th>
                   </tr>
                 </thead>
                 <tbody>
                   {historyLoading ? (
-                    <tr><td colSpan={viewMode === 'summary' ? 5 : 7} style={{ padding: '30px', textAlign: 'center' }}>Loading...</td></tr>
+                    <tr><td colSpan={viewMode === 'summary' ? 5 : 7} style={tableStyles.emptyCell}>Loading...</td></tr>
                   ) : listToPaginate.length === 0 ? (
-                    <tr><td colSpan={viewMode === 'summary' ? 5 : 7} style={{ padding: '40px', textAlign: 'center', color: '#777' }}>No records found for the selected date range.</td></tr>
+                    <tr><td colSpan={viewMode === 'summary' ? 5 : 7} style={tableStyles.emptyCell}>No records found for the selected date range.</td></tr>
                   ) : currentItems.map((item, index) => {
                     const srNum = indexOfFirstItem + index + 1;
                     
                     if (viewMode === 'summary') {
-                      // RENDERING ABSTRACT (GROUP) ROW
                       const group = item;
                       return (
-                        <tr key={group.invoiceNumber} style={{ borderBottom: '1px solid #eaeaea' }}>
-                          <td style={{ padding: '7px' }}>{srNum}</td>
-                          <td style={{ padding: '7px', color: '#555' }}>{formatDate(group.createdAt)}</td>
-                          <td style={{ padding: '7px', fontWeight: 'bold' }}>{group.invoiceNumber}</td>
-                          
-                          <td style={{ padding: '7px',textAlign:'center',marginLeft:'30%' }}>
-                            <div style={{ display: 'flex',textAlign:'center' , flexDirection: 'column', gap: '6px' }}>
-                              <div style={{ display: 'flex',textAlign:'center' , alignItems: 'center', gap: '10px' }}>
-                                <span style={{ fontWeight: '500',textAlign:'center' , color: '#2b3a4a', fontSize: '13px' }}>
+                        <tr key={group.invoiceNumber} style={{ borderBottom: '1px solid var(--border-color)', transition: 'background-color 0.2s' }} onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--bg-app)'} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}>
+                          <td style={tableStyles.td}>{srNum}</td>
+                          <td style={{ ...tableStyles.td, color: 'var(--text-muted)' }}>{formatDate(group.createdAt)}</td>
+                          <td style={{ ...tableStyles.td, fontWeight: 700 }}>{group.invoiceNumber}</td>
+                          <td style={{ ...tableStyles.td, textAlign: 'center' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                <span style={{ fontWeight: 600, color: 'var(--text-main)', fontSize: '13px' }}>
                                   {group.itemCount} Item{group.itemCount !== 1 ? 's' : ''}
                                 </span>
-                                <div style={{ display: 'flex', gap: '6px',textAlign:'center'  }}>
+                                <div style={{ display: 'flex', gap: '6px' }}>
                                   {group.increaseTotal > 0 && (
-                                    <span style={{ backgroundColor: '#eaf7f3',textAlign:'center' , color: '#205a4e', border: '1px solid #c8e6c9', padding: '2px 8px', borderRadius: '12px', fontSize: '11px', fontWeight: 'bold', display: 'flex', alignItems: 'center' }}>
+                                    <span style={{ backgroundColor: 'var(--success-bg)', color: 'var(--success)', border: '1px solid var(--success)', padding: '2px 8px', borderRadius: '12px', fontSize: '11px', fontWeight: 'bold', display: 'flex', alignItems: 'center' }}>
                                       <span style={{ fontSize: '12px', marginRight: '3px' }}>↑</span> {group.increaseTotal}
                                     </span>
                                   )}
                                   {group.decreaseTotal > 0 && (
-                                    <span style={{ backgroundColor: '#fff5f5',textAlign:'center' , color: '#dc3545', border: '1px solid #f5c6cb', padding: '2px 8px', borderRadius: '12px', fontSize: '11px', fontWeight: 'bold', display: 'flex', alignItems: 'center' }}>
+                                    <span style={{ backgroundColor: 'var(--danger-bg)', color: 'var(--danger)', border: '1px solid var(--danger)', padding: '2px 8px', borderRadius: '12px', fontSize: '11px', fontWeight: 'bold', display: 'flex', alignItems: 'center' }}>
                                       <span style={{ fontSize: '12px', marginRight: '3px' }}>↓</span> {group.decreaseTotal}
                                     </span>
                                   )}
                                 </div>
                               </div>
-                              
                             </div>
                           </td>
-
-                          <td style={{ padding: '7px', textAlign: 'right' }}>
-                            <button onClick={() => setViewModalData(group)} style={styles.iconBtnView} title="View Details">
-                              <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
-                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                                <circle cx="12" cy="12" r="3"></circle>
-                              </svg>
-                            </button>
+                          <td style={{ ...tableStyles.td, textAlign: 'center' }}>
+                            <div style={{ display: 'flex', justifyContent: 'center' }}>
+                              <button onClick={() => setViewModalData(group)} style={styles.iconBtnView} title="View Details">
+                                <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+                                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                  <circle cx="12" cy="12" r="3"></circle>
+                                </svg>
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       );
                     } else {
-                      // RENDERING DETAILED (PRODUCT) ROW
                       const adj = item;
                       const isIncrease = adj.adjustmentType === 'Increase';
                       return (
-                        <tr key={adj._id} style={{ borderBottom: '1px solid #eaeaea' }}>
-                          <td style={{ padding: '7px' }}>{srNum}</td>
-                          <td style={{ padding: '7px', color: '#555' }}>{formatDate(adj.createdAt)}</td>
-                          <td style={{ padding: '7px', fontWeight: 'bold' }}>{adj.invoiceNumber || 'N/A'}</td>
-                          <td style={{ padding: '7px', color: '#2b3a4a', fontWeight: '500' }}>
+                        <tr key={adj._id} style={{ borderBottom: '1px solid var(--border-color)', transition: 'background-color 0.2s' }} onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--bg-app)'} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}>
+                          <td style={tableStyles.td}>{srNum}</td>
+                          <td style={{ ...tableStyles.td, color: 'var(--text-muted)' }}>{formatDate(adj.createdAt)}</td>
+                          <td style={{ ...tableStyles.td, fontWeight: 700 }}>{adj.invoiceNumber || 'N/A'}</td>
+                          <td style={{ ...tableStyles.td, fontWeight: 500 }}>
                             {adj.product?.name || adj.productName || 'Unknown'}
                           </td>
-                          <td style={{ padding: '7px' }}>
+                          <td style={tableStyles.td}>
                             <span style={{ 
-                              backgroundColor: isIncrease ? '#eaf7f3' : '#fff5f5', 
-                              color: isIncrease ? '#205a4e' : '#dc3545', 
-                              border: isIncrease ? '1px solid #c8e6c9' : '1px solid #f5c6cb', 
+                              backgroundColor: isIncrease ? 'var(--success-bg)' : 'var(--danger-bg)', 
+                              color: isIncrease ? 'var(--success)' : 'var(--danger)', 
+                              border: `1px solid ${isIncrease ? 'var(--success)' : 'var(--danger)'}`, 
                               padding: '2px 8px', borderRadius: '12px', fontSize: '11px', fontWeight: 'bold' 
                             }}>
                               {adj.adjustmentType}
                             </span>
                           </td>
-                          <td style={{ padding: '7px', fontWeight: 'bold', color: isIncrease ? '#28a745' : '#dc3545' }}>
+                          <td style={{ ...tableStyles.td, fontWeight: 700, color: isIncrease ? 'var(--success)' : 'var(--danger)' }}>
                             {isIncrease ? '+' : '-'}{adj.quantity}
                           </td>
-                          <td style={{ padding: '7px', textAlign: 'center',marginLeft:'30%' }}>
-                            <button 
-                              onClick={() => {
-                                // Find the group to show full invoice in detailed view
-                                const group = groupedHistory.find(g => g.invoiceNumber === adj.invoiceNumber);
-                                setViewModalData({
-                                  invoiceNumber: adj.invoiceNumber,
-                                  createdAt: adj.createdAt,
-                                  isSingleItemView: true, 
-                                  items: [adj]
-                                });
-                              }} 
-                              style={styles.iconBtnView} title="View Invoice"
-                            >
-                              <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
-                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                                <circle cx="12" cy="12" r="3"></circle>
-                              </svg>
-                            </button>
+                          <td style={{ ...tableStyles.td, textAlign: 'center' }}>
+                            <div style={{ display: 'flex', justifyContent: 'center' }}>
+                              <button 
+                                onClick={() => {
+                                  const group = groupedHistory.find(g => g.invoiceNumber === adj.invoiceNumber);
+                                  setViewModalData({
+                                    invoiceNumber: adj.invoiceNumber,
+                                    createdAt: adj.createdAt,
+                                    isSingleItemView: true, 
+                                    items: [adj]
+                                  });
+                                }} 
+                                style={styles.iconBtnView} title="View Invoice"
+                              >
+                                <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+                                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                  <circle cx="12" cy="12" r="3"></circle>
+                                </svg>
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       );
@@ -719,37 +728,52 @@ const StockAdjustment = () => {
             </div>
 
             {listToPaginate.length > itemsPerPage && (
-              <div style={{ marginTop: '20px', display: 'flex', gap: '15px', justifyContent: 'center', alignItems: 'center' }}>
-                <button disabled={currentPage === 1} onClick={() => setCurrentPage(prev => prev - 1)} style={{ padding: '8px 16px', backgroundColor: currentPage === 1 ? '#e9ecef' : '#5aa7ef', color: currentPage === 1 ? '#6c757d' : 'white', border: 'none', borderRadius: '4px', cursor: currentPage === 1 ? 'not-allowed' : 'pointer', fontWeight: '500' }}>←</button>
-                <span style={{ fontSize: '12px', fontWeight: '400', color: '#868484' }}>Page {currentPage} of {totalPages || 1}</span>
-                <button disabled={currentPage >= totalPages} onClick={() => setCurrentPage(prev => prev + 1)} style={{ padding: '8px 16px', backgroundColor: currentPage >= totalPages ? '#e9ecef' : '#5aa7ef', color: currentPage >= totalPages ? '#6c757d' : 'white', border: 'none', borderRadius: '4px', cursor: currentPage >= totalPages ? 'not-allowed' : 'pointer', fontWeight: '500' }}>→</button>
+              <div style={{ display: 'flex', gap: '15px', justifyContent: 'center', alignItems: 'center', padding: 'var(--space-md)' }}>
+                <button className="btn btn-secondary" disabled={currentPage === 1} onClick={() => setCurrentPage(prev => prev - 1)}>
+                  ←
+                </button>
+                <span style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-muted)' }}>Page {currentPage} of {totalPages || 1}</span>
+                <button className="btn btn-secondary" disabled={currentPage >= totalPages} onClick={() => setCurrentPage(prev => prev + 1)}>
+                  →
+                </button>
               </div>
             )}
           </div>
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          <div className="panel" style={{ padding: '25px', borderRadius: '8px', backgroundColor: '#fff', maxWidth: '600px', margin: '0 auto', width: '100%', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', position: 'relative' }}>
-
+        /* Form View */
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-md)' }}>
+          <div className="card" style={{ margin: '0 auto', width: '100%', position: 'relative' }}>
+            
             <button
               onClick={() => setShowFormView(false)}
-              style={{ position: 'absolute', top: '15px', right: '15px', background: 'none', border: 'none', fontSize: '18px', fontWeight: 'bold', cursor: 'pointer', color: '#6c757d' }}
+              style={{ position: 'absolute', top: 'var(--space-md)', right: 'var(--space-md)', background: 'none', border: 'none', fontSize: '18px', fontWeight: 'bold', cursor: 'pointer', color: 'var(--text-muted)' }}
               title="Close (Esc)"
             >
               ✕
             </button>
 
-            <div style={{ display: 'flex', gap: '12px', width: '70%', margin: '0 auto 20px auto' }}>
+            <div style={{ display: 'flex', gap: 'var(--space-md)', width: '30%', margin: '0 auto var(--space-lg) auto' }}>
               <button
                 onClick={() => switchTab('Increase')}
-                style={{ padding: '10px', borderRadius: '30px', border: activeTab === 'Increase' ? 'none' : '1px solid #ced4da', cursor: 'pointer', fontWeight: 700, backgroundColor: activeTab === 'Increase' ? '#2b3a4a' : '#fff', color: activeTab === 'Increase' ? '#fff' : '#2b3a4a', transition: '0.2s', flex: 1 }}
+                style={{ 
+                  flex: 1, padding: '10px', borderRadius: '30px', cursor: 'pointer', fontWeight: 600, transition: '0.2s',
+                  border: activeTab === 'Increase' ? 'none' : `1px solid var(--btn-border)`, 
+                  backgroundColor: activeTab === 'Increase' ? 'var(--primary)' : 'var(--bg-surface)', 
+                  color: activeTab === 'Increase' ? '#fff' : 'var(--text-main)' 
+                }}
                 title="Shortcut: Alt + Up Arrow"
               >
                 ▲ Increase
               </button>
               <button
                 onClick={() => switchTab('Decrease')}
-                style={{ padding: '10px', borderRadius: '30px', border: activeTab === 'Decrease' ? 'none' : '1px solid #ced4da', cursor: 'pointer', fontWeight: 700, backgroundColor: activeTab === 'Decrease' ? '#2b3a4a' : '#fff', color: activeTab === 'Decrease' ? '#fff' : '#2b3a4a', transition: '0.2s', flex: 1 }}
+                style={{ 
+                  flex: 1, padding: '10px', borderRadius: '30px', cursor: 'pointer', fontWeight: 600, transition: '0.2s',
+                  border: activeTab === 'Decrease' ? 'none' : `1px solid var(--btn-border)`, 
+                  backgroundColor: activeTab === 'Decrease' ? 'var(--primary)' : 'var(--bg-surface)', 
+                  color: activeTab === 'Decrease' ? '#fff' : 'var(--text-main)' 
+                }}
                 title="Shortcut: Alt + Down Arrow"
               >
                 ▼ Decrease
@@ -757,55 +781,57 @@ const StockAdjustment = () => {
             </div>
 
             {errorMsg && (
-              <div style={{ marginBottom: '15px', padding: '10px 15px', borderRadius: '4px', color: '#842029', backgroundColor: '#f8d7da', border: '1px solid #f5c2c7' }}>
+              <div style={{ marginBottom: 'var(--space-md)', padding: '10px 14px', borderRadius: 'var(--radius-md)', color: 'var(--danger)', backgroundColor: 'var(--danger-bg)', border: `1px solid var(--danger)`, fontSize: '13px' }}>
                 {errorMsg}
               </div>
             )}
 
             <form onSubmit={handleAddToList}>
-              <div style={{ display: 'flex', textAlign: 'left', gap: '15px', marginBottom: '15px' }}>
-                <div style={{ flex: 1, position: 'relative' }} ref={dropdownRef}>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '500', color: '#555' }}>Product *</label>
-                  <input
-                    type="text" value={searchTerm} onChange={handleSearchChange}
-                    onFocus={() => { setFilteredProducts(products); setIsDropdownOpen(true); }}
-                    onKeyDown={handleKeyDown}
-                    placeholder="Search product ..."
-                    style={{ width: '100%', padding: '10px 12px', borderRadius: '4px', border: '1px solid #ced4da' }}
-                  />
-                  {isDropdownOpen && (
-                    <ul
-                      ref={listRef}
-                      style={{
-                        position: 'absolute', top: '100%', left: 0, right: 0,
-                        backgroundColor: 'white', border: '1px solid #ddd', borderRadius: '4px', fontSize: '13px',
-                        maxHeight: '200px', overflowY: 'auto', zIndex: 1000, margin: 0, padding: 0, textAlign: 'left',
-                        listStyle: 'none', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', color: '#3d3b3b'
-                      }}
-                    >
-                      {filteredProducts.map((product, index) => (
-                        <li
-                          key={product._id}
-                          onClick={() => selectProduct(product)}
-                          onMouseEnter={() => setHighlightedIndex(index)}
-                          style={{ padding: '10px 12px', cursor: 'pointer', borderBottom: '1px solid #f0f0f0', backgroundColor: index === highlightedIndex ? '#e3f2fd' : '#fff' }}
-                        >
-                          <div>{product.name}</div>
-                          <div style={{ fontSize: '11px', color: '#201f1f' }}>Stock: {product.quantity || 0}</div>
-                        </li>
-                      ))}
-                      {filteredProducts.length === 0 && (
-                        <li style={{ padding: '10px 12px', color: '#2c2b2b' }}>No products found</li>
-                      )}
-                    </ul>
-                  )}
-                </div>
+              <div className="form-group" style={{ position: 'relative' }} ref={dropdownRef}>
+                <label className="form-label">Product *</label>
+                <input
+                  className="form-input"
+                  type="text" value={searchTerm} onChange={handleSearchChange}
+                  onFocus={() => { setFilteredProducts(products); setIsDropdownOpen(true); }}
+                  onKeyDown={handleKeyDown}
+                  placeholder="Search product ..."
+                />
+                
+                {isDropdownOpen && (
+                  <ul ref={listRef} style={{
+                    position: 'absolute', top: '100%', left: 0, right: 0,
+                    backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', 
+                    maxHeight: '200px', overflowY: 'auto', zIndex: 1000, margin: 'var(--space-xs) 0 0 0', padding: 0, 
+                    listStyle: 'none', boxShadow: 'var(--shadow-md)'
+                  }}>
+                    {filteredProducts.map((product, index) => (
+                      <li
+                        key={product._id}
+                        onClick={() => selectProduct(product)}
+                        onMouseEnter={() => setHighlightedIndex(index)}
+                        style={{ 
+                          padding: '6px 12px', cursor: 'pointer', borderBottom: '1px solid var(--border-color)', 
+                          backgroundColor: index === highlightedIndex ? 'var(--primary-light)' : 'var(--bg-surface)',
+                          borderLeft: index === highlightedIndex ? '3px solid var(--primary)' : '3px solid transparent',
+                          color: 'var(--text-main)'
+                        }}
+                      >
+                        <div style={{ fontSize: '14px', fontWeight: index === highlightedIndex ? 600 : 400 }}>{product.name}</div>
+                        <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Stock: {product.quantity || 0}</div>
+                      </li>
+                    ))}
+                    {filteredProducts.length === 0 && (
+                      <li style={{ padding: '10px 12px', color: 'var(--text-muted)' }}>No products found</li>
+                    )}
+                  </ul>
+                )}
               </div>
 
-              <div style={{ display: 'flex', textAlign: 'left', gap: '15px', marginBottom: '15px' }}>
-                <div style={{ flex: 1 }}>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '500', color: '#555' }}>Quantity *</label>
+              <div style={{ display: 'flex', gap: 'var(--space-md)', marginBottom: 'var(--space-md)' }}>
+                <div className="form-group" style={{ flex: 1, marginBottom: 0 }}>
+                  <label className="form-label">Quantity *</label>
                   <input
+                    className="form-input"
                     ref={quantityRef}
                     type="number" min="1" value={quantity} onChange={(e) => setQuantity(e.target.value)} placeholder="Qty"
                     onKeyDown={(e) => {
@@ -814,60 +840,61 @@ const StockAdjustment = () => {
                         handleAddToList(e);
                       }
                     }}
-                    style={{ width: '100%', padding: '10px 12px', borderRadius: '4px', border: '1px solid #ced4da' }}
                   />
                 </div>
-                <div style={{ flex: 1 }}>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '500', color: '#555' }}>Reason</label>
-                  <select value={reason} onChange={(e) => setReason(e.target.value)} style={{ width: '100%', padding: '10px 12px', borderRadius: '4px', border: '1px solid #ced4da' }}>
+                <div className="form-group" style={{ flex: 1, marginBottom: 0 }}>
+                  <label className="form-label">Reason</label>
+                  <select className="form-input" value={reason} onChange={(e) => setReason(e.target.value)}>
                     <option value="">Select reason (optional)...</option>
                     {REASONS.map(r => <option key={r} value={r}>{r}</option>)}
                   </select>
                 </div>
               </div>
 
-              <div style={{ marginBottom: '25px' }}>
-                <label style={{ textAlign: 'left', display: 'block', fontSize: '13px', fontWeight: '500', color: '#555' }}>Notes</label>
+              <div className="form-group" style={{ marginBottom: 'var(--space-lg)' }}>
+                <label className="form-label">Notes</label>
                 <textarea
+                  className="form-input"
                   value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} placeholder="Optional notes..."
-                  style={{ width: '100%', padding: '10px 12px', borderRadius: '4px', border: '1px solid #ced4da', resize: 'vertical', backgroundColor: 'white' }}
+                  style={{ resize: 'vertical' }}
                 />
               </div>
 
-              <button type="submit" style={{ width: '25%', padding: '12px', backgroundColor: accentColor, color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>
+              <button type="submit" className="btn btn-primary" style={{ width: '13%',marginLeft:'43%' }}>
                 Add to Cart
               </button>
             </form>
           </div>
 
           {pendingItems.length > 0 && (
-            <div className="panel" style={{ padding: '25px', borderRadius: '8px', backgroundColor: '#fff', maxWidth: '600px', margin: '0 auto', width: '100%', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                <h3 style={{ margin: 0, color: '#333' }}>Cart Items</h3>
-                <span style={{ fontSize: '13px', fontWeight: 'bold', color: '#555' }}>Invoice: {currentBatchInvoice}</span>
+            <div className="card" style={{ margin: '0 auto', width: '100%', padding: 0, overflow: 'hidden' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px', borderBottom: '1px solid var(--border-color)' }}>
+                <h3 style={{ margin: 0, color: 'var(--text-main)', fontSize: '18px', fontWeight: '600' }}>Cart Items</h3>
+                <span style={{ fontSize: '13px', fontWeight: 'bold', color: 'var(--text-muted)' }}>Invoice: {currentBatchInvoice}</span>
               </div>
-              <div style={{ overflowX: 'auto', border: '1px solid #eaeaea', borderRadius: '6px', marginBottom: '20px' }}>
+              
+              <div style={{ overflowX: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                   <thead>
-                    <tr style={{ backgroundColor: '#2b3a4a', color: 'white', textAlign: 'left', fontSize: '12px', textTransform: 'uppercase' }}>
-                      <th style={{ padding: '12px' }}>Product</th>
-                      <th style={{ padding: '12px' }}>Type</th>
-                      <th style={{ padding: '12px' }}>Qty</th>
-                      <th style={{ padding: '12px', textAlign: 'center' }}>Action</th>
+                    <tr>
+                      <th style={tableStyles.th}>Product</th>
+                      <th style={tableStyles.th}>Type</th>
+                      <th style={tableStyles.th}>Qty</th>
+                      <th style={{ ...tableStyles.th, textAlign: 'center' }}>Action</th>
                     </tr>
                   </thead>
                   <tbody>
                     {pendingItems.map(item => (
-                      <tr key={item.tempId} style={{ borderBottom: '1px solid #eaeaea', fontSize: '13px', textAlign: 'left' }}>
-                        <td style={{ padding: '12px', color: '#555' }}>{item.productName}</td>
-                        <td style={{ padding: '12px' }}>
-                          <span style={{ color: item.adjustmentType === 'Increase' ? '#28a745' : '#dc3545', fontWeight: 'bold' }}>
+                      <tr key={item.tempId} style={{ borderBottom: '1px solid var(--border-color)', transition: 'background-color 0.2s' }} onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--bg-app)'} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}>
+                        <td style={tableStyles.td}>{item.productName}</td>
+                        <td style={tableStyles.td}>
+                          <span style={{ color: item.adjustmentType === 'Increase' ? 'var(--success)' : 'var(--danger)', fontWeight: 'bold' }}>
                             {item.adjustmentType}
                           </span>
                         </td>
-                        <td style={{ padding: '12px', fontWeight: 'bold' }}>{item.quantity}</td>
-                        <td style={{ padding: '12px', textAlign: 'center' }}>
-                          <button onClick={() => removePendingItem(item.tempId)} style={{ background: 'none', border: 'none', color: '#dc3545', cursor: 'pointer', fontWeight: 'bold' }}>X</button>
+                        <td style={{ ...tableStyles.td, fontWeight: 'bold' }}>{item.quantity}</td>
+                        <td style={{ ...tableStyles.td, textAlign: 'center' }}>
+                          <button onClick={() => removePendingItem(item.tempId)} style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', fontWeight: 'bold', fontSize: '14px' }} title="Remove">✕</button>
                         </td>
                       </tr>
                     ))}
@@ -875,12 +902,9 @@ const StockAdjustment = () => {
                 </table>
               </div>
 
-              <div style={{ textAlign: 'right' }}>
-                <button
-                  onClick={handleConfirm} disabled={confirming}
-                  style={{ padding: '12px 30px', backgroundColor: '#2b3a4a', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', fontSize: '15px' }}
-                >
-                  {confirming ? 'Saving...' : 'Add Adjustment'}
+              <div style={{ padding: '16px', display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)' }}>
+                <button className="btn btn-primary" onClick={handleConfirm} disabled={confirming}>
+                  {confirming ? 'Saving...' : 'Confirm Adjustment'}
                 </button>
               </div>
             </div>
@@ -891,28 +915,41 @@ const StockAdjustment = () => {
   );
 };
 
-const styles = {
-  actionGroup: { display: 'flex', justifyContent: 'center', gap: '12px' },
-  iconBtnView: {
-    background: '#f0fdf4', color: '#264b61', border: '1px solid #ddecf5', padding: '8px',marginLeft:'39%',
-    borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', transition: 'all 0.2s', backgroundColor: '#ebf5fc'
+const tableStyles = {
+  th: {
+    backgroundColor: 'var(--header)',
+    color: '#ffffff',
+    fontWeight: 600,
+    fontSize: '13px',
+    textAlign: 'left',
+    padding: '12px 16px',
+    textTransform: 'uppercase'
   },
-  td: { padding: '10px 12px' },
-  receiptOverlay: { position: 'fixed', inset: 0, background: 'rgba(0, 0, 0, 0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000, padding: '20px' },
-  receiptContainer: { background: '#ffffff', borderRadius: '10px', border: '1px solid #000', width: '100%', maxHeight: '92vh', display: 'flex', flexDirection: 'column', boxShadow: '0 25px 80px rgba(0,0,0,0.3)', overflow: 'hidden' },
-  receiptHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 18px', borderBottom: '2px solid #000', background: '#ffffff', flexShrink: 0 },
-  receiptActions: { margin: '0 70%', display: 'flex', gap: '10px' },
-  printReceiptBtn: { background: '#2f3d52', color: '#fff', border: '1px solid #000', padding: '8px 14px', borderRadius: '6px', cursor: 'pointer', fontWeight: 600, fontSize: '13px', whiteSpace: 'nowrap' },
-  closeReceiptBtn: { background: '#fff', color: '#000', border: '1px solid #000', padding: '8px 14px', borderRadius: '6px', cursor: 'pointer', fontWeight: 600, fontSize: '13px', whiteSpace: 'nowrap' },
-  receiptBody: { overflowY: 'auto', overflowX: 'hidden', flex: 1, color: '#000' },
-  receiptHeaderInfo: { textAlign: 'left', marginBottom: '16px', fontSize: '14px' },
-  receiptDivider: { borderTop: '2px dashed #000', margin: '14px 0' },
-  receiptTable: { width: '100%', tableLayout: 'fixed', borderCollapse: 'collapse', marginBottom: '12px' },
-  receiptTh: { textAlign: 'left', padding: '6px 8px', backgroundColor: '#2c3649', borderBottom: '2px solid #000', fontSize: '12px', fontWeight: 600, color: '#ffffff', textTransform: 'uppercase', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
-  receiptTd: { padding: '6px 8px', borderBottom: '1px solid #ccc', fontSize: '13px', color: '#000' },
-  receiptTdName: { textAlign: 'left', padding: '6px 8px', borderBottom: '1px solid #ccc', fontSize: '13px', color: '#000', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
-  receiptTotals: { marginTop: '14px' },
-  receiptTotalRow: { display: 'flex', justifyContent: 'space-between', padding: '5px 0', fontSize: '13px', color: '#000' },
+  td: {
+    padding: '8px 16px',
+    borderBottom: '1px solid var(--border-color)',
+    color: 'var(--text-main)',
+    fontSize: '13px'
+  },
+  emptyCell: {
+    padding: '40px',
+    textAlign: 'center',
+    color: 'var(--text-muted)',
+    fontSize: '14px'
+  }
+};
+
+const styles = {
+  iconBtnView: {
+    backgroundColor: 'var(--view)',
+    color: 'var(--success)',
+    border: 'none',
+    padding: '6px',
+    borderRadius: '4px',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center'
+  },
   thermalItemRow: { borderBottom: '1px dashed #000', padding: '6px 0' },
   thermalItemLine1: { display: 'flex', justifyContent: 'space-between', fontWeight: 700, fontSize: '1em', color: '#000' },
   thermalItemLine2: { display: 'flex', justifyContent: 'space-between', fontSize: '0.85em', color: '#000', marginTop: '2px' }

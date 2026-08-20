@@ -1,6 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import './roles.css';
-import './customer.css';
 
 const API_BASE_URL = 'http://localhost:5000';
 
@@ -26,7 +24,7 @@ function AvatarImage({ pic, name, size }) {
         onError={() => setFailed(true)}
         style={{
           width: size, height: size, borderRadius: '50%', objectFit: 'cover',
-          border: '1px solid #dee2e6', flexShrink: 0
+          border: '2px solid var(--primary)', flexShrink: 0
         }}
       />
     );
@@ -34,8 +32,8 @@ function AvatarImage({ pic, name, size }) {
 
   return (
     <div style={{
-      width: size, height: size, borderRadius: '50%', backgroundColor: '#5aa7ef',
-      color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center',
+      width: size, height: size, borderRadius: '50%', backgroundColor: 'var(--primary-light)',
+      color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center',
       fontSize: `${size * 0.35}px`, fontWeight: 600, flexShrink: 0
     }}>
       {getInitials(name)}
@@ -47,26 +45,28 @@ function AvatarImage({ pic, name, size }) {
 function InlineMessage({ message, type }) {
   if (!message) return null;
   
-  const colors = {
-    success: { bg: '#d4edda', text: '#155724', border: '#c3e6cb', icon: '✅' },
-    error: { bg: '#fdecea', text: '#dc3545', border: '#f5c6cb', icon: '⚠️' },
-    info: { bg: '#e7f3ff', text: '#0056b3', border: '#b8d4f0', icon: 'ℹ️' }
-  };
+  const isError = type === 'error';
+  const isSuccess = type === 'success';
 
-  const style = colors[type] || colors.info;
+  const bg = isError ? 'var(--danger-bg)' : isSuccess ? 'var(--success-bg)' : 'var(--info-bg)';
+  const text = isError ? 'var(--danger)' : isSuccess ? 'var(--success)' : 'var(--info)';
+  const icon = isError ? '⚠️' : isSuccess ? '✅' : 'ℹ️';
 
   return (
     <div style={{
       padding: '10px 14px',
-      marginBottom: '15px',
-      borderRadius: '6px',
-      backgroundColor: style.bg,
-      color: style.text,
-      border: `1px solid ${style.border}`,
+      marginBottom: 'var(--space-md)',
+      borderRadius: 'var(--radius-md)',
+      backgroundColor: bg,
+      color: text,
+      border: `1px solid ${text}`,
       fontSize: '14px',
-      fontWeight: 500
+      fontWeight: 500,
+      display: 'flex',
+      alignItems: 'center',
+      gap: '8px'
     }}>
-      {style.icon} {message}
+      <span>{icon}</span> {message}
     </div>
   );
 }
@@ -120,11 +120,16 @@ export default function AddCustomerModal({ onClose, onSuccess, existingCustomers
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [newCustomer]);
 
-  // Fetch Customer Types on mount
+  // Fetch Customer Types on mount (With Token)
   useEffect(() => {
     const fetchCustomerTypes = async () => {
       try {
-        const res = await fetch(`${API_BASE_URL}/api/customer-types`);
+        const token = localStorage.getItem('token');
+        const res = await fetch(`${API_BASE_URL}/api/customer-types`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
         const data = await res.json();
         setCustomerTypes(Array.isArray(data) ? data : []);
       } catch (err) {
@@ -153,7 +158,14 @@ export default function AddCustomerModal({ onClose, onSuccess, existingCustomers
     setIsUploading(true);
 
     try {
-      const res = await fetch(`${API_BASE_URL}/api/upload`, { method: 'POST', body: formData });
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${API_BASE_URL}/api/upload`, { 
+        method: 'POST', 
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        body: formData 
+      });
       const raw = await res.text();
 
       if (!res.ok) {
@@ -216,10 +228,14 @@ export default function AddCustomerModal({ onClose, onSuccess, existingCustomers
     }
 
     try {
+      const token = localStorage.getItem('token');
       const { emailPrefix, ...finalPayload } = payloadObj;
       const res = await fetch(`${API_BASE_URL}/api/customers`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify(finalPayload)
       });
       
@@ -250,133 +266,141 @@ export default function AddCustomerModal({ onClose, onSuccess, existingCustomers
   };
 
   return (
-    <div className="modal-overlay" style={{ zIndex: 10000 }} onClick={onClose}>
-      <div className="modal-content" style={{ maxWidth: '600px', position: 'relative', maxHeight: '90vh', overflowY: 'auto' }} onClick={(e) => e.stopPropagation()}>
-        <h3>Add New Customer</h3>
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-container modal-container-wide" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-header">
+          <h3 className="modal-title">Add New Customer</h3>
+          <button className="modal-close" onClick={onClose}>&times;</button>
+        </div>
 
-        {/* Inline Message */}
-        <InlineMessage message={message.text} type={message.type} />
+        <div className="modal-body" style={{ maxHeight: '75vh', overflowY: 'auto' }}>
+          {/* Inline Message */}
+          <InlineMessage message={message.text} type={message.type} />
 
-        {/* Image Upload Inline Message */}
-        {imageMessage.text && !message.text && (
-          <div style={{
-            padding: '8px 12px',
-            marginBottom: '12px',
-            borderRadius: '4px',
-            backgroundColor: imageMessage.type === 'error' ? '#fdecea' : '#d4edda',
-            color: imageMessage.type === 'error' ? '#dc3545' : '#155724',
-            border: `1px solid ${imageMessage.type === 'error' ? '#f5c6cb' : '#c3e6cb'}`,
-            fontSize: '13px'
-          }}>
-            {imageMessage.text}
-          </div>
-        )}
-
-        <div className="user-form" style={{ fontSize: '0.85rem', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', color: '#1b2f41' }}>
-          <div>
-            <label style={{ fontSize: '0.8rem' }}>Full Name *</label>
-            <input 
-              style={{ fontSize: '0.65rem', width: '100%', padding: '8px', boxSizing: 'border-box' }} 
-              value={newCustomer.name} 
-              onChange={(e) => setNewCustomer({ ...newCustomer, name: e.target.value })}
-              onKeyDown={handleInputKeyDown}
-              autoFocus
-            />
-          </div>
-
-          {/* Email with suffix */}
-          <div>
-            <label style={{ fontSize: '0.8rem' }}>Email Address *</label>
-            <div style={{ position: 'relative', width: '100%', display: 'flex', alignItems: 'center' }}>
-              <input 
-                style={{ fontSize: '0.65rem', width: '100%', padding: '8px', paddingRight: '85px', boxSizing: 'border-box' }} 
-                value={newCustomer.emailPrefix} 
-                onChange={(e) => setNewCustomer({ ...newCustomer, emailPrefix: e.target.value.replace(/@.*/, '') })} 
-                onKeyDown={handleInputKeyDown}
-                placeholder="username" 
-              />
-              <span style={{ position: 'absolute', right: '10px', color: '#888', fontSize: '12px', pointerEvents: 'none' }}>
-                @gmail.com
-              </span>
+          {/* Image Upload Inline Message */}
+          {imageMessage.text && !message.text && (
+            <div style={{
+              padding: '10px 14px',
+              marginBottom: 'var(--space-md)',
+              borderRadius: 'var(--radius-md)',
+              backgroundColor: imageMessage.type === 'error' ? 'var(--danger-bg)' : 'var(--success-bg)',
+              color: imageMessage.type === 'error' ? 'var(--danger)' : 'var(--success)',
+              border: `1px solid ${imageMessage.type === 'error' ? 'var(--danger)' : 'var(--success)'}`,
+              fontSize: '14px',
+              fontWeight: 500
+            }}>
+              {imageMessage.text}
             </div>
-          </div>
+          )}
 
-          <div>
-            <label style={{ fontSize: '0.8rem' }}>Contact Number *</label>
-            <input 
-              style={{ fontSize: '0.65rem', width: '100%', padding: '8px', boxSizing: 'border-box' }} 
-              value={newCustomer.contact} 
-              onChange={(e) => setNewCustomer({ ...newCustomer, contact: formatContact(e.target.value) })} 
-              onKeyDown={handleInputKeyDown}
-              placeholder="+923001234567" 
-            />
-          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-md)' }}>
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label className="form-label">Full Name *</label>
+              <input 
+                className="form-input" 
+                value={newCustomer.name} 
+                onChange={(e) => setNewCustomer({ ...newCustomer, name: e.target.value })}
+                onKeyDown={handleInputKeyDown}
+                autoFocus
+              />
+            </div>
 
-          <div>
-            <label style={{ fontSize: '0.8rem' }}>Customer Type</label>
-            <select
-              style={{ width: '100%', padding: '8px 12px', border: '1px solid #ced4da', borderRadius: '4px', fontSize: '0.65rem', backgroundColor: '#f8f9fa', boxSizing: 'border-box' }}
-              value={newCustomer.customerTypeId || ''}
-              onChange={(e) => setNewCustomer({ ...newCustomer, customerTypeId: e.target.value })}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault();
-                  handleAddCustomer();
-                }
-              }}
-            >
-              <option value="">-- Select Type --</option>
-              {customerTypes.map(ct => (
-                <option key={ct._id} value={ct._id}>{ct.name}</option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label style={{ fontSize: '0.8rem' }}>CNIC</label>
-            <input 
-              style={{ fontSize: '0.65rem', width: '100%', padding: '8px', boxSizing: 'border-box' }} 
-              value={newCustomer.cnic} 
-              maxLength={15}
-              onChange={(e) => setNewCustomer({ ...newCustomer, cnic: formatCNIC(e.target.value) })} 
-              onKeyDown={handleInputKeyDown}
-              placeholder="64822-1648208-2" 
-            />
-          </div>
-
-          <div style={{ gridColumn: 'span 2' }}>
-            <label style={{ fontSize: '0.8rem' }}>Address</label>
-            <textarea
-              style={{ fontSize: '0.65rem', backgroundColor: '#f8f9fa', color: '#212529', width: '100%', minHeight: '80px', resize: 'vertical', fontFamily: 'inherit', padding: '8px', boxSizing: 'border-box' }}
-              value={newCustomer.address}
-              onChange={(e) => setNewCustomer({ ...newCustomer, address: e.target.value })}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && e.ctrlKey) {
-                  e.preventDefault();
-                  handleAddCustomer();
-                }
-              }}
-            />
-          </div>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gridColumn: 'span 2' }}>
-            <label style={{ alignItems: 'left', fontSize: '0.8rem' }}>Upload Image</label>
-            <input style={{ fontSize: '0.65rem' }} type="file" accept="image/*" onChange={handleImageUpload} disabled={isUploading} />
-            {isUploading && (
-              <span style={{ fontSize: '0.75rem', color: '#6c757d', marginTop: '8px' }}>Uploading image…</span>
-            )}
-            {!isUploading && newCustomer.pic && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '8px' }}>
-                <AvatarImage pic={newCustomer.pic} name={newCustomer.name} size={40} />
-                <span style={{ fontSize: '0.75rem', color: '#28a745' }}>✓ Image ready — will be saved with this customer</span>
+            {/* Email with suffix */}
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label className="form-label">Email Address *</label>
+              <div style={{ position: 'relative', width: '100%', display: 'flex', alignItems: 'center' }}>
+                <input 
+                  className="form-input" 
+                  value={newCustomer.emailPrefix} 
+                  onChange={(e) => setNewCustomer({ ...newCustomer, emailPrefix: e.target.value.replace(/@.*/, '') })} 
+                  onKeyDown={handleInputKeyDown}
+                  placeholder="username" 
+                  style={{ paddingRight: '85px' }}
+                />
+                <span style={{ position: 'absolute', right: '12px', color: 'var(--text-light)', fontSize: '13px', pointerEvents: 'none' }}>
+                  @gmail.com
+                </span>
               </div>
-            )}
+            </div>
+
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label className="form-label">Contact Number *</label>
+              <input 
+                className="form-input" 
+                value={newCustomer.contact} 
+                onChange={(e) => setNewCustomer({ ...newCustomer, contact: formatContact(e.target.value) })} 
+                onKeyDown={handleInputKeyDown}
+                placeholder="+923001234567" 
+              />
+            </div>
+
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label className="form-label">Customer Type</label>
+              <select
+                className="form-input"
+                value={newCustomer.customerTypeId || ''}
+                onChange={(e) => setNewCustomer({ ...newCustomer, customerTypeId: e.target.value })}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleAddCustomer();
+                  }
+                }}
+              >
+                <option value="">-- Select Type --</option>
+                {customerTypes.map(ct => (
+                  <option key={ct._id} value={ct._id}>{ct.name}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label className="form-label">CNIC</label>
+              <input 
+                className="form-input" 
+                value={newCustomer.cnic} 
+                maxLength={15}
+                onChange={(e) => setNewCustomer({ ...newCustomer, cnic: formatCNIC(e.target.value) })} 
+                onKeyDown={handleInputKeyDown}
+                placeholder="64822-1648208-2" 
+              />
+            </div>
+
+            <div className="form-group" style={{ gridColumn: 'span 2', marginBottom: 0 }}>
+              <label className="form-label">Address</label>
+              <textarea
+                className="form-input"
+                style={{ minHeight: '80px', resize: 'vertical' }}
+                value={newCustomer.address}
+                onChange={(e) => setNewCustomer({ ...newCustomer, address: e.target.value })}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && e.ctrlKey) {
+                    e.preventDefault();
+                    handleAddCustomer();
+                  }
+                }}
+              />
+            </div>
+
+            <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gridColumn: 'span 2', marginBottom: 0 }}>
+              <label className="form-label">Upload Image</label>
+              <input type="file" accept="image/*" onChange={handleImageUpload} disabled={isUploading} style={{ fontSize: '13px' }} />
+              {isUploading && (
+                <span style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: 'var(--space-xs)' }}>Uploading image…</span>
+              )}
+              {!isUploading && newCustomer.pic && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-sm)', marginTop: 'var(--space-sm)' }}>
+                  <AvatarImage pic={newCustomer.pic} name={newCustomer.name} size={40} />
+                  <span style={{ fontSize: '13px', color: 'var(--success)' }}>✓ Image ready — will be saved with this customer</span>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
-        <div className="modal-actions" style={{ marginTop: '25px', display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+        <div className="modal-footer">
+          <button className="btn btn-secondary" onClick={onClose}>Cancel</button>
           <button className="btn btn-primary" onClick={handleAddCustomer}>Save Customer</button>
-          <button className="btn btn-cancel" onClick={onClose}>Cancel</button>
         </div>
       </div>
     </div>

@@ -1,0 +1,503 @@
+/* =========================================================
+   GLOBAL THEME - GREEN TEAL (Fresh, Light, Professional)
+   ========================================================= */
+:root {
+  /* Colors - Primary Green Teal */
+  --primary: #0c514b;
+  --primary-hover: #32837c;
+  --primary-light: #edf8f5;
+  --header: #6f9895;
+  --primary-other: #3e6966;
+  
+  /* Colors - Backgrounds & Surfaces */
+  --bg-app: #f8fafc;
+  --bg-surface: #ffffff;
+  
+  /* Colors - Text */
+  --text-main: #224e43;
+  --text-muted: #64748b;
+  --text-light: #94a3b8;
+  
+  /* Colors - Borders & Dividers */
+  --border-color: #e2f0ec;
+  --border-focus: #14b8a6;
+  --btn-border: #8dcbc2;
+
+  /* Colors - Status/Alerts */
+  --success: #10b981;
+  --success-bg: #d1fae5;
+  --danger: #e11d48;
+  --warning:#d4a55f;
+  --danger-bg: #ffe4e6;
+  --info: #0284c7;
+  --info-bg: #e0f2fe;
+--view: #e9f6f2;
+--edit: #e4f9f9;
+
+  /* Spacing */
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 32px;
+
+  /* Shadows & Radius */
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 2px;
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.05);
+  --shadow-modal: 0 20px 25px -5px rgba(0,0,0,0.1);
+}
+
+/* =========================================================
+   BASE STYLES
+   ========================================================= */
+body {
+  background-color: var(--bg-app);
+  color: var(--text-main);
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  margin: 0;
+}
+
+h1, h2, h3, h4, h5, h6, p { margin: 0; font-family: inherit; }
+
+/* =========================================================
+   APP LAYOUT
+   ========================================================= */
+.dashboard-container {
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+  background-color: var(--bg-app);
+}
+.clearfilter{
+    background-color: #888888b9;
+    color: #f9f8f8;
+}
+
+.sidebar {
+  width: 260px;
+  background-color: var(--primary) !important;
+  color: white;
+  display: flex;
+  flex-direction: column;
+  transition: all 0.3s ease;
+  overflow-y: auto;
+  flex-shrink: 0;
+  z-index: 100;
+}
+.sidebar.closed { width: 0; overflow: hidden; }
+
+.sidebar-header {
+  padding: 12px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  min-height: 65px;
+}
+
+.hamburger-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 4px;
+}
+.hamburger-line {
+  width: 22px;
+  height: 2px;
+  background-color: currentColor;
+  border-radius: 2px;
+  transition: all 0.2s;
+}
+
+.main-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  background-color: var(--bg-app);
+  width: calc(100% - 260px);
+}
+.main-content.sidebar-closed { width: 100%; }
+
+/* =========================================================
+   HEADER & TYPOGRAPHY
+   ========================================================= */
+.top-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 var(--space-lg);
+  background-color: var(--bg-surface);
+  border-bottom: 1px solid var(--border-color);
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  min-height: 70px;
+}
+
+.page-title {
+  font-size: 20px !important;
+  font-weight: 700 !important;
+  color: var(--primary) !important;
+  margin: 0 !important;
+  letter-spacing: normal !important;
+  -webkit-text-stroke: 0 !important;
+}
+
+.profile-trigger { cursor: pointer; display: flex; align-items: center; }
+.profile-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background-color: var(--primary-light);
+  border: 2px solid var(--primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+.profile-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.avatar-text { color: var(--primary); font-weight: 700; font-size: 16px; }
+
+/* =========================================================
+   SIDEBAR NAVIGATION
+   ========================================================= */
+.sidebar-nav { list-style: none; padding: 0; margin: 0; }
+.sidebar-nav li, .parent-menu-item {
+  padding: 12px 20px;
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.85);
+  transition: background-color 0.2s, color 0.2s;
+  font-size: 14px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+}
+.sidebar-nav li:hover, .parent-menu-item:hover, .sidebar-nav li.active {
+  background-color: rgba(255, 255, 255, 0.15);
+  color: #ffffff;
+}
+.nav-icon { margin-right: 12px; width: 20px; text-align: center; }
+
+.submenu {
+  list-style-type: none;
+  padding: 0;
+  margin: 0;
+  background-color: rgba(0, 0, 0, 0.05);
+}
+.submenu li {
+  padding: 1px 10px 10px 32px !important;
+  font-size: 13px;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  text-align: left !important;
+}
+.submenu-icon { margin-right: 10px; font-size: 14px; opacity: 0.7; }
+.drop { margin-left: auto; font-size: 12px; opacity: 0.8; }
+
+/* =========================================================
+   LAYOUT & CARDS
+   ========================================================= */
+.dashboard-wrapper {
+  padding: var(--space-md);
+  box-sizing: border-box;
+  background-color: var(--bg-app);
+  min-height: calc(100vh - 70px);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+.card {
+  background-color: var(--bg-surface);
+  border-radius: var(--radius-lg);
+  padding: var(--space-md);
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--border-color);
+}
+.card-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--primary);
+  margin-bottom: var(--space-md);
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: var(--space-sm);
+}
+
+.grid-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--space-md); }
+.grid-charts { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: var(--space-md); }
+
+.stat-widget { display: flex; align-items: center; gap: var(--space-md); cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; }
+.stat-widget:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
+.stat-icon { width: 44px; height: 44px; border-radius: var(--radius-md); display: flex; align-items: center; justify-content: center; font-size: 18px; }
+.stat-title { font-size: 13px; font-weight: 500; color: var(--text-muted); margin-bottom: 2px; }
+.stat-value { font-size: 18px; font-weight: 700; color: var(--text-main); }
+
+/* =========================================================
+   FORMS & INPUTS
+   ========================================================= */
+.form-group {
+  margin-bottom: var(--space-md);
+}
+.form-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-main);
+  margin-bottom: var(--space-xs);
+  text-align: left;
+}
+.form-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.form-input-icon {
+  position: absolute;
+  left: 12px;
+  color: var(--text-muted);
+}
+.form-input {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+  font-size: 14px;
+  color: var(--text-main);
+  background-color: var(--bg-surface);
+  outline: none;
+  transition: border-color 0.2s;
+  box-sizing: border-box;
+}
+.form-input.has-icon { padding-left: 38px; }
+.form-input:focus { border-color: var(--border-focus); }
+
+/* =========================================================
+   BUTTONS (Primary, Secondary, Danger, etc.)
+   ========================================================= */
+.btn {
+  padding: 10px 16px;
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-sm);
+  border: none;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+.btn-primary {
+  background-color:  #5b9386 !important;
+  color: white;
+    border-radius: 3px;
+
+}
+
+.btn-primary:hover:not(:disabled) {
+  background-color: #77c4be !important;
+}
+.btn-secondary {
+  background-color: #f1f9f7;
+  color: var(--text-main);
+  border: 1px solid var(--btn-border);
+  border-radius: 3px;
+  padding: 9.5px;
+}
+.btn-secondary:hover:not(:disabled) {
+  background-color: #d0efeb;
+}
+.btn-danger {
+  background-color: var(--danger);
+  color: white;
+}
+.btn-danger:hover:not(:disabled) {
+  background-color: #be123c;
+}
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* =========================================================
+   MODALS (Updated for Perfect Centering)
+   ========================================================= */
+.modal-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(4px);
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  z-index: 999999; /* Increased z-index to stay above everything */
+}
+
+.modal-container {
+  background-color: var(--bg-surface);
+  border-radius: var(--radius-lg);
+  width: 420px;
+  max-width: 90%;
+  box-shadow: var(--shadow-modal);
+  overflow: hidden;
+  margin: auto; /* Fallback to force it to the center */
+  position: relative;
+  animation: modalSlideIn 0.3s ease-out;
+}
+
+.modal-container-wide { 
+  width: 760px; 
+}
+
+.modal-header {
+  padding: var(--space-md) var(--space-lg);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.modal-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-main);
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 24px;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.modal-close:hover { 
+  color: var(--danger); 
+}
+
+.modal-body { 
+  padding: var(--space-lg); 
+}
+
+.modal-footer {
+  padding: var(--space-md) var(--space-lg);
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-sm);
+  border-top: 1px solid var(--border-color);
+  background-color: var(--bg-app);
+}
+
+@keyframes modalSlideIn {
+  from { opacity: 0; transform: translateY(-20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* =========================================================
+   MOBILE RESPONSIVENESS
+   ========================================================= */
+@media (max-width: 768px) {
+  .dashboard-container { position: relative; }
+  .sidebar { position: fixed; left: -260px; height: 100vh; box-shadow: 2px 0 10px rgba(0,0,0,0.1); }
+  .sidebar.open { left: 0; }
+  .sidebar-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(0,0,0,0.5); z-index: 90; }
+  .main-content { width: 100%; }
+  .top-header { padding: 0 var(--space-sm); }
+  .header-date-time { display: none !important; }
+  .page-title { font-size: 18px !important; }
+}
+
+
+.sidebar.open {
+  display: block !important;
+  width: 260px !important;
+}
+/* Sidebar ko properly aur force hide karne ke liye */
+.sidebar.closed {
+  width: 0 !important;
+  min-width: 0 !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+  border: none !important;
+}
+
+.main-content {
+  flex: 1;
+  transition: all 0.3s ease; 
+}
+
+.main-content.sidebar-closed {
+  width: 100%;
+}
+/* =========================================================
+   CALENDAR & DATE INPUT FIX
+   ========================================================= */
+
+/* Fix background and text color for date inputs */
+input[type="date"],
+input[type="datetime-local"],
+input[type="time"],
+input[type="month"] {
+  background-color: var(--bg-surface) !important;
+  color: var(--text-main) !important;
+  color-scheme: light; /* Forces the browser's calendar popup to stay in light mode */
+}
+
+/* Fix the calendar icon color to match the Green Teal Theme */
+::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  opacity: 0.6;
+  /* Agar icon white ho gaya hai, tou yeh filter usay dark teal color mein convert kar dega */
+  filter: invert(0.2) sepia(0.8) hue-rotate(120deg) saturate(3) brightness(0.7) !important;
+  transition: opacity 0.2s ease;
+}
+
+::-webkit-calendar-picker-indicator:hover {
+  opacity: 1;
+}
+
+/* React DatePicker ya kisi aur custom library ka calendar fix */
+.react-datepicker {
+  background-color: var(--bg-surface) !important;
+  color: var(--text-main) !important;
+  border-color: var(--border-color) !important;
+}
+
+.react-datepicker__header {
+  background-color: var(--primary-light) !important;
+  border-bottom: 1px solid var(--border-color) !important;
+}
+
+.react-datepicker__current-month,
+.react-datepicker-time__header,
+.react-datepicker-year-header {
+  color: var(--primary) !important;
+}
+
+.react-datepicker__day {
+  color: var(--text-main) !important;
+}
+
+.react-datepicker__day:hover {
+  background-color: var(--primary-light) !important;
+}
+
+.react-datepicker__day--selected, 
+.react-datepicker__day--keyboard-selected {
+  background-color: var(--primary) !important;
+  color: #ffffff !important;
+}

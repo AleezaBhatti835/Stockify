@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import XLSX from 'xlsx-js-style';
+import * as XLSX from 'xlsx';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPrint, faFilePdf, faFileExcel } from '@fortawesome/free-solid-svg-icons';
 
@@ -21,15 +21,12 @@ function PurchaseReport() {
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState(false);
 
-  // ================= VIEW MODE STATE (Abstract vs Detailed) =================
   const [viewMode, setViewMode] = useState('detailed'); 
 
-  // ================= FILTER STATES =================
   const [selectedSupplier, setSelectedSupplier] = useState('');
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
 
-  // ================= PAGINATION STATES =================
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(20);
 
@@ -52,7 +49,10 @@ function PurchaseReport() {
 
   const fetchSuppliers = async () => {
     try {
-      const res = await fetch(`${API_BASE_URL}/api/suppliers`);
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${API_BASE_URL}/api/suppliers`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
       const data = await res.json();
       setSuppliers(Array.isArray(data) ? data : []);
     } catch (err) {
@@ -60,12 +60,16 @@ function PurchaseReport() {
     }
   };
 
+  // CORE ARCHITECTURE: Unified multi-endpoint data aggregation engine dynamically routing and flattening nested purchase records based on active tab selection.
   const fetchData = async () => {
     setLoading(true);
     setFetchError(false);
     try {
+      const token = localStorage.getItem('token');
       const tab = TABS.find(t => t.key === activeTab);
-      const res = await fetch(`${API_BASE_URL}${tab.endpoint}`);
+      const res = await fetch(`${API_BASE_URL}${tab.endpoint}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
       if (!res.ok) throw new Error('Not available');
       const data = await res.json();
       
@@ -89,13 +93,11 @@ function PurchaseReport() {
     }
   };
 
-  // ================= HELPERS =================
   const formatDate = (dateString) => {
     if (!dateString) return '—';
     return new Date(dateString).toLocaleDateString('en-GB');
   };
 
-  // ================= FLATTEN INTO PRODUCT-LEVEL OR SUMMARY ROWS ==================
   const flatRows = useMemo(() => {
     const getSupplierName = (r) => {
       let name = r.supplierName || r.supplier?.contactPerson || r.supplier?.companyName || r.purchase?.supplier?.contactPerson || r.purchase?.supplier?.companyName;
@@ -137,7 +139,6 @@ function PurchaseReport() {
 
       const isFlatItem = !lineItems.length && (r.product || r.productName || r.quantity !== undefined);
 
-      // --- ABSTRACT (SUMMARY) MODE ---
       if (viewMode === 'summary') {
         let invoiceTotal = r.totalAmount ?? r.amount ?? r.differenceAmount ?? r.totalDifference ?? r.netAmount;
         
@@ -158,7 +159,6 @@ function PurchaseReport() {
         let diffRateLabel = '—';
 
         if (lineItems.length === 1) {
-           // Exactly 1 product -> Show details including rates
            const item = lineItems[0];
            productLabel = item.product?.name || item.productName || 'Unknown Product';
            pId = item.product?._id || item.product || null;
@@ -169,10 +169,8 @@ function PurchaseReport() {
            rateLabel = item.unitPrice ?? item.rate ?? item.newRate ?? 0;
 
         } else if (lineItems.length > 1) {
-           // Multiple products -> Hide details
            productLabel = '— (Multiple Products)';
         } else if (isFlatItem) {
-           // Single flat item -> Show details including rates
            productLabel = typeof r.product === 'object' ? r.product?.name : (r.productName || r.product || 'Unknown Product');
            pId = typeof r.product === 'object' ? r.product?._id : (r.productId || null);
            qtyLabel = r.quantity ?? r.purchasedQuantity ?? r.qty ?? '—';
@@ -197,7 +195,6 @@ function PurchaseReport() {
         return;
       }
 
-      // --- DETAILED (PRODUCT BASED) MODE ---
       if (lineItems.length > 0) {
         lineItems.forEach(item => {
           const qty = item.quantity ?? item.purchasedQuantity ?? item.purchaseQty ?? item.qty ?? '—';
@@ -245,7 +242,6 @@ function PurchaseReport() {
     return rows;
   }, [records, suppliers, viewMode]);
 
-  // ================= FILTER & SORT LOGIC =================
   const filtered = useMemo(() => {
     let result = [...flatRows];
 
@@ -313,7 +309,7 @@ function PurchaseReport() {
     ];
   };
 
-  // ==================== PRINT ====================
+  // DATA EXPORT ENGINE: Multi-format generation algorithms deploying dynamic iframe CSS injection and structured XLSX workbook serialization based on active tabular states.
   const handlePrint = () => {
     const rowsHtml = filtered.map((r, idx) => {
       let tdHtml = `
@@ -413,7 +409,6 @@ function PurchaseReport() {
     }, 300);
   };
 
-  // ==================== PDF EXPORT ====================
   const handleExportPDF = () => {
     const doc = new jsPDF({ orientation: 'landscape' });
     doc.setFontSize(14);
@@ -463,7 +458,6 @@ function PurchaseReport() {
     doc.save(`${activeTab}-report-${new Date().toISOString().slice(0, 10)}.pdf`);
   };
 
- // ==================== EXCEL EXPORT ====================
   const handleExportExcel = () => {
     const rows = filtered.map((r, idx) => {
       const baseObj = {
@@ -501,7 +495,6 @@ function PurchaseReport() {
 
     const worksheet = XLSX.utils.json_to_sheet(rows);
     
-    // Force Left Alignment directly on cells via XLSX Styles
     Object.keys(worksheet).forEach((key) => {
       if (key !== '!ref' && key !== '!cols') {
         if (!worksheet[key].s) worksheet[key].s = {};
@@ -509,32 +502,15 @@ function PurchaseReport() {
       }
     });
 
-    // Set Column Widths
     if (isDiffTab) {
       worksheet['!cols'] = [
-        { wch: 6 },   // Sr#
-        { wch: 14 },  // Date
-        { wch: 14 },  // Ref #
-        { wch: 14 },  // Invoice #
-        { wch: 25 },  // Supplier
-        { wch: 20 },  // Product
-        { wch: 10 },  // Qty
-        { wch: 12 },  // Prev Rate
-        { wch: 12 },  // New Rate
-        { wch: 18 },  // Diff Rate
-        { wch: 16 }   // Total Diff
+        { wch: 6 },   { wch: 14 },  { wch: 14 },  { wch: 14 },  { wch: 25 },  
+        { wch: 20 },  { wch: 10 },  { wch: 12 },  { wch: 12 },  { wch: 18 },  { wch: 16 }   
       ];
     } else {
       worksheet['!cols'] = [
-        { wch: 6 },   // Sr#
-        { wch: 14 },  // Date
-        { wch: 14 },  // Ref #
-        { wch: 14 },  // Invoice #
-        { wch: 25 },  // Supplier
-        { wch: 20 },  // Product
-        { wch: 10 },  // Qty
-        { wch: 18 },  // Rate
-        { wch: 16 }   // Line Total
+        { wch: 6 },   { wch: 14 },  { wch: 14 },  { wch: 14 },  { wch: 25 },  
+        { wch: 20 },  { wch: 10 },  { wch: 18 },  { wch: 16 }   
       ];
     }
     
@@ -543,69 +519,54 @@ function PurchaseReport() {
     XLSX.writeFile(workbook, `${activeTab}-report-${new Date().toISOString().slice(0, 10)}.xlsx`);
   };
 
-  // ================= PAGINATION LOGIC =================
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
   const currentRows = filtered.slice(indexOfFirstItem, indexOfLastItem);
   const totalPages = Math.ceil(filtered.length / itemsPerPage);
 
   return (
-    <div style={styles.page}>
-      <div style={styles.headerRow}>
-        <div style={styles.tabContainer}>
+    <div className="dashboard-wrapper">
+      
+      {/* TABS & EXPORTS TOP BAR */}
+      <div className="card" style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: '16px' }}>
+        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
           {TABS.map(t => (
             <button
               key={t.key}
-              style={activeTab === t.key ? styles.activeTab : styles.tab}
+              className={`btn ${activeTab === t.key ? 'btn-primary' : 'btn-secondary'}`}
               onClick={() => setActiveTab(t.key)}
             >
               {t.label}
             </button>
           ))}
-
-          <button style={{ ...styles.actionBtn, backgroundColor: '#409fb0', marginLeft: 'auto' }} onClick={handlePrint}><FontAwesomeIcon icon={faPrint} /> Print</button>
-          <button style={{ ...styles.actionBtn, backgroundColor: '#d66336' }} onClick={handleExportPDF}><FontAwesomeIcon icon={faFilePdf} /> PDF</button>
-          <button style={{ ...styles.actionBtn, backgroundColor: '#296f3f' }} onClick={handleExportExcel}><FontAwesomeIcon icon={faFileExcel} /> Excel</button>
+        </div>
+        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+          <button className="btn btn-secondary" onClick={handlePrint} disabled={loading || filtered.length === 0}><FontAwesomeIcon icon={faPrint} /> Print</button>
+          <button className="btn btn-secondary" onClick={handleExportPDF} disabled={loading || filtered.length === 0}><FontAwesomeIcon icon={faFilePdf} /> PDF</button>
+          <button className="btn btn-secondary" onClick={handleExportExcel} disabled={loading || filtered.length === 0}><FontAwesomeIcon icon={faFileExcel} /> Excel</button>
         </div>
       </div>
 
-      {/* ==================== FILTERS & VIEW MODE ==================== */}
-      <div style={styles.filterRow}>
+      {/* FILTER BAR & VIEW MODE */}
+      <div className="card" style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', alignItems: 'flex-end' }}>
         
-        {/* VIEW MODE INTEGRATED IN FILTER ROW */}
-        <div style={styles.filterGroup}>
-          <label style={styles.filterLabel}>View Mode</label>
-          <div style={styles.radioToggleWrapper}>
-            <label style={styles.radioLabel}>
-              <input 
-                type="radio" 
-                name="viewMode" 
-                value="summary" 
-                checked={viewMode === 'summary'} 
-                onChange={(e) => setViewMode(e.target.value)} 
-              />
+        <div className="form-group" style={{ marginBottom: 0 }}>
+          <label className="form-label">View Mode</label>
+          <div style={{ display: 'flex', gap: '12px', alignItems: 'center', padding: '10px 12px', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', backgroundColor: 'var(--bg-surface)' }}>
+            <label style={{ fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', color: 'var(--text-main)', fontWeight: 500 }}>
+              <input type="radio" name="viewMode" value="summary" checked={viewMode === 'summary'} onChange={(e) => setViewMode(e.target.value)} />
               Abstract
             </label>
-            <label style={styles.radioLabel}>
-              <input 
-                type="radio" 
-                name="viewMode" 
-                value="detailed" 
-                checked={viewMode === 'detailed'} 
-                onChange={(e) => setViewMode(e.target.value)} 
-              />
+            <label style={{ fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', color: 'var(--text-main)', fontWeight: 500 }}>
+              <input type="radio" name="viewMode" value="detailed" checked={viewMode === 'detailed'} onChange={(e) => setViewMode(e.target.value)} />
               Detailed
             </label>
           </div>
         </div>
 
-        <div style={styles.filterGroup}>
-          <label style={styles.filterLabel}>Supplier</label>
-          <select
-            style={styles.filterInput}
-            value={selectedSupplier}
-            onChange={(e) => setSelectedSupplier(e.target.value)}
-          >
+        <div className="form-group" style={{ marginBottom: 0, flex: '1 1 200px' }}>
+          <label className="form-label">Supplier</label>
+          <select className="form-input" value={selectedSupplier} onChange={(e) => setSelectedSupplier(e.target.value)}>
             <option value="">All Suppliers</option>
             {suppliers.map(s => (
               <option key={s._id} value={s._id}>{s.contactPerson || s.companyName}</option>
@@ -613,184 +574,109 @@ function PurchaseReport() {
           </select>
         </div>
 
-        <div style={styles.filterGroup}>
-          <label style={styles.filterLabel}>From Date</label>
-          <input type="date" style={styles.filterInput} value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
+        <div className="form-group" style={{ marginBottom: 0, flex: '1 1 150px' }}>
+          <label className="form-label">From Date</label>
+          <input type="date" className="form-input" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
         </div>
 
-        <div style={styles.filterGroup}>
-          <label style={styles.filterLabel}>To Date</label>
-          <input type="date" style={styles.filterInput} value={toDate} onChange={(e) => setToDate(e.target.value)} />
+        <div className="form-group" style={{ marginBottom: 0, flex: '1 1 150px' }}>
+          <label className="form-label">To Date</label>
+          <input type="date" className="form-input" value={toDate} onChange={(e) => setToDate(e.target.value)} />
         </div>
 
-        <button style={styles.clearFilterBtn} onClick={clearFilters}>
-          Clear Filters
-        </button>
+        <button className="btn btn-secondary" onClick={clearFilters}>Clear Filters</button>
       </div>
 
-      <div style={styles.filterStats}>
-        Showing {filtered.length} {viewMode === 'summary' ? 'transaction(s)' : 'line item(s)'}
-      </div>
+      {/* DATA TABLE */}
+      <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+        <div style={{ padding: '16px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'flex-end' }}>
+          <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
+            Showing {currentRows.length} of {filtered.length} {viewMode === 'summary' ? 'transaction(s)' : 'line item(s)'}
+          </span>
+        </div>
 
-      {/* ==================== TABLE ==================== */}
-      <div style={styles.tableWrapper}>
-        <table style={styles.table}>
-          <thead>
-            <tr>
-              <th style={{ ...styles.th, width: '4%', textAlign: 'center' }}>Sr#</th>
-              <th style={{ ...styles.th, width: '8%' }}>Date</th>
-              <th style={{ ...styles.th, width: '9%' }}>Ref #</th>
-              <th style={{ ...styles.th, width: '9%' }}>Invoice #</th>
-              <th style={{ ...styles.th, width: '13%' }}>Supplier</th>
-              <th style={{ ...styles.th, width: '14%' }}>Product</th>
-              <th style={{ ...styles.th, width: '5%', textAlign: 'center' }}>Qty</th>
-              {isDiffTab ? (
-                <>
-                  <th style={{ ...styles.th, width: '9%', textAlign: 'left' }}>Prev Rate</th>
-                  <th style={{ ...styles.th, width: '9%', textAlign: 'left' }}>New Rate</th>
-                  <th style={{ ...styles.th, width: '9%', textAlign: 'left' }}>Diff Rate</th>
-                  <th style={{ ...styles.th, width: '11%', textAlign: 'left' }}>Total Diff</th>
-                </>
-              ) : (
-                <>
-                  <th style={{ ...styles.th, width: '10%', textAlign: 'left' }}>Rate</th>
-                  <th style={{ ...styles.th, width: '12%', textAlign: 'left' }}>Line Total</th>
-                </>
-              )}
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <tr><td colSpan={isDiffTab ? 11 : 9} style={styles.emptyCell}>Loading...</td></tr>
-            ) : fetchError ? (
-              <tr><td colSpan={isDiffTab ? 11 : 9} style={styles.emptyCell}>
-                This report isn't available yet — check the "{activeTabLabel}" endpoint on the backend.
-              </td></tr>
-            ) : currentRows.length === 0 ? (
-              <tr><td colSpan={isDiffTab ? 11 : 9} style={styles.emptyCell}>No records found matching your filters.</td></tr>
-            ) : (
-              currentRows.map((r, idx) => {
-                const serialNumber = (currentPage - 1) * itemsPerPage + idx + 1;
-                return (
-                  <tr key={`${r.parentId}-${idx}`} style={idx % 2 === 1 ? styles.altRow : null}>
-                    <td style={{ ...styles.td, textAlign: 'center' }}>{serialNumber}</td>
-                    <td style={styles.td}>{formatDate(r.date)}</td>
-                    <td style={{ ...styles.td, fontWeight: 700, color: '#0f172a' }}>{r.ref}</td>
-                    <td style={styles.td}>{r.invoice}</td>
-                    <td style={styles.td}>{r.supplierName}</td>
-                    <td style={{ ...styles.td, fontWeight: 600 }}>{r.product}</td>
-                    <td style={{ ...styles.td, textAlign: 'center' }}>{r.quantity}</td>
-                    {isDiffTab ? (
-                      <>
-                        <td style={{ ...styles.td, textAlign: 'left' }}>{typeof r.prevRate === 'number' ? r.prevRate.toFixed(2) : r.prevRate}</td>
-                        <td style={{ ...styles.td, textAlign: 'left' }}>{typeof r.newRate === 'number' ? r.newRate.toFixed(2) : r.newRate}</td>
-                        <td style={{ ...styles.td, textAlign: 'left', fontWeight: 600, color: r.diffRate > 0 ? '#10b981' : '#ef4444' }}>
-                          {typeof r.diffRate === 'number' ? r.diffRate.toFixed(2) : r.diffRate}
-                        </td>
-                        <td style={{ ...styles.td, textAlign: 'left', fontWeight: 700, color: r.lineTotal > 0 ? '#10b981' : '#ef4444' }}>
-                          {typeof r.lineTotal === 'number' ? r.lineTotal.toFixed(2) : r.lineTotal}
-                        </td>
-                      </>
-                    ) : (
-                      <>
-                        <td style={{ ...styles.td, textAlign: 'left' }}>{typeof r.rate === 'number' ? r.rate.toFixed(2) : r.rate}</td>
-                        <td style={{ ...styles.td, textAlign: 'left', fontWeight: 600, color: '#10b981' }}>
-                          {typeof r.lineTotal === 'number' ? r.lineTotal.toFixed(2) : r.lineTotal}
-                        </td>
-                      </>
-                    )}
-                  </tr>
-                );
-              })
-            )}
-          </tbody>
-          
-          {/* ==================== UI GRAND TOTAL ROW ==================== */}
-          {currentRows.length > 0 && (
-            <tfoot>
-              <tr>
-                <td 
-                  colSpan={isDiffTab ? 10 : 8} 
-                  style={{ ...styles.td, textAlign: 'right', fontWeight: 'bold', borderTop: '2px solid #cbd5e1', fontSize: '14px' }}
-                >
-                  Grand Total:
-                </td>
-                <td 
-                  style={{ ...styles.td, textAlign: 'left', fontWeight: 'bold', borderTop: '2px solid #cbd5e1', color: '#0f172a', fontSize: '14px' }}
-                >
-                  {grandTotal.toFixed(2)}
-                </td>
+        <div style={{ overflowX: 'auto', width: '100%' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '1000px' }}>
+            <thead>
+              <tr style={{ backgroundColor: 'var(--header)' }}>
+                {columns.map((c, i) => (
+                  <th key={i} style={{ padding: '12px 16px', color: 'white', textAlign: i === 0 ? 'center' : 'left', fontSize: '13px', fontWeight: '600' }}>
+                    {c}
+                  </th>
+                ))}
               </tr>
-            </tfoot>
-          )}
-        </table>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr><td colSpan={columns.length} style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '14px' }}>Loading data...</td></tr>
+              ) : fetchError ? (
+                <tr><td colSpan={columns.length} style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '14px' }}>This report isn't available yet — check the "{activeTabLabel}" endpoint on the backend.</td></tr>
+              ) : currentRows.length === 0 ? (
+                <tr><td colSpan={columns.length} style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '14px' }}>No records found matching your filters.</td></tr>
+              ) : (
+                currentRows.map((r, idx) => {
+                  const serialNumber = indexOfFirstItem + idx + 1;
+                  const row = getRow(r, idx);
+                  row[0] = serialNumber;
+
+                  return (
+                    <tr 
+                      key={`${r.parentId}-${idx}`} 
+                      style={{ borderBottom: '1px solid var(--border-color)', transition: 'background-color 0.2s' }}
+                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--bg-app)'}
+                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                    >
+                      {row.map((cell, colIdx) => (
+                        <td 
+                          key={colIdx} 
+                          style={{ 
+                            padding: '10px 16px', 
+                            fontSize: '13px', 
+                            color: 'var(--text-main)',
+                            fontWeight: colIdx === 2 || (colIdx === row.length - 1) ? '600' : '400',
+                            textAlign: colIdx === 0 ? 'center' : 'left'
+                          }}
+                        >
+                          {cell}
+                        </td>
+                      ))}
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+            
+            {currentRows.length > 0 && (
+              <tfoot>
+                <tr style={{ backgroundColor: 'var(--bg-app)', borderTop: '2px solid var(--border-color)' }}>
+                  <td colSpan={isDiffTab ? 10 : 8} style={{ padding: '12px 16px', fontSize: '14px', fontWeight: '700', color: 'var(--text-main)', textAlign: 'right' }}>
+                    Grand Total:
+                  </td>
+                  <td style={{ padding: '12px 16px', fontSize: '14px', fontWeight: '700', color: 'var(--danger)', textAlign: 'left' }}>
+                    {grandTotal.toFixed(2)}
+                  </td>
+                </tr>
+              </tfoot>
+            )}
+          </table>
+        </div>
+
+        {/* PAGINATION */}
+        {filtered.length > itemsPerPage && (
+          <div style={{ display: 'flex', gap: '15px', justifyContent: 'center', alignItems: 'center', padding: '16px' }}>
+            <button className="btn btn-secondary" disabled={currentPage === 1} onClick={() => setCurrentPage(prev => prev - 1)} style={{ padding: '6px 12px' }}>
+              ←
+            </button>
+            <span style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-muted)' }}>Page {currentPage} of {totalPages || 1}</span>
+            <button className="btn btn-secondary" disabled={currentPage >= totalPages || totalPages === 0} onClick={() => setCurrentPage(prev => prev + 1)} style={{ padding: '6px 12px' }}>
+              →
+            </button>
+          </div>
+        )}
       </div>
 
-      {/* ==================== PAGINATION CONTROLS ==================== */}
-      <div style={{ marginTop: '20px', display: 'flex', gap: '15px', justifyContent: 'center', alignItems: 'center', paddingBottom: '20px' }}>
-        <button
-          disabled={currentPage <= 1}
-          onClick={() => setCurrentPage(prev => prev - 1)}
-          style={{
-            padding: '8px 16px',
-            backgroundColor: currentPage <= 1 ? '#e9ecef' : '#5aa7ef',
-            color: currentPage <= 1 ? '#6c757d' : 'white',
-            border: 'none',
-            borderRadius: '4px',
-            cursor: currentPage <= 1 ? 'not-allowed' : 'pointer',
-            fontWeight: '600'
-          }}
-        >
-          ←
-        </button>
-        <span style={{ fontSize: '12px', fontWeight: '400', color: '#868484' }}>
-          Page {currentPage} of {totalPages || 1}
-        </span>
-        <button
-          disabled={currentPage >= totalPages || totalPages === 0}
-          onClick={() => setCurrentPage(prev => prev + 1)}
-          style={{
-            padding: '8px 16px',
-            backgroundColor: (currentPage >= totalPages || totalPages === 0) ? '#e9ecef' : '#5aa7ef',
-            color: (currentPage >= totalPages || totalPages === 0) ? '#6c757d' : 'white',
-            border: 'none',
-            borderRadius: '4px',
-            cursor: (currentPage >= totalPages || totalPages === 0) ? 'not-allowed' : 'pointer',
-            fontWeight: '600'
-          }}
-        >
-          →
-        </button>
-      </div>
     </div>
   );
 }
-
-const styles = {
-  page: { padding: '10px 17px', background: '#f8fafc', minHeight: '100%', marginBottom: '60px' },
-  headerRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' },
-  actionBtn: { color: '#fff', border: 'none', padding: '9px 16px', borderRadius: '6px', cursor: 'pointer', fontWeight: 600, fontSize: '13px' },
-
-  tabContainer: { display: 'flex', gap: '10px', marginTop: '15px', marginBottom: '15px', flexWrap: 'wrap', width: '100%', alignItems: 'center' },
-  tab: { padding: '10px 18px', borderRadius: '6px', border: '1px solid #cbd5e1', backgroundColor: '#fff', color: '#475569', fontWeight: 600, cursor: 'pointer', fontSize: '13px', transition: 'all 0.2s ease-in-out' },
-  activeTab: { padding: '10px 18px', borderRadius: '6px', border: '1px solid #3c4e6b', backgroundColor: '#3c4e6b', color: '#fff', fontWeight: 600, cursor: 'pointer', fontSize: '13px', transition: 'all 0.2s ease-in-out' },
-
-  filterRow: { display: 'flex', gap: '16px', alignItems: 'flex-end', flexWrap: 'wrap' },
-  filterGroup: { display: 'flex', flexDirection: 'column', flex: '1', minWidth: '150px' },
-  filterLabel: { fontSize: '11px', fontWeight: 500, color: '#475569', textAlign: 'left' },
-  filterInput: { color: '#343a42', padding: '6.4px 12px', borderRadius: '4px', border: '1px solid #cbd5e1', fontSize: '14px', backgroundColor: '#fff', outline: 'none', width: '100%', boxSizing: 'border-box' },
-  clearFilterBtn: { padding: '10px 18px', background: '#6c757d', color: '#f9f9f9', border: '1px solid #cfcece', borderRadius: '8px', cursor: 'pointer', fontWeight: 600, fontSize: '13px', whiteSpace: 'nowrap' },
-  filterStats: { marginTop: '10px', fontSize: '13px', color: '#64748b', textAlign: 'right', fontWeight: 400 },
-
-  radioToggleWrapper: { display: 'flex', gap: '12px', alignItems: 'center', padding: '3px 12px', border: '1px solid #cbd5e1', borderRadius: '8px', backgroundColor: '#fff', height: '100%', boxSizing: 'border-box' },
-  radioLabel: { fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', color: '#475569', fontWeight: 500 },
-
-  tableWrapper: { marginTop: '6px', background: '#fff', borderRadius: '8px', border: '1px solid #cbd5e1', overflowX: 'auto', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', width: '100%' },
-  table: { width: '100%', minWidth: '900px', borderCollapse: 'collapse', tableLayout: 'auto' },
-  th: { textAlign: 'left', padding: '12px 10px', background: '#3c4e6b', fontSize: '11px', color: '#fefefe', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', borderBottom: '2px solid #94a3b8', borderRight: '1px solid #44576e', whiteSpace: 'nowrap' },
-  td: { padding: '10px 10px', textAlign: 'left', fontSize: '13px', borderBottom: '1px solid #e2e8f0', borderRight: '1px solid #e2e8f0', color: '#334155', whiteSpace: 'nowrap' },
-  altRow: { backgroundColor: '#f8fafc' },
-  emptyCell: { textAlign: 'center', padding: '40px 0', color: '#94a3b8', fontSize: '14px' },
-};
 
 export default PurchaseReport;

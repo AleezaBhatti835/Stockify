@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { usePrintSettings } from '../../context/PrintSettingsContext';
 
 const API_BASE_URL = 'http://localhost:5000';
 
@@ -15,6 +16,8 @@ function SalesReturnList() {
     const [customers, setCustomers] = useState([]);
     const [loading, setLoading] = useState(true);
 
+    const { settings: printSettings } = usePrintSettings();
+
     // Filter States
     const [searchTerm, setSearchTerm] = useState('');
     const [dateFrom, setDateFrom] = useState(getTodayString());
@@ -26,7 +29,7 @@ function SalesReturnList() {
 
     // Pagination States
     const [currentPage, setCurrentPage] = useState(1);
-    const [itemsPerPage] = useState(5);
+    const [itemsPerPage] = useState(10);
 
     // Modal State
     const [selectedReturn, setSelectedReturn] = useState(null);
@@ -36,7 +39,6 @@ function SalesReturnList() {
         fetchAllData();
     }, []);
 
-    // Jab bhi filters change hon, page 1 par wapas aayen
     useEffect(() => {
         setCurrentPage(1);
     }, [searchTerm, dateFrom, dateTo]);
@@ -44,9 +46,14 @@ function SalesReturnList() {
     const fetchAllData = async () => {
         setLoading(true);
         try {
+            const token = localStorage.getItem('token');
             const [retRes, custRes] = await Promise.all([
-                fetch(`${API_BASE_URL}/api/sale-returns`),
-                fetch(`${API_BASE_URL}/api/customers`)
+                fetch(`${API_BASE_URL}/api/sale-returns`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                }),
+                fetch(`${API_BASE_URL}/api/customers`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                })
             ]);
 
             if (custRes.ok) {
@@ -70,9 +77,7 @@ function SalesReturnList() {
                     dataToSet = retData.data;
                 }
 
-                // Sorting in ASCENDING order (Oldest first, Most recent at the end)
                 dataToSet.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
-                
                 setReturns(dataToSet);
             } else {
                 setReturns([]);
@@ -140,7 +145,6 @@ function SalesReturnList() {
         (c.name || c.customerName || '').toLowerCase().includes(searchTerm.toLowerCase())
     );
 
-    // Keyboard Shortcuts Logic for Search Input
     const handleKeyDown = (e) => {
         if (!showCustSug || filteredCustSuggestions.length === 0) return;
 
@@ -174,7 +178,6 @@ function SalesReturnList() {
         setIsModalOpen(false);
     };
 
-    // Helper: Remove zeros from SR- (e.g. SR-0005 -> SR-5)
     const formatReturnNumber = (numStr) => {
         if (!numStr) return '—';
         return numStr.replace(/SR-0+/, 'SR-');
@@ -232,55 +235,43 @@ function SalesReturnList() {
         const returnDateStr = new Date(selectedReturn.returnDate || selectedReturn.createdAt).toLocaleDateString();
 
         return (
-            <div style={styles.receiptOverlay} onClick={closeReceipt}>
-                <div style={{ ...styles.receiptContainer, maxWidth: '850px' }} onClick={(e) => e.stopPropagation()}>
-                    <div style={{ ...styles.receiptHeader, flexDirection: 'row', gap: '0' }}>
-                        <h3 style={{ margin: 0, color: '#000' }}>CAPOBIZ</h3>
-                        <div style={{ ...styles.receiptActions, width: 'auto', margin: '0' }}>
-                            <button
-                                className="receipt-print-btn"
-                                style={styles.printReceiptBtn}
-                                onClick={handlePrint}
-                            >
-                                🖨️ Print
-                            </button>
-                            <button
-                                className="receipt-close-btn"
-                                style={styles.closeReceiptBtn}
-                                onClick={closeReceipt}
-                            >
-                                ✕ Close
-                            </button>
+            <div className="modal-overlay" onClick={closeReceipt}>
+                <div className="modal-container" style={{ maxWidth: '850px', padding: 0, overflow: 'hidden' }} onClick={(e) => e.stopPropagation()}>
+                    <div className="modal-header">
+                        <h3 className="modal-title" style={{ color: '#000' }}>CAPOBIZ</h3>
+                        <div style={{ display: 'flex', gap: 'var(--space-sm)' }}>
+                            <button className="btn btn-primary" onClick={handlePrint}>🖨️ Print</button>
+                            <button className="btn btn-secondary" onClick={closeReceipt}>✕ Close</button>
                         </div>
                     </div>
 
                     <div
+                        className="modal-body"
                         style={{
-                            ...styles.receiptBody,
                             padding: '24px',
                             fontSize: '14px',
                             fontFamily: 'Arial, sans-serif'
                         }}
                         id="receipt-content"
                     >
-                        <div style={styles.receiptHeaderInfo}>
+                        <div style={{ textAlign: 'left', marginBottom: '16px' }}>
                             <h4 style={{ margin: '0 0 10px 0', fontSize: '18px', textAlign: 'center' }}>SALES RETURN RECEIPT</h4>
                             <p style={{ margin: '4px 0', color: '#333' }}>Return #: {displayReturnNum}</p>
                             <p style={{ margin: '4px 0', color: '#333' }}>
                                 Customer: {getCustomerName(selectedReturn)}
                             </p>
                         </div>
-                        <div style={styles.receiptDivider}></div>
+                        <div style={{ borderTop: '2px dashed #000', margin: '14px 0' }}></div>
 
-                        <table style={styles.receiptTable}>
+                        <table style={{ width: '100%', tableLayout: 'fixed', borderCollapse: 'collapse', marginBottom: '12px' }}>
                             <thead>
                                 <tr>
-                                    <th style={{ ...styles.receiptTh, width: '15%' }}>Product</th>
-                                    <th style={{ ...styles.receiptTh, textAlign: 'left', width: '15%' }}>Orig. Sale</th>
-                                    <th style={{ ...styles.receiptTh, textAlign: 'left', width: '15%' }}>Date</th>
-                                    <th style={{ ...styles.receiptTh, textAlign: 'left', width: '15%' }}>Ret. Qty</th>
-                                    <th style={{ ...styles.receiptTh, textAlign: 'left', width: '15%' }}>Price</th>
-                                    <th style={{ ...styles.receiptTh, textAlign: 'left', width: '15%' }}>Total</th>
+                                    <th style={{ ...tableStyles.th, width: '15%' }}>Product</th>
+                                    <th style={{ ...tableStyles.th, textAlign: 'left', width: '15%' }}>Orig. Sale</th>
+                                    <th style={{ ...tableStyles.th, textAlign: 'left', width: '15%' }}>Date</th>
+                                    <th style={{ ...tableStyles.th, textAlign: 'left', width: '15%' }}>Ret. Qty</th>
+                                    <th style={{ ...tableStyles.th, textAlign: 'left', width: '15%' }}>Price</th>
+                                    <th style={{ ...tableStyles.th, textAlign: 'left', width: '15%' }}>Total</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -288,15 +279,15 @@ function SalesReturnList() {
                                     const itemName = (item.product && item.product.name) ? item.product.name : (item.name || 'Unknown Product');
                                     const lineTotal = item.quantity * item.unitPrice;
                                     return (
-                                        <tr style={styles.data} key={idx}>
-                                            <td style={styles.receiptTdName}>{itemName}</td>
-                                            <td style={{ ...styles.receiptTd, textAlign: 'left' }}>
+                                        <tr key={idx} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                                            <td style={{ padding: '8px', fontSize: '13px', color: '#000', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{itemName}</td>
+                                            <td style={{ padding: '8px', fontSize: '13px', color: '#000', textAlign: 'left' }}>
                                                 {!selectedReturn.isBlindReturn ? invNumber : 'N/A'}
                                             </td>
-                                            <td style={{ ...styles.receiptTd, textAlign: 'left' }}>{returnDateStr}</td>
-                                            <td style={{ ...styles.receiptTd, textAlign: 'left' }}>{item.quantity}</td>
-                                            <td style={{ ...styles.receiptTd, textAlign: 'left' }}>{Number(item.unitPrice || 0).toFixed(2)}</td>
-                                            <td style={{ ...styles.receiptTd, textAlign: 'left', fontWeight: 600 }}>
+                                            <td style={{ padding: '8px', fontSize: '13px', color: '#000', textAlign: 'left' }}>{returnDateStr}</td>
+                                            <td style={{ padding: '8px', fontSize: '13px', color: '#000', textAlign: 'left' }}>{item.quantity}</td>
+                                            <td style={{ padding: '8px', fontSize: '13px', color: '#000', textAlign: 'left' }}>{Number(item.unitPrice || 0).toFixed(2)}</td>
+                                            <td style={{ padding: '8px', fontSize: '13px', color: '#000', textAlign: 'left', fontWeight: 600 }}>
                                                 {lineTotal.toFixed(2)}
                                             </td>
                                         </tr>
@@ -305,9 +296,9 @@ function SalesReturnList() {
                             </tbody>
                         </table>
 
-                        <div style={styles.receiptDivider}></div>
-                        <div style={styles.receiptTotals}>
-                            <div style={{ ...styles.receiptTotalRow, fontWeight: 700, fontSize: '1.15em', borderTop: '2px solid #000', paddingTop: '10px' }}>
+                        <div style={{ borderTop: '2px dashed #000', margin: '14px 0' }}></div>
+                        <div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', fontSize: '13px', color: '#000', fontWeight: 700, fontSize: '1.15em', borderTop: '2px solid #000', paddingTop: '10px' }}>
                                 <span>Total Refunded</span>
                                 <span>Rs. {Number(selectedReturn.totalAmount || selectedReturn.refundAmount || 0).toFixed(2)}</span>
                             </div>
@@ -324,260 +315,242 @@ function SalesReturnList() {
     };
 
     return (
-        <div style={{padding: '25px', borderRadius: '8px', backgroundColor: '#fff' }}>
-            {/* ==================== FILTERS ==================== */}
-            <div style={styles.filterCard}>
-                <div style={styles.filterGroup}>
-                    <label style={styles.filterLabel}>Search (Customer)</label>
-                    <div style={{ position: 'relative', width: '100%' }}>
-                        <input
-                            type="text"
-                            name="customer-search-field"
-                            autoComplete="new-password"
-                            placeholder="Type customer name..."
-                            value={searchTerm}
-                            onChange={(e) => {
-                                setSearchTerm(e.target.value);
-                                setShowCustSug(true);
-                                setHighlightedIndex(-1);
-                            }}
-                            onKeyDown={handleKeyDown}
-                            onFocus={() => setShowCustSug(true)}
-                            onBlur={() => setTimeout(() => setShowCustSug(false), 200)}
-                            style={{ ...styles.filterInput, width: '100%' }}
-                        />
+        <div className="dashboard-wrapper">
+            
+            {/* HEADER */}
+            <div className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h4 style={{ margin: 0, color: 'var(--primary)', fontSize: '22px', fontWeight: 600 }}>Sales Return List</h4>
+            </div>
 
-                        {/* Customer Suggestions Dropdown */}
-                        {showCustSug && searchTerm && filteredCustSuggestions.length > 0 && (
-                            <div style={styles.suggestionsList}>
-                                {filteredCustSuggestions.map((c, idx) => (
-                                    <div
-                                        key={c._id || idx}
-                                        className="suggestion-hover"
-                                        style={{
-                                            ...styles.suggestionItem,
-                                            backgroundColor: idx === highlightedIndex ? '#e8f4fd' : 'transparent',
-                                            color: idx === highlightedIndex ? '#007bff' : '#334155'
-                                        }}
-                                        onMouseDown={() => {
-                                            setSearchTerm(c.name || c.customerName);
-                                            setShowCustSug(false);
-                                            setHighlightedIndex(-1);
-                                        }}
-                                        onMouseEnter={() => setHighlightedIndex(idx)}
-                                    >
-                                        {c.name || c.customerName}
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </div>
+            {/* ==================== FILTERS ==================== */}
+            <div className="card" style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-md)', alignItems: 'flex-end' }}>
+                <div className="form-group" style={{ flex: '1', minWidth: '200px', marginBottom: 0, position: 'relative' }}>
+                    <label className="form-label">Search (Customer)</label>
+                    <input
+                        type="text"
+                        name="customer-search-field"
+                        autoComplete="new-password"
+                        placeholder="Type customer name..."
+                        value={searchTerm}
+                        onChange={(e) => {
+                            setSearchTerm(e.target.value);
+                            setShowCustSug(true);
+                            setHighlightedIndex(-1);
+                        }}
+                        onKeyDown={handleKeyDown}
+                        onFocus={() => setShowCustSug(true)}
+                        onBlur={() => setTimeout(() => setShowCustSug(false), 200)}
+                        className="form-input"
+                    />
+
+                    {/* Customer Suggestions Dropdown */}
+                    {showCustSug && searchTerm && filteredCustSuggestions.length > 0 && (
+                        <ul style={{
+                            position: 'absolute', top: '100%', left: 0, right: 0,
+                            backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)',
+                            maxHeight: '180px', overflowY: 'auto', margin: 'var(--space-xs) 0 0 0', padding: 0, listStyle: 'none',
+                            zIndex: 1000, boxShadow: 'var(--shadow-md)', textAlign: 'left'
+                        }}>
+                            {filteredCustSuggestions.map((c, idx) => (
+                                <li
+                                    key={c._id || idx}
+                                    style={{
+                                        padding: '10px 14px', cursor: 'pointer', borderBottom: '1px solid var(--border-color)', fontSize: '13px',
+                                        backgroundColor: idx === highlightedIndex ? 'var(--primary-light)' : 'var(--bg-surface)',
+                                        color: idx === highlightedIndex ? 'var(--primary)' : 'var(--text-main)'
+                                    }}
+                                    onMouseDown={() => {
+                                        setSearchTerm(c.name || c.customerName);
+                                        setShowCustSug(false);
+                                        setHighlightedIndex(-1);
+                                    }}
+                                    onMouseEnter={() => setHighlightedIndex(idx)}
+                                >
+                                    {c.name || c.customerName}
+                                </li>
+                            ))}
+                        </ul>
+                    )}
                 </div>
 
-                <div style={styles.filterGroup}>
-                    <label style={styles.filterLabel}>Date From</label>
+                <div className="form-group" style={{ flex: '1', minWidth: '150px', marginBottom: 0 }}>
+                    <label className="form-label">Date From</label>
                     <input
                         type="date"
                         value={dateFrom}
                         onChange={(e) => setDateFrom(e.target.value)}
-                        style={styles.filterInput}
+                        className="form-input"
                     />
                 </div>
 
-                <div style={styles.filterGroup}>
-                    <label style={styles.filterLabel}>Date To</label>
+                <div className="form-group" style={{ flex: '1', minWidth: '150px', marginBottom: 0 }}>
+                    <label className="form-label">Date To</label>
                     <input
                         type="date"
                         value={dateTo}
                         onChange={(e) => setDateTo(e.target.value)}
-                        style={styles.filterInput}
+                        className="form-input"
                     />
                 </div>
 
-                <div style={{ display: 'flex', gap: '8px' }}>
-          <button
-            onClick={clearFilters}
-            style={{
-              padding: '8px 16px',
-              backgroundColor: '#6c757d',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer',
-              fontWeight: '600',
-              fontSize: '14px',
-              height: '38px'
-            }}
-          >
-            Clear Filters
-          </button>
-        </div>
+                <div style={{ display: 'flex', gap: 'var(--space-sm)' }}>
+                    <button className="btn btn-secondary" onClick={clearFilters}>
+                        Clear Filters
+                    </button>
+                </div>
             </div>
 
-            <div style={styles.resultCount}>
-                Showing {currentItems.length} of {filteredReturns.length} return(s)
-            </div>
+            {/* MAIN SUMMARY TABLE */}
+            <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+                
+                {/* RESULTS COUNT */}
+                <div style={{ padding: 'var(--space-sm) var(--space-md)', textAlign: 'right', fontSize: '13px', color: 'var(--text-muted)', borderBottom: '1px solid var(--border-color)' }}>
+                    <span>Showing {currentItems.length} of {filteredReturns.length} return(s)</span>
+                </div>
 
-            <div style={styles.tableWrapper}>
-                <table style={styles.table}>
-                    <thead>
-                        <tr>
-                            <th style={{ ...styles.th, textAlign: 'left', width: '10%' }}>Sr#</th>
-                            <th style={{ ...styles.th, textAlign: 'left', width: '15%' }}>Date</th>
-                            <th style={{ ...styles.th, textAlign: 'left', width: '15%' }}>Return #</th>
-                            <th style={{ ...styles.th, textAlign: 'left', width: '15%' }}>Customer </th>
-                            <th style={{ ...styles.th, textAlign: 'left' }}>Refund Amount</th>
-                            <th style={{ ...styles.th, textAlign: 'left' }}>Action</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {loading ? (
-                            <tr><td colSpan="8" style={styles.emptyCell}>Loading Returns...</td></tr>
-                        ) : filteredReturns.length === 0 ? (
+                <div style={{ overflowX: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                        <thead>
                             <tr>
-                                <td colSpan="8" style={styles.emptyCell}>
-                                    {returns.length === 0
-                                        ? 'No sales returns found in database. (Note: Ensure Backend API is running)'
-                                        : 'No sales returns match your current filters. (Tip: Click "Clear Filters")'}
-                                </td>
+                                <th style={{ ...tableStyles.th, textAlign: 'center', width: '60px' }}>Sr#</th>
+                                <th style={tableStyles.th}>Date</th>
+                                <th style={tableStyles.th}>Return #</th>
+                                <th style={tableStyles.th}>Customer</th>
+                                <th style={tableStyles.th}>Refund Amount</th>
+                                <th style={{ ...tableStyles.th, textAlign: 'center' }}>Action</th>
                             </tr>
-                        ) : (
-                            currentItems.map((r, idx) => {
-                                const customerName = getCustomerName(r);
-                                const invNumber = r.invoiceNumber || (r.sale && r.sale.saleNumber) || 'Linked';
-                                const serialNumber = indexOfFirstItem + idx + 1;
-                                const displayReturnNum = formatReturnNumber(r.returnNumber);
-                                
-                                // Proper quantity sum instead of length
-                                const totalQty = r.items?.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0) || 0;
+                        </thead>
+                        <tbody>
+                            {loading ? (
+                                <tr><td colSpan="6" style={tableStyles.emptyCell}>Loading Returns...</td></tr>
+                            ) : filteredReturns.length === 0 ? (
+                                <tr>
+                                    <td colSpan="6" style={tableStyles.emptyCell}>
+                                        {returns.length === 0
+                                            ? 'No sales returns found in database.'
+                                            : 'No sales returns match your current filters.'}
+                                    </td>
+                                </tr>
+                            ) : (
+                                currentItems.map((r, idx) => {
+                                    const customerName = getCustomerName(r);
+                                    const serialNumber = indexOfFirstItem + idx + 1;
+                                    const displayReturnNum = formatReturnNumber(r.returnNumber);
 
-                                return (
-                                    <tr key={r._id}>
-                                        <td style={styles.td}>{serialNumber}</td>
-                                        <td style={styles.td}>{new Date(r.returnDate || r.createdAt).toLocaleDateString()}</td>
-                                        <td style={{ ...styles.td,  color: '#0f172a' }}>{displayReturnNum}</td>
-                                     
-                                        <td style={styles.td}>{customerName}</td>
-                                        <td style={{ ...styles.td, textAlign: 'left', fontWeight: 600, color: '#ef4444' }}>
-                                            Rs. {Number(r.totalAmount || r.refundAmount || 0).toFixed(2)}
-                                        </td>
-                                        <td style={{ ...styles.td, textAlign: 'left' }}>
-                                            <div style={{ display: 'flex', justifyContent: 'left' }}>
-                                                <button style={styles.iconBtnView} onClick={() => openReceipt(r)} title="View Receipt">
-                                                    <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
-                                                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                                                        <circle cx="12" cy="12" r="3"></circle>
-                                                    </svg>
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                );
-                            })
-                        )}
-                    </tbody>
-                </table>
-            </div>
+                                    return (
+                                        <tr 
+                                            key={r._id}
+                                            style={{ borderBottom: '1px solid var(--border-color)', transition: 'background-color 0.2s' }}
+                                            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--bg-app)'}
+                                            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                                        >
+                                            <td style={{ ...tableStyles.td, textAlign: 'center', color: 'var(--text-muted)', fontWeight: 500 }}>{serialNumber}</td>
+                                            <td style={tableStyles.td}>{new Date(r.returnDate || r.createdAt).toLocaleDateString()}</td>
+                                            <td style={{ ...tableStyles.td, fontWeight: 700, color: 'var(--text-main)' }}>{displayReturnNum}</td>
+                                            <td style={tableStyles.td}>{customerName}</td>
+                                            <td style={{ ...tableStyles.td, fontWeight: 600, color: 'var(--danger)' }}>
+                                                Rs. {Number(r.totalAmount || r.refundAmount || 0).toFixed(2)}
+                                            </td>
+                                            <td style={{ ...tableStyles.td, textAlign: 'center' }}>
+                                                <div style={{ display: 'flex', justifyContent: 'center' }}>
+                                                    <button 
+                                                        style={actionStyles.iconBtnView} 
+                                                        onClick={() => openReceipt(r)} 
+                                                        title="View Receipt"
+                                                    >
+                                                        <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+                                                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                                            <circle cx="12" cy="12" r="3"></circle>
+                                                        </svg>
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    );
+                                })
+                            )}
+                        </tbody>
+                    </table>
+                </div>
 
-            {/* Pagination Controls */}
-            <div style={{ marginTop: '20px', display: 'flex', gap: '15px', justifyContent: 'center', alignItems: 'center' }}>
-                <button
-                    disabled={currentPage === 1}
-                    onClick={() => setCurrentPage(prev => prev - 1)}
-                    style={{
-                        padding: '8px 16px',
-                        background: currentPage === 1 ? '#e9ecef' : '#5aa7ef',
-                        color: currentPage === 1 ? '#6c757d' : 'white',
-                        border: 'none',
-                        borderRadius: '4px',
-                        cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
-                        fontWeight: '600'
-                    }}
-                >
-                    ←
-                </button>
-                <span style={{ fontSize: '12px', fontWeight: '400',color:'#868484' }}>Page {currentPage} of {totalPages}</span>
-                <button
-                    disabled={currentPage >= totalPages}
-                    onClick={() => setCurrentPage(prev => prev + 1)}
-                    style={{
-                        padding: '8px 16px',
-                        background: currentPage >= totalPages ? '#e9ecef' : '#5aa7ef',
-                        color: currentPage >= totalPages ? '#6c757d' : 'white',
-                        border: 'none',
-                        borderRadius: '4px',
-                        cursor: currentPage >= totalPages ? 'not-allowed' : 'pointer',
-                        fontWeight: '600'
-                    }}
-                >
-                    →
-                </button>
+                {/* Pagination Controls */}
+                {filteredReturns.length > itemsPerPage && (
+                    <div style={{ display: 'flex', gap: 'var(--space-md)', justifyContent: 'center', alignItems: 'center', padding: 'var(--space-md)' }}>
+                        <button
+                            className="btn btn-secondary"
+                            disabled={currentPage === 1}
+                            onClick={() => setCurrentPage(prev => prev - 1)}
+                            style={{ padding: '6px 12px' }}
+                        >
+                            ←
+                        </button>
+                        <span style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-muted)' }}>
+                            Page {currentPage} of {totalPages || 1}
+                        </span>
+                        <button
+                            className="btn btn-secondary"
+                            disabled={currentPage >= totalPages}
+                            onClick={() => setCurrentPage(prev => prev + 1)}
+                            style={{ padding: '6px 12px' }}
+                        >
+                            →
+                        </button>
+                    </div>
+                )}
             </div>
 
             {/* View Modal */}
             {isModalOpen && renderReceipt()}
-
-            <style>{`
-                .suggestion-hover:hover {
-                    background-color: #e8f4fd !important;
-                    color: #007bff !important;
-                }
-            `}</style>
         </div>
     );
 }
 
-const styles = {
-    page: { padding: '24px', background: '#eff0f3', minHeight: '100%' },
-    
-    filterCard: {   borderRadius: '8px', marginBottom: '10px', display: 'flex', gap: '20px', flexWrap: 'wrap', alignItems: 'flex-end' },
-    filterGroup: { display: 'flex', flexDirection: 'column', flex: 1, minWidth: '200px' },
-    filterLabel: { textAlign: 'left', fontSize: '12px', fontWeight: 500, color: '#475569'},
-    filterInput: { textAlign: 'left', padding: '8px 14px', borderRadius: '4px', border: '1px solid #cbd5e1', fontSize: '14px', outline: 'none', backgroundColor: '#fff', color: '#334155' },
-    clearBtn: { width: '60%', border: '1px solid #b6b0b0', background: '#c7c9ca', color: '#ffffff', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: 600, height: '38px', whiteSpace: 'nowrap' },
+// Strict Table Styles Rule
+const tableStyles = {
+    th: {
+        padding: '12px 16px',
+        backgroundColor: 'var(--header)',
+        color: '#ffffff',
+        fontWeight: '600',
+        fontSize: '13px',
+        textAlign: 'left'
+    },
+    td: {
+        padding: '8px 16px',
+        color: 'var(--text-main)',
+        fontSize: '13px',
+        textAlign: 'left'
+    },
+    emptyCell: {
+        padding: '40px',
+        textAlign: 'center',
+        color: 'var(--text-muted)',
+        fontSize: '14px'
+    }
+};
 
-    suggestionsList: { position: 'absolute', top: '100%', left: 0, right: 0, backgroundColor: '#fff', border: '1px solid #ccc', borderTop: 'none', borderRadius: '0 0 6px 6px', maxHeight: '180px', overflowY: 'auto', zIndex: 1000, boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' },
-    suggestionItem: { textAlign: 'left', padding: '10px 14px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9', fontSize: '13px', color: '#334155' },
-
-    resultCount: { textAlign: 'right', marginBottom: '12px', fontSize: '13px', color: '#475569', fontWeight: 400 },
-    
-    tableWrapper: { background: '#fff', borderRadius: '6px', overflow: 'hidden', width: '100%' },
-    table: { width: '100%', borderCollapse: 'collapse' },
-    th: { textAlign: 'left', padding: '10px 18px', background: '#26384a', color: '#ffffff', fontSize: '12px', fontWeight: 600, textTransform: 'uppercase', borderBottom: '1px solid #cbd5e1' },
-    td: { padding: '5px 18px', textAlign: 'left', fontSize: '14px', borderBottom: '1px solid #f1f5f9', color: '#334155' },
-    emptyCell: { textAlign: 'center', padding: '40px 0', color: '#94a3b8', fontSize: '14px' },
-
+// Strict Actions Rule Enforced
+const actionStyles = {
     iconBtnView: {
-        background: '#f0fdf4',
-        color: '#264b61',
-        border: '1px solid #ddecf5',
-        padding: '8px',
-        borderRadius: '6px',
+        backgroundColor: 'var(--view)',
+        color: 'var(--success)',
+        border: 'none',
+        padding: '6px',
+        borderRadius: '4px',
         cursor: 'pointer',
         display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        transition: 'all 0.2s',
-        backgroundColor: '#ebf5fc'
-    },
-    blindBadge: { display: 'inline-block', background: '#fef2f2', color: '#ef4444', border: '1px solid #fecaca', borderRadius: '4px', fontSize: '11px', fontWeight: 600, padding: '2px 8px' },
+        alignItems: 'center'
+    }
+};
 
-    receiptOverlay: { position: 'fixed', inset: 0, background: 'rgba(0, 0, 0, 0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000, padding: '20px' },
-    receiptContainer: { background: '#ffffff', borderRadius: '10px', border: '1px solid #000', width: '100%', maxHeight: '92vh', display: 'flex', flexDirection: 'column', boxShadow: '0 25px 80px rgba(0,0,0,0.3)', overflow: 'hidden' },
-    receiptHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 18px', borderBottom: '2px solid #000', background: '#ffffff', flexShrink: 0 },
-    receiptActions: { display: 'flex', gap: '10px' },
-    printReceiptBtn: { background: '#294463', color: '#fff', border: '1px solid #000', padding: '8px 14px', borderRadius: '6px', cursor: 'pointer', fontWeight: 600, fontSize: '13px', whiteSpace: 'nowrap' },
-    closeReceiptBtn: { background: '#fff', color: '#000', border: '1px solid #000', padding: '8px 14px', borderRadius: '6px', cursor: 'pointer', fontWeight: 600, fontSize: '13px', whiteSpace: 'nowrap' },
-    receiptBody: { overflowY: 'auto', overflowX: 'hidden', flex: 1, color: '#000' },
+const styles = {
     receiptHeaderInfo: { textAlign: 'left', marginBottom: '16px' },
     receiptDivider: { borderTop: '2px dashed #000', margin: '14px 0' },
     receiptTable: { width: '100%', tableLayout: 'fixed', borderCollapse: 'collapse', marginBottom: '12px' },
     receiptTh: { textAlign: 'left', padding: '6px 8px', backgroundColor: '#394654', borderBottom: '2px solid #000', fontSize: '12px', fontWeight: 600, color: '#ffffff', textTransform: 'uppercase', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
-    receiptTd: { textAlign: 'left', padding: '6px 8px', borderBottom: '1px solid #ccc', fontSize: '13px', color: '#000' },
-    receiptTdName: { textAlign: 'left', padding: '6px 8px', borderBottom: '1px solid #ccc', fontSize: '13px', color: '#000', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
-    data: { textAlign: 'left' },
+    receiptTd: { padding: '6px 8px', borderBottom: '1px solid #ccc', fontSize: '13px', color: '#000' },
     receiptTotals: { marginTop: '14px' },
-    receiptTotalRow: { display: 'flex', justifyContent: 'space-between', padding: '5px 0', fontSize: '13px', color: '#000' },
+    receiptTotalRow: { display: 'flex', justifyContent: 'space-between', padding: '5px 0', fontSize: '13px', color: '#000' }
 };
 
 export default SalesReturnList;

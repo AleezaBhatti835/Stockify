@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef } from 'react';
-import './purchase.css';
 
 function AddPurchase() {
   // --- Data States ---
@@ -46,28 +45,43 @@ function AddPurchase() {
 
   // --- Inline Message State & Top Scroll Ref ---
   const [message, setMessage] = useState({ text: '', type: '' });
-  const topRef = useRef(null); // Ref to strictly scroll to top
+  const topRef = useRef(null); 
 
-  // --- Initialization ---
+ // --- Initialization ---
   useEffect(() => {
     const fetchData = async () => {
       try {
+        const token = localStorage.getItem('token');
+        const headers = {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        };
+
         const [supplierRes, productRes, purchaseRes] = await Promise.all([
-          fetch('http://localhost:5000/api/suppliers'),
-          fetch('http://localhost:5000/api/products'),
-          fetch('http://localhost:5000/api/purchases/last-invoice')
+          fetch('http://localhost:5000/api/suppliers', { headers }),
+          fetch('http://localhost:5000/api/products', { headers }),
+          fetch('http://localhost:5000/api/purchases/last-invoice', { headers })
         ]);
         
+        if (!supplierRes.ok || !productRes.ok) {
+          showMessage('Unauthorized or session expired. Please relogin.', 'error');
+          setSuppliers([]);
+          setProducts([]);
+          return;
+        }
+
         const supplierData = await supplierRes.json();
         const productData = await productRes.json();
         const purchaseData = await purchaseRes.json();
 
-        setSuppliers(supplierData);
-        setProducts(productData);
+        setSuppliers(Array.isArray(supplierData) ? supplierData : []);
+        setProducts(Array.isArray(productData) ? productData : []);
         
         generateNextInvoiceNumber(purchaseData.lastInvoiceNumber);
       } catch (error) {
         showMessage('Failed to load database records. Please refresh.', 'error');
+        setSuppliers([]);
+        setProducts([]);
       }
     };
     fetchData();
@@ -101,7 +115,6 @@ function AddPurchase() {
     }
   }, [message]);
 
-  // Function to generate next invoice number
   const generateNextInvoiceNumber = (lastInvoiceNumber) => {
     if (!lastInvoiceNumber) {
       const newNumber = 'PU-1';
@@ -125,7 +138,6 @@ function AddPurchase() {
 
   const showMessage = (text, type) => {
     setMessage({ text, type });
-    // Increased timeout to 5 seconds so user has time to see it
     setTimeout(() => setMessage({ text: '', type: '' }), 5000); 
   };
 
@@ -158,9 +170,7 @@ function AddPurchase() {
         const newIndex = prev < filteredProducts.length - 1 ? prev + 1 : prev;
         setTimeout(() => {
           const element = document.querySelector(`[data-main-index="${newIndex}"]`);
-          if (element) {
-            element.scrollIntoView({ block: 'nearest' });
-          }
+          if (element) element.scrollIntoView({ block: 'nearest' });
         }, 50);
         return newIndex;
       });
@@ -170,9 +180,7 @@ function AddPurchase() {
         const newIndex = prev > 0 ? prev - 1 : 0;
         setTimeout(() => {
           const element = document.querySelector(`[data-main-index="${newIndex}"]`);
-          if (element) {
-            element.scrollIntoView({ block: 'nearest' });
-          }
+          if (element) element.scrollIntoView({ block: 'nearest' });
         }, 50);
         return newIndex;
       });
@@ -220,9 +228,7 @@ function AddPurchase() {
         const newIndex = prev < filteredModalProducts.length - 1 ? prev + 1 : prev;
         setTimeout(() => {
           const element = document.querySelector(`[data-modal-index="${newIndex}"]`);
-          if (element) {
-            element.scrollIntoView({ block: 'nearest' });
-          }
+          if (element) element.scrollIntoView({ block: 'nearest' });
         }, 50);
         return newIndex;
       });
@@ -232,9 +238,7 @@ function AddPurchase() {
         const newIndex = prev > 0 ? prev - 1 : 0;
         setTimeout(() => {
           const element = document.querySelector(`[data-modal-index="${newIndex}"]`);
-          if (element) {
-            element.scrollIntoView({ block: 'nearest' });
-          }
+          if (element) element.scrollIntoView({ block: 'nearest' });
         }, 50);
         return newIndex;
       });
@@ -299,7 +303,6 @@ function AddPurchase() {
           expiryDate: draftItem.expiryDate || existing.expiryDate,
           totalPrice: newQuantity * draftItem.unitPrice
         };
-
         return updated;
       }
 
@@ -308,7 +311,6 @@ function AddPurchase() {
 
     setDraftItem({ product: '', productName: '', quantity: 1, unitPrice: 0, expiryDate: '' });
     setSearchTerm('');
-    // Ensure we don't clear an ongoing success message with a blank one here
     if(message.type === 'error') setMessage({ text: '', type: '' });
   };
 
@@ -355,9 +357,7 @@ function AddPurchase() {
 
     setItems(updatedItems);
     showMessage('Item updated successfully!', 'success');
-    setTimeout(() => {
-      closeEditModal();
-    }, 300);
+    setTimeout(() => closeEditModal(), 300);
   };
 
   // --- Calculations ---
@@ -394,9 +394,13 @@ function AddPurchase() {
     };
 
     try {
+      const token = localStorage.getItem('token');
       const response = await fetch('http://localhost:5000/api/purchases', {
         method: 'POST', 
-        headers: { 'Content-Type': 'application/json' }, 
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }, 
         body: JSON.stringify(payload)
       });
       const result = await response.json();
@@ -428,54 +432,53 @@ function AddPurchase() {
     }
   };
 
-  // Inline Message Component
   const InlineMessage = ({ message, type }) => {
     if (!message) return null;
-    
-    const colors = {
-      success: { bg: '#d4edda', text: '#155724', border: '#c3e6cb', icon: '✅' },
-      error: { bg: '#fdecea', text: '#dc3545', border: '#f5c6cb', icon: '⚠️' }
-    };
+    const isError = type === 'error';
+    const isSuccess = type === 'success';
 
-    const style = colors[type] || colors.error;
+    const bg = isError ? 'var(--danger-bg)' : isSuccess ? 'var(--success-bg)' : 'var(--info-bg)';
+    const text = isError ? 'var(--danger)' : isSuccess ? 'var(--success)' : 'var(--info)';
+    const icon = isError ? '⚠️' : isSuccess ? '✅' : 'ℹ️';
 
     return (
       <div style={{
-        padding: '14px 20px',
-        marginBottom: '15px',
-        borderRadius: '6px',
-        backgroundColor: style.bg,
-        color: style.text,
-        border: `1px solid ${style.border}`,
-        fontSize: '15px',
-        fontWeight: 600,
-        boxShadow: '0 4px 6px rgba(0,0,0,0.1)' // Box shadow makes it pop more
+        padding: '10px 14px',
+        marginBottom: 'var(--space-md)',
+        borderRadius: 'var(--radius-md)',
+        backgroundColor: bg,
+        color: text,
+        border: `1px solid ${text}`,
+        fontSize: '14px',
+        fontWeight: 500,
+        display: 'flex',
+        alignItems: 'center',
+        gap: '8px'
       }}>
-        {style.icon} {message}
+        <span>{icon}</span> {message}
       </div>
     );
   };
 
   return (
-    <div className="add-purchase-wrapper" ref={topRef} style={{ scrollMarginTop: '20px' }}>
-      {/* Inline Message exactly at the top container */}
+    <div className="dashboard-wrapper" ref={topRef}>
+      
       {message.text && <InlineMessage message={message.text} type={message.type} />}
 
       {/* --- EDIT MODAL --- */}
       {isEditModalOpen && (
-        <div className="custom-modal-overlay" onClick={closeEditModal}>
-          <div className="custom-modal" onClick={e => e.stopPropagation()}>
+        <div className="modal-overlay" onClick={closeEditModal}>
+          <div className="modal-container" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
-              <h3>Edit Line Item</h3>
-              <button className="close-modal-btn" onClick={closeEditModal}>×</button>
+              <h3 className="modal-title">Edit Line Item</h3>
+              <button className="modal-close" onClick={closeEditModal}>&times;</button>
             </div>
+            
             <div className="modal-body">
-              {message.text && <InlineMessage message={message.text} type={message.type} />}
-
-              <div className="form-group search-group mb-3" ref={modalSearchRef}>
-                <label>Search Product *</label>
+              <div className="form-group" style={{ position: 'relative' }} ref={modalSearchRef}>
+                <label className="form-label">Search Product *</label>
                 <input
-                  type="text" placeholder="Search product..."
+                  type="text" className="form-input" placeholder="Search product..."
                   value={modalSearchTerm}
                   onChange={(e) => { setModalSearchTerm(e.target.value); setIsModalSearchOpen(true); setModalHighlightedIndex(-1); }}
                   onKeyDown={handleModalSearchKeyDown}
@@ -483,26 +486,28 @@ function AddPurchase() {
                   autoFocus
                 />
                 {isModalSearchOpen && filteredModalProducts.length > 0 && (
-                  <ul className="search-dropdown" style={{ maxHeight: '200px', overflowY: 'auto' }}>
+                  <ul style={{
+                    position: 'absolute', top: '100%', left: 0, right: 0,
+                    backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', 
+                    maxHeight: '200px', overflowY: 'auto', zIndex: 1000, margin: 'var(--space-xs) 0 0 0', padding: 0, 
+                    listStyle: 'none', boxShadow: 'var(--shadow-md)'
+                  }}>
                     {filteredModalProducts.map((product, index) => (
                       <li
                         key={product._id}
                         data-modal-index={index}
-                        className={index === modalHighlightedIndex ? 'active' : ''}
                         onClick={() => selectModalProduct(product)}
                         onMouseEnter={() => setModalHighlightedIndex(index)}
                         style={{
-                          padding: '10px 14px',
-                          borderBottom: '1px solid #f0f0f0',
-                          cursor: 'pointer',
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          alignItems: 'center',
-                          backgroundColor: index === modalHighlightedIndex ? '#e3f2fd' : 'transparent'
+                          padding: '10px 12px', cursor: 'pointer', borderBottom: '1px solid var(--border-color)',
+                          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                          backgroundColor: index === modalHighlightedIndex ? 'var(--primary-light)' : 'var(--bg-surface)',
+                          borderLeft: index === modalHighlightedIndex ? '3px solid var(--primary)' : '3px solid transparent',
+                          color: 'var(--text-main)'
                         }}
                       >
-                        <span>{product.name}</span>
-                        <span style={{ fontSize: '12px', color: '#666' }}>
+                        <span style={{ fontSize: '14px', fontWeight: index === modalHighlightedIndex ? 600 : 400 }}>{product.name}</span>
+                        <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
                           Stock: {product.quantity || 0} | Price: {product.retailPrice || 0}
                         </span>
                       </li>
@@ -511,83 +516,90 @@ function AddPurchase() {
                 )}
               </div>
 
-              <div className="form-group mb-3">
-                <label>Unit Price *</label>
-                <input
-                  type="number"
-                  step="10"
-                  value={editFormData.unitPrice === 0 || editFormData.unitPrice === '' ? '' : editFormData.unitPrice}
-                  onChange={e => {
-                    const val = e.target.value.replace(/^0+/, '');
-                    setEditFormData({ ...editFormData, unitPrice: val === '' ? 0 : Number(val) });
-                  }}
-                  onKeyDown={(e) => { if (e.key === 'Enter') saveEditedItem(); }}
-                />
-              </div>
-              <div className="form-group mb-3">
-                <label>Quantity *</label>
-                <input
-                  type="number"
-                  min="1"
-                  value={editFormData.quantity === 0 || editFormData.quantity === '' ? '' : editFormData.quantity}
-                  onChange={e => {
-                    const val = e.target.value.replace(/^0+/, '');
-                    setEditFormData({ ...editFormData, quantity: val === '' ? 0 : Number(val) });
-                  }}
-                  onKeyDown={(e) => { if (e.key === 'Enter') saveEditedItem(); }}
-                />
-              </div>
-              <div className="form-group mb-3">
-                <label>Expiry Date</label>
-                <input type="date" value={editFormData.expiryDate} onChange={e => setEditFormData({ ...editFormData, expiryDate: e.target.value })} />
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-md)' }}>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label">Unit Price *</label>
+                  <input
+                    type="number" step="10" className="form-input"
+                    value={editFormData.unitPrice === 0 || editFormData.unitPrice === '' ? '' : editFormData.unitPrice}
+                    onChange={e => {
+                      const val = e.target.value.replace(/^0+/, '');
+                      setEditFormData({ ...editFormData, unitPrice: val === '' ? 0 : Number(val) });
+                    }}
+                    onKeyDown={(e) => { if (e.key === 'Enter') saveEditedItem(); }}
+                  />
+                </div>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label">Quantity *</label>
+                  <input
+                    type="number" min="1" className="form-input"
+                    value={editFormData.quantity === 0 || editFormData.quantity === '' ? '' : editFormData.quantity}
+                    onChange={e => {
+                      const val = e.target.value.replace(/^0+/, '');
+                      setEditFormData({ ...editFormData, quantity: val === '' ? 0 : Number(val) });
+                    }}
+                    onKeyDown={(e) => { if (e.key === 'Enter') saveEditedItem(); }}
+                  />
+                </div>
+                <div className="form-group" style={{ gridColumn: 'span 2', marginBottom: 0 }}>
+                  <label className="form-label">Expiry Date</label>
+                  <input type="date" className="form-input" value={editFormData.expiryDate} onChange={e => setEditFormData({ ...editFormData, expiryDate: e.target.value })} />
+                </div>
               </div>
             </div>
+
             <div className="modal-footer">
-              <button type="button" className="btn-cancel" onClick={closeEditModal}>Cancel</button>
-              <button type="button" className="btn-save" onClick={saveEditedItem}>Save Changes</button>
+              <button type="button" className="btn btn-secondary" onClick={closeEditModal}>Cancel</button>
+              <button type="button" className="btn btn-primary" onClick={saveEditedItem}>Save Changes</button>
             </div>
           </div>
         </div>
       )}
 
-      <div style={{ textAlign: 'center', alignItems: 'center' }} className="po-header">
-        <h2 style={{ fontSize: '22px',fontWeight:'400px', color: '#3e576c', fontFamily: 'times new roman' }}>Create Purchase Order</h2>
-      </div>
+      {/* --- PAGE HEADER --- */}
+    
 
-      <form onSubmit={handleSubmit} className="po-layout">
-        <div className="top-split">
-          <section className="card product-entry-section">
-            <h3 style={{ textAlign: 'center' }}>Add Products</h3>
-            <div className="form-group search-group mb-3" ref={searchRef}>
-              <label>Search Product *</label>
+      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-md)' }}>
+        
+        {/* --- TOP SPLIT: ADD PRODUCTS & SUPPLIER --- */}
+        <div style={{ display: 'flex', gap: 'var(--space-md)', flexWrap: 'wrap' }}>
+          
+          {/* Add Products Section */}
+          <div className="card" style={{ flex: 1, minWidth: '320px' }}>
+            <h4 style={{ margin: '0 0 var(--space-md) 0', color: 'var(--primary)', fontSize: '15px' }}>Add Products</h4>
+            
+            <div className="form-group" style={{ position: 'relative' }} ref={searchRef}>
+              <label className="form-label">Search Product *</label>
               <input
-                type="text" placeholder="Type to search..."
+                type="text" className="form-input" placeholder="Type to search..."
                 value={searchTerm}
                 onChange={(e) => { setSearchTerm(e.target.value); setIsSearchOpen(true); setHighlightedIndex(-1); }}
                 onKeyDown={handleSearchKeyDown}
                 onClick={() => setIsSearchOpen(true)}
               />
               {isSearchOpen && filteredProducts.length > 0 && (
-                <ul className="search-dropdown" style={{ maxHeight: '200px', overflowY: 'auto' }}>
+                <ul style={{
+                  position: 'absolute', top: '100%', left: 0, right: 0,
+                  backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', 
+                  maxHeight: '200px', overflowY: 'auto', zIndex: 1000, margin: 'var(--space-xs) 0 0 0', padding: 0, 
+                  listStyle: 'none', boxShadow: 'var(--shadow-md)'
+                }}>
                   {filteredProducts.map((product, index) => (
                     <li
                       key={product._id}
                       data-main-index={index}
-                      className={index === highlightedIndex ? 'active' : ''}
                       onClick={() => selectProduct(product)}
                       onMouseEnter={() => setHighlightedIndex(index)}
                       style={{
-                        padding: '5px 14px',
-                        borderBottom: '1px solid #f0f0f0',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        backgroundColor: index === highlightedIndex ? '#e3f2fd' : 'transparent'
+                        padding: '10px 12px', cursor: 'pointer', borderBottom: '1px solid var(--border-color)',
+                        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                        backgroundColor: index === highlightedIndex ? 'var(--primary-light)' : 'var(--bg-surface)',
+                        borderLeft: index === highlightedIndex ? '3px solid var(--primary)' : '3px solid transparent',
+                        color: 'var(--text-main)'
                       }}
                     >
-                      <span>{product.name}</span>
-                      <span style={{ fontSize: '12px', color: '#666' }}>
+                      <span style={{ fontSize: '14px', fontWeight: index === highlightedIndex ? 600 : 400 }}>{product.name}</span>
+                      <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
                         Stock: {product.quantity || 0} | Price: {product.retailPrice || 0}
                       </span>
                     </li>
@@ -596,27 +608,22 @@ function AddPurchase() {
               )}
             </div>
 
-            <div className="form-group-inline mb-3">
-              <div className="form-group w-50">
-                <label>Unit Price *</label>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-md)', marginBottom: 'var(--space-md)' }}>
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="form-label">Unit Price *</label>
                 <input
-                  type="number"
-                  step="10"
+                  type="number" step="10" className="form-input" placeholder="Enter price"
                   value={draftItem.unitPrice === 0 || draftItem.unitPrice === '' ? '' : draftItem.unitPrice}
-                  className="editable-input"
-                  placeholder="Enter price"
                   onChange={(e) => {
                     const val = e.target.value.replace(/^0+/, '');
                     setDraftItem({ ...draftItem, unitPrice: val === '' ? 0 : Number(val) });
                   }}
                 />
               </div>
-              <div className="form-group w-50">
-                <label>Quantity *</label>
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="form-label">Quantity *</label>
                 <input
-                  ref={qtyInputRef}
-                  type="number"
-                  min="1"
+                  ref={qtyInputRef} type="number" min="1" className="form-input"
                   value={draftItem.quantity === 0 || draftItem.quantity === '' ? '' : draftItem.quantity}
                   onChange={(e) => {
                     const val = e.target.value.replace(/^0+/, '');
@@ -631,123 +638,192 @@ function AddPurchase() {
                 />
               </div>
             </div>
-            <div className="form-group mb-3">
-              <label>Expiry Date</label>
-              <input type="date" value={draftItem.expiryDate} onChange={(e) => setDraftItem({ ...draftItem, expiryDate: e.target.value })} />
+
+            <div className="form-group" style={{ marginBottom: 'var(--space-lg)' }}>
+              <label className="form-label">Expiry Date</label>
+              <input type="date" className="form-input" value={draftItem.expiryDate} onChange={(e) => setDraftItem({ ...draftItem, expiryDate: e.target.value })} />
             </div>
 
-            <div className="text-center mt-3">
-              <button type="button" className="btn-add-cart px-5" onClick={handleAddDraftToTable}>
-                + Add to Cart
-              </button>
-            </div>
-          </section>
+            <button type="button" className="btn btn-primary" style={{ width: '30%',marginLeft:'35%' }} onClick={handleAddDraftToTable}>
+              + Add to Cart
+            </button>
+          </div>
 
-          <section className="card supplier-section">
-            <h3 style={{ textAlign: 'center' }}>Supplier Details</h3>
-            <div className="form-group mb-3">
-              <label>Select Supplier *</label>
-              <select name="supplierId" value={purchaseInfo.supplierId} onChange={handleSupplierChange} required>
+          {/* Supplier Section */}
+          <div className="card" style={{ flex: 1, minWidth: '320px' }}>
+            <h4 style={{ margin: '0 0 var(--space-md) 0', color: 'var(--primary)', fontSize: '15px' }}>Supplier Details</h4>
+            
+            <div className="form-group">
+              <label className="form-label">Select Supplier *</label>
+              <select className="form-input" name="supplierId" value={purchaseInfo.supplierId} onChange={handleSupplierChange} required>
                 <option value="">-- Choose Supplier --</option>
                 {suppliers.map(s => <option key={s._id} value={s._id}>{s.contactPerson} {s.companyName ? `(${s.companyName})` : ''}</option>)}
               </select>
             </div>
 
-            <div className="form-group-inline mb-3">
-              <div className="form-group w-50">
-                <label>Phone</label>
-                <input type="text" value={purchaseInfo.supplierPhone} readOnly disabled className="readonly-input" placeholder="Auto-fills on select" />
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-md)', marginBottom: 'var(--space-md)' }}>
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="form-label">Phone</label>
+                <input type="text" className="form-input" value={purchaseInfo.supplierPhone} readOnly disabled style={{ backgroundColor: 'var(--bg-app)', cursor: 'not-allowed' }} placeholder="Auto-fills" />
               </div>
-              <div className="form-group w-50">
-                <label>City</label>
-                <input type="text" value={purchaseInfo.supplierCity} readOnly disabled className="readonly-input" placeholder="Auto-fills on select" />
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="form-label">City</label>
+                <input type="text" className="form-input" value={purchaseInfo.supplierCity} readOnly disabled style={{ backgroundColor: 'var(--bg-app)', cursor: 'not-allowed' }} placeholder="Auto-fills" />
               </div>
             </div>
 
-            <div style={{width:'100%',marginTop:'20px'}} className="form-group w-50">
-              <label>Purchase Date *</label>
-              <input type="date" name="purchaseDate" value={purchaseInfo.purchaseDate} onChange={handleInfoChange} required />
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label className="form-label">Purchase Date *</label>
+              <input type="date" className="form-input" name="purchaseDate" value={purchaseInfo.purchaseDate} onChange={handleInfoChange} required />
             </div>
-          </section>
-
+          </div>
         </div>
 
         {/* --- MIDDLE: DATA TABLE --- */}
-        <section className="card table-section">
-          <table className="po-table">
-            <thead>
-              <tr>
-                <th style={{ width: '5%' }}>Sr#</th>
-                <th style={{ width: '10%' }}>Product Name</th>
-                <th style={{ width: '6%' }}>Qty</th>
-                <th style={{ width: '5%' }}>Cost</th>
-                <th style={{ width: '8%' }}>Subtotal</th>
-                <th style={{ width: '5%' }} className="text-center">Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.length === 0 ? (
+        <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
                 <tr>
-                  <td colSpan="6" className="empty-state">No products added yet. Use the form above to add items.</td>
+                  <th style={tableStyles.th}>Sr#</th>
+                  <th style={tableStyles.th}>Product Name</th>
+                  <th style={tableStyles.th}>Qty</th>
+                  <th style={tableStyles.th}>Cost</th>
+                  <th style={tableStyles.th}>Subtotal</th>
+                  <th style={{ ...tableStyles.th, textAlign: 'center' }}>Action</th>
                 </tr>
-              ) : (
-                items.map((item, index) => (
-                  <tr key={index}>
-                    <td>{index + 1}</td>
-                    <td>{item.productName}</td>
-                    <td>{item.quantity}</td>
-                    <td>{item.unitPrice.toFixed(2)}</td>
-                    <td>{item.totalPrice.toFixed(2)}</td>
-                    <td className="text-center table-actions">
-                      <button type="button" className="btn-edit" onClick={() => openEditModal(index)}>✎</button>
-                      <button type="button" className="btn-remove" onClick={() => removeItemRow(index)}>✕</button>
+              </thead>
+              <tbody>
+                {items.length === 0 ? (
+                  <tr>
+                    <td colSpan="6" style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)', fontSize: '14px' }}>
+                      No products added yet. Use the form above to add items.
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </section>
+                ) : (
+                  items.map((item, index) => (
+                    <tr key={index} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                      <td style={tableStyles.td}>{index + 1}</td>
+                      <td style={tableStyles.td}>{item.productName}</td>
+                      <td style={tableStyles.td}>{item.quantity}</td>
+                      <td style={tableStyles.td}>{item.unitPrice.toFixed(2)}</td>
+                      <td style={{ ...tableStyles.td, fontWeight: 'bold' }}>{item.totalPrice.toFixed(2)}</td>
+                      <td style={{ ...tableStyles.td, textAlign: 'center' }}>
+                        <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+                          <button type="button" style={actionStyles.iconBtnEdit} onClick={() => openEditModal(index)} title="Edit">
+                            <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+                              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                            </svg>
+                          </button>
+                          <button type="button" style={actionStyles.iconBtnDelete} onClick={() => removeItemRow(index)} title="Remove">
+                            <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+                              <polyline points="3 6 5 6 21 6"></polyline>
+                              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                              <line x1="10" y1="11" x2="10" y2="17"></line>
+                              <line x1="14" y1="11" x2="14" y2="17"></line>
+                            </svg>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
 
         {/* --- BOTTOM: BILLING --- */}
-        <div className="bottom-layout">
-          <section className="card billing-section">
-            <h3 className="mb-4">Billing Summary</h3>
-            <div className='billcard'>
-              <div className="billing-horizontal-row">
-                <div className="summary-col">
-                  <label>Net Payable</label>
-                  <input type="text" value={netPayable.toFixed(2)} readOnly className="readonly-input bold text-center" />
-                </div>
-
-                <div className="summary-col">
-                  <label>Paid Amount</label>
-                  <input
-                    type="number"
-                    step="10"
-                    value={paidAmount === 0 || paidAmount === '' ? '' : paidAmount}
-                    onChange={(e) => {
-                      const val = e.target.value.replace(/^0+/, '');
-                      setPaidAmount(val === '' ? 0 : Number(val));
-                    }}
-                    className="editable-input text-center"
-                  />
-                </div>
-
-                <div className="summary-col">
-                  <label>Balance</label>
-                  <input type="text" value={balance.toFixed(2)} readOnly className={`readonly-input text-center bold ${balance > 0 ? 'text-danger' : 'text-success'}`} />
-                </div>
-              </div>
+        <div className="card">
+          <h4 style={{ margin: '0 0 var(--space-md) 0', color: 'var(--primary)', fontSize: '15px' }}>Billing Summary</h4>
+          
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 'var(--space-md)', alignItems: 'flex-end', padding: 'var(--space-md)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label className="form-label" style={{ textAlign: 'center' }}>Net Payable</label>
+              <input type="text" className="form-input" style={{ textAlign: 'center', fontWeight: 'bold', backgroundColor: 'var(--bg-surface)' }} value={netPayable.toFixed(2)} readOnly disabled />
             </div>
-            <div className="text-center mt-4">
-              <button type="submit" className="btn-submit-order ">Save Purchase Order</button>
+
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label className="form-label" style={{ textAlign: 'center' }}>Paid Amount</label>
+              <input
+                type="number" step="10" className="form-input" style={{ textAlign: 'center', fontWeight: 'bold', border: '1px solid var(--primary)' }}
+                value={paidAmount === 0 || paidAmount === '' ? '' : paidAmount}
+                onChange={(e) => {
+                  const val = e.target.value.replace(/^0+/, '');
+                  setPaidAmount(val === '' ? 0 : Number(val));
+                }}
+              />
             </div>
-          </section>
+
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label className="form-label" style={{ textAlign: 'center' }}>Balance</label>
+              <input 
+                type="text" 
+                className="form-input" 
+                style={{ 
+                  textAlign: 'center', 
+                  fontWeight: 'bold', 
+                  color: balance > 0 ? 'var(--danger)' : 'var(--success)',
+                  backgroundColor: 'var(--bg-surface)' 
+                }} 
+                value={balance.toFixed(2)} readOnly disabled 
+              />
+            </div>
+          </div>
+
+          <div style={{ textAlign: 'right', marginTop: 'var(--space-lg)' }}>
+            <button type="submit" className="btn btn-primary" style={{ padding: '12px 24px', fontSize: '14px' }}>
+              Save Purchase Order
+            </button>
+          </div>
         </div>
+
       </form>
     </div>
   );
+};
+
+// Strict Table Styles Rule Enforced
+const tableStyles = {
+  th: {
+    padding: '12px 16px',
+    backgroundColor: 'var(--header)',
+    color: '#ffffff',
+    fontWeight: '600',
+    fontSize: '13px',
+    textAlign: 'left'
+  },
+  td: {
+    padding: '8px 16px',
+    color: 'var(--text-main)',
+    fontSize: '13px',
+    textAlign: 'left'
+  }
+};
+
+// Strict Actions Rule Enforced
+const actionStyles = {
+  iconBtnEdit: {
+    background: 'var(--edit)',
+    color: 'var(--primary)',
+    border: 'none',
+    padding: '6px',
+    borderRadius: '4px',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center'
+  },
+  iconBtnDelete: {
+    backgroundColor: 'var(--danger-bg)',
+    color: 'var(--danger)',
+    border: 'none',
+    padding: '6px',
+    borderRadius: '4px',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center'
+  },
 };
 
 export default AddPurchase;

@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
-import '../purchase/purchase.css';
+
+const API_BASE_URL = 'http://localhost:5000';
 
 const SaleRateDifference = () => {
     const [message, setMessage] = useState({ text: '', type: '' });
@@ -21,7 +22,6 @@ const SaleRateDifference = () => {
     const confirmButtonRef = useRef(null);
     const searchWrapperRef = useRef(null);
 
-    // Keyboard shortcut for confirmation modal
     useEffect(() => {
         const handleGlobalKeyDown = (e) => {
             if (e.key === 'Enter' && confirmDialog.isOpen) {
@@ -40,7 +40,6 @@ const SaleRateDifference = () => {
         return () => window.removeEventListener('keydown', handleGlobalKeyDown);
     }, [confirmDialog.isOpen, confirmDialog.onConfirm]);
 
-    // Auto-focus on confirm button
     useEffect(() => {
         if (confirmDialog.isOpen) {
             setTimeout(() => {
@@ -51,14 +50,12 @@ const SaleRateDifference = () => {
         }
     }, [confirmDialog.isOpen]);
 
-    // Scroll to message when it appears
     useEffect(() => {
         if (message.text && messageRef.current) {
             messageRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
     }, [message.text]);
 
-    // Click outside to close suggestions
     useEffect(() => {
         const handleClickOutside = (event) => {
             if (searchWrapperRef.current && !searchWrapperRef.current.contains(event.target)) {
@@ -71,10 +68,15 @@ const SaleRateDifference = () => {
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
+    // CORE ARCHITECTURE: Fetch and filter sale invoice numbers for dynamic autocomplete search and rate difference adjustments.
     useEffect(() => {
         const fetchInvoices = async () => {
             try {
-                const res = await fetch('http://localhost:5000/api/sales', { cache: 'no-store' });
+                const token = localStorage.getItem('token');
+                const res = await fetch(`${API_BASE_URL}/api/sales`, { 
+                    cache: 'no-store',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
                 const data = await res.json();
                 const numbers = Array.isArray(data)
                     ? data.map(s => s.saleNumber || s.invoiceNumber).filter(num => num && num.startsWith('SL-'))
@@ -100,7 +102,6 @@ const SaleRateDifference = () => {
         setConfirmDialog({ isOpen: false, message: '', onConfirm: null });
     };
 
-    // Scroll active item into view
     useEffect(() => {
         if (showSuggestions && highlightedIndex >= 0) {
             const el = document.getElementById(`invoice-item-${highlightedIndex}`);
@@ -167,7 +168,11 @@ const SaleRateDifference = () => {
         setLineItems([]);
 
         try {
-            const res = await fetch(`http://localhost:5000/api/sale-rate-difference/search?invoiceNumber=${encodeURIComponent(queryNumber.trim())}`, { cache: 'no-store' });
+            const token = localStorage.getItem('token');
+            const res = await fetch(`${API_BASE_URL}/api/sale-rate-difference/search?invoiceNumber=${encodeURIComponent(queryNumber.trim())}`, {
+                cache: 'no-store',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
             const data = await res.json();
 
             if (data.success && data.sale) {
@@ -198,6 +203,7 @@ const SaleRateDifference = () => {
         }
     };
 
+    // DATA INTEGRITY: Validate line items, aggregate financial differences, and securely complete rate modification workflows.
     const handleCompleteDifference = async () => {
         closeConfirmDialog();
 
@@ -216,9 +222,13 @@ const SaleRateDifference = () => {
 
         setCompleting(true);
         try {
-            const res = await fetch('http://localhost:5000/api/sale-rate-difference/complete', {
+            const token = localStorage.getItem('token');
+            const res = await fetch(`${API_BASE_URL}/api/sale-rate-difference/complete`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
                 body: JSON.stringify({
                     saleId: sale._id,
                     customerId: sale.customer?._id,
@@ -250,229 +260,184 @@ const SaleRateDifference = () => {
         return sum + diff;
     }, 0);
 
-    // Inline Message Component
     const InlineMessage = ({ message, type }) => {
         if (!message) return null;
-        
         const colors = {
-            success: { bg: '#d4edda', text: '#155724', border: '#c3e6cb', icon: '✅' },
-            error: { bg: '#fdecea', text: '#dc3545', border: '#f5c6cb', icon: '⚠️' }
+            success: { bg: 'var(--success-bg)', text: 'var(--success)', border: 'var(--success)', icon: '✅' },
+            error: { bg: 'var(--danger-bg)', text: 'var(--danger)', border: 'var(--danger)', icon: '⚠️' }
         };
-
         const style = colors[type] || colors.error;
 
         return (
-            <div ref={messageRef} style={{
-                padding: '12px 16px',
-                marginBottom: '20px',
-                borderRadius: '6px',
-                backgroundColor: style.bg,
-                color: style.text,
-                border: `1px solid ${style.border}`,
-                fontSize: '14px',
-                fontWeight: 500,
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center'
-            }}>
+            <div ref={messageRef} style={{ padding: '12px 16px', marginBottom: '20px', borderRadius: 'var(--radius-sm)', backgroundColor: style.bg, color: style.text, border: `1px solid ${style.border}`, fontSize: '14px', fontWeight: 500, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span>{style.icon} {message}</span>
-                <button
-                    onClick={() => setMessage({ text: '', type: '' })}
-                    style={{ 
-                        background: 'none', 
-                        border: 'none', 
-                        cursor: 'pointer', 
-                        fontSize: '20px', 
-                        color: 'inherit',
-                        lineHeight: '1'
-                    }}
-                >
-                    ×
-                </button>
+                <button onClick={() => setMessage({ text: '', type: '' })} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '20px', color: 'inherit', lineHeight: '1' }}>×</button>
             </div>
         );
     };
 
     return (
-        <div className="add-purchase-wrapper" style={{ width: '100%', marginBottom: '90px' }}>
-            
-            {/* Inline Message */}
-            {message.text && <InlineMessage message={message.text} type={message.type} />}
+        <div className="dashboard-wrapper" style={{ paddingBottom: '90px' }}>
 
-            <div style={{ textAlign: 'center', alignItems: 'center' }} className="po-header">
-                <h2 style={{ fontSize: '22px',fontWeight:'400px', color: '#3e576c', fontFamily: 'times new roman' }}>Sale Rate Difference</h2>
-               
+            <InlineMessage message={message.text} type={message.type} />
+
+            <div className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h2 style={{ margin: 0, color: 'var(--text-main)', fontSize: '20px', fontWeight: '600' }}>Sale Rate Difference</h2>
             </div>
 
+            {/* SEARCH SECTION */}
             <div className="card" style={{ position: 'relative', zIndex: 1000 }}>
-                <div style={{ display: 'flex', gap: '10px', position: 'relative' }}>
-                    <div style={{ flex: 1, position: 'relative' }} ref={searchWrapperRef}>
-                        <input
-                            type="text"
-                            autoComplete="off"
-                            placeholder="Search Sale Invoice Number... (e.g. SL-1)"
-                            value={searchInvoiceNumber}
-                            onChange={(e) => { 
-                                const val = e.target.value.toUpperCase();
-                                setSearchInvoiceNumber(val); 
-                                if (val.trim() !== '') {
-                                    const filtered = availableInvoiceNumbers.filter(num =>
-                                        num.toLowerCase().includes(val.toLowerCase())
-                                    );
-                                    setFilteredSuggestions(filtered);
-                                    setShowSuggestions(filtered.length > 0);
-                                } else {
-                                    setShowSuggestions(false);
-                                    setFilteredSuggestions([]);
-                                    setHighlightedIndex(-1);
-                                }
-                            }}
-                            onFocus={() => { 
-                                if (searchInvoiceNumber.trim() && filteredSuggestions.length > 0) {
-                                    setShowSuggestions(true);
-                                } 
-                            }}
-                            onKeyDown={handleKeyDown}
-                            style={{ width: '100%', padding: '12px 14px', border: '1px solid #ccc', borderRadius: '4px', outline: 'none' }}
-                        />
-                        {showSuggestions && filteredSuggestions.length > 0 && (
-                            <div style={{ 
-                                position: 'absolute', 
-                                top: '100%', 
-                                left: 0, 
-                                right: 0, 
-                                backgroundColor: 'white', 
-                                border: '1px solid #ccc', 
-                                borderTop: 'none',
-                                borderRadius: '0 0 4px 4px', 
-                                maxHeight: '200px', 
-                                overflowY: 'auto', 
-                                zIndex: 9999, 
-                                boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-                                textAlign: 'left',
-                                fontSize: '12px'
-                            }}>
-                                {filteredSuggestions.map((num, index) => (
-                                    <div
-                                        key={index}
-                                        id={`invoice-item-${index}`}
-                                        onClick={() => { 
-                                            setSearchInvoiceNumber(num); 
-                                            setShowSuggestions(false); 
-                                            setFilteredSuggestions([]);
-                                            setHighlightedIndex(-1);
-                                            handleSearch(num); 
-                                        }}
-                                        onMouseEnter={() => setHighlightedIndex(index)}
-                                        style={{ 
-                                            padding: '6px 14px', 
-                                            cursor: 'pointer', 
-                                            backgroundColor: index === highlightedIndex ? '#e8f4fd' : 'white', 
-                                            color: index === highlightedIndex ? '#007bff' : '#333', 
-                                            borderBottom: index < filteredSuggestions.length - 1 ? '1px solid #f0f0f0' : 'none',
-                                            fontWeight: index === highlightedIndex ? '600' : '400'
-                                        }}
-                                    >
-                                        {num}
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </div>
+                <div className="form-group" style={{ marginBottom: 0, position: 'relative' }} ref={searchWrapperRef}>
+                    <label className="form-label">Search Sale Invoice Number</label>
+                    <input
+                        type="text"
+                        className="form-input"
+                        autoComplete="off"
+                        placeholder="Search Sale Invoice Number... (e.g. SL-1)"
+                        value={searchInvoiceNumber}
+                        onChange={(e) => { 
+                            const val = e.target.value.toUpperCase();
+                            setSearchInvoiceNumber(val); 
+                            if (val.trim() !== '') {
+                                const filtered = availableInvoiceNumbers.filter(num =>
+                                    num.toLowerCase().includes(val.toLowerCase())
+                                );
+                                setFilteredSuggestions(filtered);
+                                setShowSuggestions(filtered.length > 0);
+                            } else {
+                                setShowSuggestions(false);
+                                setFilteredSuggestions([]);
+                                setHighlightedIndex(-1);
+                            }
+                        }}
+                        onFocus={() => { 
+                            if (searchInvoiceNumber.trim() && filteredSuggestions.length > 0) {
+                                setShowSuggestions(true);
+                            } 
+                        }}
+                        onKeyDown={handleKeyDown}
+                    />
+                    {showSuggestions && filteredSuggestions.length > 0 && (
+                        <ul style={{ position: 'absolute', top: '100%', left: 0, right: 0, backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-color)', borderTop: 'none', borderRadius: '0 0 var(--radius-md) var(--radius-md)', maxHeight: '200px', overflowY: 'auto', zIndex: 9999, margin: 0, padding: 0, listStyle: 'none', boxShadow: 'var(--shadow-md)' }}>
+                            {filteredSuggestions.map((num, index) => (
+                                <li
+                                    key={index}
+                                    id={`invoice-item-${index}`}
+                                    onClick={() => { 
+                                        setSearchInvoiceNumber(num); 
+                                        setShowSuggestions(false); 
+                                        setFilteredSuggestions([]);
+                                        setHighlightedIndex(-1);
+                                        handleSearch(num); 
+                                    }}
+                                    onMouseEnter={() => setHighlightedIndex(index)}
+                                    style={{ padding: '10px 14px', cursor: 'pointer', borderBottom: '1px solid var(--border-color)', backgroundColor: index === highlightedIndex ? 'var(--primary-light)' : 'var(--bg-surface)', color: index === highlightedIndex ? 'var(--primary)' : 'var(--text-main)', fontWeight: index === highlightedIndex ? '600' : '400', fontSize: '13px' }}
+                                >
+                                    {num}
+                                </li>
+                            ))}
+                        </ul>
+                    )}
                 </div>
 
                 {sale && (
-                    <div style={{ marginTop: '15px', display: 'flex', gap: '30px', fontSize: '13px', color: '#444', flexWrap: 'wrap', backgroundColor: '#f1f5f9', padding: '12px', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
+                    <div style={{ marginTop: '16px', display: 'flex', gap: '30px', fontSize: '14px', color: 'var(--text-main)', backgroundColor: 'var(--bg-app)', padding: '16px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)' }}>
                         <span><strong>Invoice #:</strong> {sale.invoiceNumber || sale.saleNumber}</span>
                         <span><strong>Customer:</strong> {sale.customer?.name || sale.customer?.customerName || 'Walk-in Customer'}</span>
                     </div>
                 )}
             </div>
 
-            <div className="card table-section" style={{ marginTop: '20px', position: 'relative', zIndex: 1 }}>
-                <table className="po-table">
-                    <thead>
-                        <tr>
-                            <th style={{ width: '18%' }}>Product</th>
-                            <th style={{ width: '11%' }}>Prev Rate</th>
-                            <th style={{ width: '11%' }}>New Rate</th>
-                            <th style={{ width: '9%' }}>Qty</th>
-                            <th style={{ width: '13%' }}>Prev Total</th>
-                            <th style={{ width: '13%' }}>New Total</th>
-                            <th style={{ width: '13%' }}>Diff</th>
-                            <th style={{ width: '12%' }} className="text-center">Action</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {lineItems.length === 0 ? (
-                            <tr><td colSpan="8" className="empty-state">No invoice items.</td></tr>
-                        ) : (
-                            lineItems.map((row, index) => {
-                                const numericNewRate = Number(row.newRate) || 0;
-                                const prevTotal = row.prevRate * row.soldQuantity;
-                                const newTotal = numericNewRate * row.soldQuantity;
-                                const rowDiff = newTotal - prevTotal;
+            {/* LINE ITEMS TABLE */}
+            <div className="card" style={{ padding: 0, overflow: 'hidden', zIndex: 1 }}>
+                <div style={{ overflowX: 'auto', width: '100%' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '800px' }}>
+                        <thead>
+                            <tr style={{ backgroundColor: 'var(--header)' }}>
+                                <th style={{ padding: '12px 16px', color: 'white', textAlign: 'left', fontSize: '13px', fontWeight: '600', width: '18%' }}>Product</th>
+                                <th style={{ padding: '12px 16px', color: 'white', textAlign: 'left', fontSize: '13px', fontWeight: '600', width: '11%' }}>Prev Rate</th>
+                                <th style={{ padding: '12px 16px', color: 'white', textAlign: 'left', fontSize: '13px', fontWeight: '600', width: '11%' }}>New Rate</th>
+                                <th style={{ padding: '12px 16px', color: 'white', textAlign: 'left', fontSize: '13px', fontWeight: '600', width: '9%' }}>Qty</th>
+                                <th style={{ padding: '12px 16px', color: 'white', textAlign: 'left', fontSize: '13px', fontWeight: '600', width: '13%' }}>Prev Total</th>
+                                <th style={{ padding: '12px 16px', color: 'white', textAlign: 'left', fontSize: '13px', fontWeight: '600', width: '13%' }}>New Total</th>
+                                <th style={{ padding: '12px 16px', color: 'white', textAlign: 'left', fontSize: '13px', fontWeight: '600', width: '13%' }}>Diff</th>
+                                <th style={{ padding: '12px 16px', color: 'white', textAlign: 'center', fontSize: '13px', fontWeight: '600', width: '12%' }}>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {searching ? (
+                                <tr><td colSpan="8" style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '14px' }}>Searching...</td></tr>
+                            ) : lineItems.length === 0 ? (
+                                <tr><td colSpan="8" style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '14px' }}>No invoice items.</td></tr>
+                            ) : (
+                                lineItems.map((row, index) => {
+                                    const numericNewRate = Number(row.newRate) || 0;
+                                    const prevTotal = row.prevRate * row.soldQuantity;
+                                    const newTotal = numericNewRate * row.soldQuantity;
+                                    const rowDiff = newTotal - prevTotal;
 
-                                return (
-                                    <tr key={row.productId}>
-                                        <td>{row.productName}</td>
-                                        <td>{row.prevRate.toFixed(2)}</td>
-                                        <td>
-                                            <input
-                                                ref={index === 0 ? firstQtyInputRef : null}
-                                                type="number"
-                                                min="0"
-                                                step="0.01"
-                                                value={row.newRate}
-                                                onChange={(e) => {
-                                                    const val = e.target.value;
-                                                    setLineItems(prev => prev.map(r => r.productId === row.productId ? { ...r, newRate: val } : r));
-                                                }}
-                                                onKeyDown={(e) => {
-                                                    // Enter shortcut inside input
-                                                    if (e.key === 'Enter' && totalAmount !== 0) {
-                                                        e.preventDefault();
-                                                        openConfirmDialog(`Submit net rate difference of Rs ${totalAmount.toFixed(2)}?`, handleCompleteDifference);
-                                                    }
-                                                }}
-                                                style={{ width: '90%', padding: '6px', border: '1px solid #ccc', borderRadius: '4px' }}
-                                            />
-                                        </td>
-                                        <td>{row.soldQuantity}</td>
-                                        <td>{prevTotal.toFixed(2)}</td>
-                                        <td>{newTotal.toFixed(2)}</td>
-                                        <td style={{ fontWeight: 'bold', color: rowDiff > 0 ? 'green' : (rowDiff < 0 ? 'red' : 'inherit') }}>
-                                            {rowDiff > 0 ? '+' : ''}{rowDiff.toFixed(2)}
-                                        </td>
-                                        <td className="text-center">
-                                            <button
-                                                className="btn-remove"
-                                                onClick={() => setLineItems(prev => prev.map(r => r.productId === row.productId ? { ...r, newRate: r.prevRate } : r))}
-                                                disabled={Number(row.newRate) === row.prevRate}
-                                                style={{ opacity: Number(row.newRate) === row.prevRate ? 0.3 : 1, cursor: 'pointer' }}
-                                                title="Revert to Previous Rate"
-                                            >
-                                                ✕
-                                            </button>
-                                        </td>
-                                    </tr>
-                                );
-                            })
-                        )}
-                    </tbody>
-                </table>
+                                    return (
+                                        <tr key={row.productId} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                                            <td style={{ padding: '10px 16px', fontSize: '13px', color: 'var(--text-main)', fontWeight: '500' }}>{row.productName}</td>
+                                            <td style={{ padding: '10px 16px', fontSize: '13px', color: 'var(--text-main)' }}>{row.prevRate.toFixed(2)}</td>
+                                            <td style={{ padding: '10px 16px' }}>
+                                                <input
+                                                    ref={index === 0 ? firstQtyInputRef : null}
+                                                    type="number"
+                                                    min="0"
+                                                    step="0.01"
+                                                    className="form-input"
+                                                    style={{ padding: '6px 10px' }}
+                                                    value={row.newRate}
+                                                    onChange={(e) => {
+                                                        const val = e.target.value;
+                                                        setLineItems(prev => prev.map(r => r.productId === row.productId ? { ...r, newRate: val } : r));
+                                                    }}
+                                                    onKeyDown={(e) => {
+                                                        if (e.key === 'Enter' && totalAmount !== 0) {
+                                                            e.preventDefault();
+                                                            openConfirmDialog(`Submit net rate difference of Rs ${totalAmount.toFixed(2)}?`, handleCompleteDifference);
+                                                        }
+                                                    }}
+                                                />
+                                            </td>
+                                            <td style={{ padding: '10px 16px', fontSize: '13px', color: 'var(--text-main)' }}>{row.soldQuantity}</td>
+                                            <td style={{ padding: '10px 16px', fontSize: '13px', color: 'var(--text-main)' }}>{prevTotal.toFixed(2)}</td>
+                                            <td style={{ padding: '10px 16px', fontSize: '13px', color: 'var(--text-main)' }}>{newTotal.toFixed(2)}</td>
+                                            <td style={{ padding: '10px 16px', fontSize: '13px', fontWeight: 'bold', color: rowDiff > 0 ? 'var(--success)' : (rowDiff < 0 ? 'var(--danger)' : 'inherit') }}>
+                                                {rowDiff > 0 ? '+' : ''}{rowDiff.toFixed(2)}
+                                            </td>
+                                            <td style={{ padding: '10px 16px', textAlign: 'center' }}>
+                                                <button
+                                                    className="btn btn-secondary"
+                                                    onClick={() => setLineItems(prev => prev.map(r => r.productId === row.productId ? { ...r, newRate: r.prevRate } : r))}
+                                                    disabled={Number(row.newRate) === row.prevRate}
+                                                    style={{ padding: '4px 8px', opacity: Number(row.newRate) === row.prevRate ? 0.3 : 1 }}
+                                                    title="Revert to Previous Rate"
+                                                >
+                                                    ✕
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    );
+                                })
+                            )}
+                        </tbody>
+                    </table>
+                </div>
             </div>
 
-            <div style={{ textAlign: 'center', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '20px', flexWrap: 'wrap', gap: '15px' }}>
-                <div style={{ border: '1px solid #1b6f21', width: '30%', borderRadius: '8px', padding: '14px 24px', backgroundColor: '#f8f9fa' }}>
-                    <label style={{ fontSize: '13px', fontWeight: 700, color: '#1f6b3a', display: 'block' }}>NET RATE DIFFERENCE</label>
-                    <div style={{ fontSize: '28px', fontWeight: 700, color: totalAmount > 0 ? 'green' : (totalAmount < 0 ? 'red' : 'inherit') }}>
+            {/* BOTTOM ACTION BAR */}
+            <div className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
+                <div style={{ padding: '12px 20px', borderRadius: 'var(--radius-sm)', backgroundColor: 'var(--bg-app)', border: '1px solid var(--border-color)' }}>
+                    <label className="form-label" style={{ marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>NET RATE DIFFERENCE</label>
+                    <div style={{ fontSize: '24px', fontWeight: '700', color: totalAmount > 0 ? 'var(--success)' : (totalAmount < 0 ? 'var(--danger)' : 'var(--text-main)') }}>
                         {totalAmount > 0 ? '+' : ''}{totalAmount.toFixed(2)}
                     </div>
                 </div>
                 <button
-                    className="btn-submit-order"
-                    style={{ backgroundColor: '#4d9b6b', width: '18%', padding: '15px 1px', border: 'none', borderRadius: '4px', color: '#fff', fontWeight: 'bold', cursor: 'pointer' }}
+                    className="btn btn-primary"
+                    style={{ padding: '14px 32px', fontSize: '15px' }}
                     disabled={completing || !sale || totalAmount === 0}
                     onClick={() => {
                         if (totalAmount !== 0) {
@@ -484,20 +449,23 @@ const SaleRateDifference = () => {
                 </button>
             </div>
 
+            {/* CONFIRMATION MODAL */}
             {confirmDialog.isOpen && (
-                <div
-                    className="modal-force-top"
-                    style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(51, 69, 86, 0.9)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999, backdropFilter: 'blur(4px)' }}
-                    onClick={(e) => { if (e.target === e.currentTarget) closeConfirmDialog(); }}
-                >
-                    <div style={{ backgroundColor: '#fff', borderRadius: '12px', padding: '28px', maxWidth: '420px', width: '90%', boxShadow: '0 20px 60px rgba(0,0,0,0.3)', borderTop: '6px solid #3e9c54' }}>
-                        <h3 style={{ marginTop: 0, color: '#2e6329', fontSize: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                            <span style={{ fontSize: '24px' }}>⚠️</span> Confirm Submission
-                        </h3>
-                        <p style={{ color: '#555', fontSize: '15px', lineHeight: '1.6', margin: '16px 0 24px 0' }}>{confirmDialog.message}</p>
-                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
-                            <button onClick={closeConfirmDialog} style={{ padding: '10px 24px', backgroundColor: '#f1f1f1', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: '600', color: '#333' }}>Cancel (Esc)</button>
-                            <button ref={confirmButtonRef} onClick={() => confirmDialog.onConfirm && confirmDialog.onConfirm()} style={{ padding: '10px 24px', backgroundColor: '#3b7a4a', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: '600' }}>Yes, Submit (Enter)</button>
+                <div className="modal-overlay" onClick={closeConfirmDialog}>
+                    <div className="modal-container" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '420px', borderTop: '6px solid var(--primary)' }}>
+                        <div className="modal-header" style={{ borderBottom: 'none', paddingBottom: 0 }}>
+                            <h3 className="modal-title" style={{ fontSize: '20px' }}>
+                                <span style={{ fontSize: '24px' }}>⚠️</span> Confirm Submission
+                            </h3>
+                        </div>
+                        <div className="modal-body">
+                            <p style={{ color: 'var(--text-muted)', fontSize: '15px', lineHeight: '1.6', margin: 0 }}>
+                                {confirmDialog.message}
+                            </p>
+                        </div>
+                        <div className="modal-footer" style={{ borderTop: 'none', backgroundColor: 'transparent' }}>
+                            <button className="btn btn-secondary" onClick={closeConfirmDialog}>Cancel (Esc)</button>
+                            <button className="btn btn-primary" ref={confirmButtonRef} onClick={() => confirmDialog.onConfirm && confirmDialog.onConfirm()}>Yes, Submit (Enter)</button>
                         </div>
                     </div>
                 </div>

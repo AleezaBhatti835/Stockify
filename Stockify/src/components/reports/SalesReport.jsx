@@ -50,9 +50,15 @@ function SalesReport() {
     setCurrentPage(1);
   }, [selectedCustomer, fromDate, toDate, viewMode]);
 
+  // ================= FETCH CUSTOMERS (WITH TOKEN) =================
   const fetchCustomers = async () => {
     try {
-      const res = await fetch(`${API_BASE_URL}/api/customers`);
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${API_BASE_URL}/api/customers`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
       const data = await res.json();
       setCustomers(Array.isArray(data) ? data : []);
     } catch (err) {
@@ -60,12 +66,18 @@ function SalesReport() {
     }
   };
 
+  // ================= FETCH DATA (WITH TOKEN) =================
   const fetchData = async () => {
     setLoading(true);
     setFetchError(false);
     try {
+      const token = localStorage.getItem('token');
       const tab = TABS.find(t => t.key === activeTab);
-      const res = await fetch(`${API_BASE_URL}${tab.endpoint}`);
+      const res = await fetch(`${API_BASE_URL}${tab.endpoint}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
       if (!res.ok) throw new Error('Not available');
       
       const data = await res.json();
@@ -361,7 +373,7 @@ function SalesReport() {
             p { margin: 0; color: #64748b; font-size: 11px; }
             table { width: 100%; border-collapse: collapse; font-size: 11px; table-layout: fixed; }
             th, td { border: 1px solid #cbd5e1; padding: 8px 10px; text-align: left; word-wrap: break-word; }
-            th { background: #f1f5f9; color: #334155; text-transform: uppercase; font-size: 10px; font-weight: 700; border-bottom: 2px solid #94a3b8; }
+            th { background: #0c514b; color: #ffffff; text-transform: uppercase; font-size: 10px; font-weight: 700; border-bottom: 2px solid #94a3b8; }
             tr:nth-child(even) { background-color: #f8fafc; }
             tfoot td { font-weight: bold; border-top: 2px solid #000; }
           </style>
@@ -434,8 +446,8 @@ function SalesReport() {
       body: filtered.map((r, idx) => getRow(r, idx)),
       foot: footArray,
       styles: { fontSize: 8, cellPadding: 4, lineColor: [203, 213, 225], lineWidth: 0.1 },
-      headStyles: { fillColor: [241, 245, 249], textColor: [51, 65, 85], fontStyle: 'bold' },
-      footStyles: { fillColor: [241, 245, 249], textColor: [15, 23, 42], fontStyle: 'bold' },
+      headStyles: { fillColor: [12, 81, 75], textColor: [255, 255, 255], fontStyle: 'bold' },
+      footStyles: { fillColor: [204, 251, 241], textColor: [12, 81, 75], fontStyle: 'bold' },
       alternateRowStyles: { fillColor: [248, 250, 252] },
       columnStyles: isDiffTab ? {
         0: { cellWidth: 10, halign: 'center' },
@@ -549,33 +561,46 @@ function SalesReport() {
   const totalPages = Math.ceil(filtered.length / itemsPerPage);
 
   return (
-    <div style={styles.page}>
-      <div style={styles.headerRow}>
-        <div style={styles.tabContainer}>
+    <div className="dashboard-wrapper">
+      
+      {/* HEADER TABS & ACTIONS */}
+      <div className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 'var(--space-md)' }}>
+        
+        {/* TABS */}
+        <div style={{ display: 'flex', gap: 'var(--space-sm)', flexWrap: 'wrap' }}>
           {TABS.map(t => (
             <button
               key={t.key}
-              style={activeTab === t.key ? styles.activeTab : styles.tab}
+              className={activeTab === t.key ? "btn btn-primary" : "btn btn-secondary"}
+              style={{ borderRadius: '3px', padding: '8px 20px' }}
               onClick={() => setActiveTab(t.key)}
             >
               {t.label}
             </button>
           ))}
+        </div>
 
-          <button style={{ ...styles.actionBtn, backgroundColor: '#409fb0', marginLeft: 'auto' }} onClick={handlePrint}><FontAwesomeIcon icon={faPrint} /> Print</button>
-          <button style={{ ...styles.actionBtn, backgroundColor: '#d66336' }} onClick={handleExportPDF}><FontAwesomeIcon icon={faFilePdf} /> PDF</button>
-          <button style={{ ...styles.actionBtn, backgroundColor: '#296f3f' }} onClick={handleExportExcel}><FontAwesomeIcon icon={faFileExcel} /> Excel</button>
+        {/* EXPORT ACTIONS */}
+       <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+          <button className="btn btn-secondary" onClick={handlePrint} disabled={loading || filtered.length === 0}><FontAwesomeIcon icon={faPrint} /> Print</button>
+          <button className="btn btn-secondary" onClick={handleExportPDF} disabled={loading || filtered.length === 0}><FontAwesomeIcon icon={faFilePdf} /> PDF</button>
+          <button className="btn btn-secondary" onClick={handleExportExcel} disabled={loading || filtered.length === 0}><FontAwesomeIcon icon={faFileExcel} /> Excel</button>
         </div>
       </div>
 
       {/* ==================== FILTERS & VIEW MODE ==================== */}
-      <div style={styles.filterRow}>
+      <div className="card" style={{ display: 'flex', gap: 'var(--space-md)', alignItems: 'flex-end', flexWrap: 'wrap' }}>
         
-        {/* VIEW MODE INTEGRATED IN FILTER ROW */}
-        <div style={styles.filterGroup}>
-          <label style={styles.filterLabel}>View Mode</label>
-          <div style={styles.radioToggleWrapper}>
-            <label style={styles.radioLabel}>
+        {/* VIEW MODE RADIO */}
+        <div className="form-group" style={{ marginBottom: 0 }}>
+          <label className="form-label">View Mode</label>
+          <div style={{ 
+            display: 'flex', gap: 'var(--space-md)', alignItems: 'center', 
+            padding: '9px 12px', border: '1px solid var(--border-color)', 
+            borderRadius: 'var(--radius-md)', backgroundColor: 'var(--bg-surface)', 
+            height: '40px', boxSizing: 'border-box' 
+          }}>
+            <label style={{ fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', color: 'var(--text-main)', fontWeight: 500 }}>
               <input 
                 type="radio" 
                 name="viewMode" 
@@ -585,7 +610,7 @@ function SalesReport() {
               />
               Abstract
             </label>
-            <label style={styles.radioLabel}>
+            <label style={{ fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', color: 'var(--text-main)', fontWeight: 500 }}>
               <input 
                 type="radio" 
                 name="viewMode" 
@@ -598,10 +623,10 @@ function SalesReport() {
           </div>
         </div>
 
-        <div style={styles.filterGroup}>
-          <label style={styles.filterLabel}>Customer</label>
+        <div className="form-group" style={{ marginBottom: 0, flex: '1 1 200px' }}>
+          <label className="form-label">Customer</label>
           <select
-            style={styles.filterInput}
+            className="form-input"
             value={selectedCustomer}
             onChange={(e) => setSelectedCustomer(e.target.value)}
           >
@@ -612,184 +637,180 @@ function SalesReport() {
           </select>
         </div>
 
-        <div style={styles.filterGroup}>
-          <label style={styles.filterLabel}>From Date</label>
-          <input type="date" style={styles.filterInput} value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
+        <div className="form-group" style={{ marginBottom: 0, flex: '1 1 150px' }}>
+          <label className="form-label">From Date</label>
+          <input type="date" className="form-input" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
         </div>
 
-        <div style={styles.filterGroup}>
-          <label style={styles.filterLabel}>To Date</label>
-          <input type="date" style={styles.filterInput} value={toDate} onChange={(e) => setToDate(e.target.value)} />
+        <div className="form-group" style={{ marginBottom: 0, flex: '1 1 150px' }}>
+          <label className="form-label">To Date</label>
+          <input type="date" className="form-input" value={toDate} onChange={(e) => setToDate(e.target.value)} />
         </div>
 
-        <button style={styles.clearFilterBtn} onClick={clearFilters}>
-          Clear Filters
-        </button>
+        {(selectedCustomer || fromDate || toDate) && (
+          <button className="btn btn-secondary" onClick={clearFilters}>
+            Clear Filters
+          </button>
+        )}
       </div>
 
-      <div style={styles.filterStats}>
-        Showing {filtered.length} {viewMode === 'summary' ? 'transaction(s)' : 'line item(s)'}
-      </div>
+      {/* ==================== TABLE SECTION ==================== */}
+      <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+        
+        <div style={{ padding: 'var(--space-sm) var(--space-md)', textAlign: 'right', fontSize: '13px', color: 'var(--text-muted)', borderBottom: '1px solid var(--border-color)' }}>
+          Showing {filtered.length} {viewMode === 'summary' ? 'transaction(s)' : 'line item(s)'}
+        </div>
 
-      {/* ==================== TABLE ==================== */}
-      <div style={styles.tableWrapper}>
-        <table style={styles.table}>
-          <thead>
-            <tr>
-              <th style={{ ...styles.th, width: '4%', textAlign: 'center' }}>Sr#</th>
-              <th style={{ ...styles.th, width: '8%' }}>Date</th>
-              <th style={{ ...styles.th, width: '9%' }}>Ref #</th>
-              <th style={{ ...styles.th, width: '9%' }}>Invoice #</th>
-              <th style={{ ...styles.th, width: '13%' }}>Customer</th>
-              <th style={{ ...styles.th, width: '14%' }}>Product</th>
-              <th style={{ ...styles.th, width: '5%', textAlign: 'center' }}>Qty</th>
-              {isDiffTab ? (
-                <>
-                  <th style={{ ...styles.th, width: '9%', textAlign: 'left' }}>Prev Rate</th>
-                  <th style={{ ...styles.th, width: '9%', textAlign: 'left' }}>New Rate</th>
-                  <th style={{ ...styles.th, width: '9%', textAlign: 'left' }}>Diff Rate</th>
-                  <th style={{ ...styles.th, width: '11%', textAlign: 'left' }}>Total Diff</th>
-                </>
-              ) : (
-                <>
-                  <th style={{ ...styles.th, width: '10%', textAlign: 'left' }}>Rate</th>
-                  <th style={{ ...styles.th, width: '12%', textAlign: 'left' }}>Line Total</th>
-                </>
-              )}
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <tr><td colSpan={isDiffTab ? 11 : 9} style={styles.emptyCell}>Loading...</td></tr>
-            ) : fetchError ? (
-              <tr><td colSpan={isDiffTab ? 11 : 9} style={styles.emptyCell}>
-                This report isn't available yet — check the "{activeTabLabel}" endpoint on the backend.
-              </td></tr>
-            ) : currentRows.length === 0 ? (
-              <tr><td colSpan={isDiffTab ? 11 : 9} style={styles.emptyCell}>No records found matching your filters.</td></tr>
-            ) : (
-              currentRows.map((r, idx) => {
-                const serialNumber = (currentPage - 1) * itemsPerPage + idx + 1;
-                return (
-                  <tr key={`${r.parentId}-${idx}`} style={idx % 2 === 1 ? styles.altRow : null}>
-                    <td style={{ ...styles.td, textAlign: 'center' }}>{serialNumber}</td>
-                    <td style={styles.td}>{formatDate(r.date)}</td>
-                    <td style={{ ...styles.td, fontWeight: 700, color: '#0f172a' }}>{r.ref}</td>
-                    <td style={styles.td}>{r.invoice}</td>
-                    <td style={styles.td}>{r.customerName}</td>
-                    <td style={{ ...styles.td, fontWeight: 600 }}>{r.product}</td>
-                    <td style={{ ...styles.td, textAlign: 'center' }}>{r.quantity}</td>
-                    {isDiffTab ? (
-                      <>
-                        <td style={{ ...styles.td, textAlign: 'left' }}>{typeof r.prevRate === 'number' ? r.prevRate.toFixed(2) : r.prevRate}</td>
-                        <td style={{ ...styles.td, textAlign: 'left' }}>{typeof r.newRate === 'number' ? r.newRate.toFixed(2) : r.newRate}</td>
-                        <td style={{ ...styles.td, textAlign: 'left', fontWeight: 600, color: r.diffRate > 0 ? '#10b981' : '#ef4444' }}>
-                          {typeof r.diffRate === 'number' ? r.diffRate.toFixed(2) : r.diffRate}
-                        </td>
-                        <td style={{ ...styles.td, textAlign: 'left', fontWeight: 700, color: r.lineTotal > 0 ? '#10b981' : '#ef4444' }}>
-                          {typeof r.lineTotal === 'number' ? r.lineTotal.toFixed(2) : r.lineTotal}
-                        </td>
-                      </>
-                    ) : (
-                      <>
-                        <td style={{ ...styles.td, textAlign: 'left' }}>{typeof r.rate === 'number' ? r.rate.toFixed(2) : r.rate}</td>
-                        <td style={{ ...styles.td, textAlign: 'left', fontWeight: 600, color: '#10b981' }}>
-                          {typeof r.lineTotal === 'number' ? r.lineTotal.toFixed(2) : r.lineTotal}
-                        </td>
-                      </>
-                    )}
-                  </tr>
-                );
-              })
-            )}
-          </tbody>
-          
-          {/* ==================== UI GRAND TOTAL ROW ==================== */}
-          {currentRows.length > 0 && (
-            <tfoot>
+        <div style={{ overflowX: 'auto', width: '100%' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '900px' }}>
+            <thead>
               <tr>
-                <td 
-                  colSpan={isDiffTab ? 10 : 8} 
-                  style={{ ...styles.td, textAlign: 'right', fontWeight: 'bold', borderTop: '2px solid #cbd5e1', fontSize: '14px' }}
-                >
-                  Grand Total:
-                </td>
-                <td 
-                  style={{ ...styles.td, textAlign: 'left', fontWeight: 'bold', borderTop: '2px solid #cbd5e1', color: '#0f172a', fontSize: '14px' }}
-                >
-                  {grandTotal.toFixed(2)}
-                </td>
+                <th style={{ ...tableStyles.th, width: '4%', textAlign: 'center' }}>Sr#</th>
+                <th style={{ ...tableStyles.th, width: '8%' }}>Date</th>
+                <th style={{ ...tableStyles.th, width: '9%' }}>Ref #</th>
+                <th style={{ ...tableStyles.th, width: '9%' }}>Invoice #</th>
+                <th style={{ ...tableStyles.th, width: '13%' }}>Customer</th>
+                <th style={{ ...tableStyles.th, width: '14%' }}>Product</th>
+                <th style={{ ...tableStyles.th, width: '5%', textAlign: 'center' }}>Qty</th>
+                {isDiffTab ? (
+                  <>
+                    <th style={{ ...tableStyles.th, width: '9%', textAlign: 'left' }}>Prev Rate</th>
+                    <th style={{ ...tableStyles.th, width: '9%', textAlign: 'left' }}>New Rate</th>
+                    <th style={{ ...tableStyles.th, width: '9%', textAlign: 'left' }}>Diff Rate</th>
+                    <th style={{ ...tableStyles.th, width: '11%', textAlign: 'left' }}>Total Diff</th>
+                  </>
+                ) : (
+                  <>
+                    <th style={{ ...tableStyles.th, width: '10%', textAlign: 'left' }}>Rate</th>
+                    <th style={{ ...tableStyles.th, width: '12%', textAlign: 'left' }}>Line Total</th>
+                  </>
+                )}
               </tr>
-            </tfoot>
-          )}
-        </table>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr><td colSpan={isDiffTab ? 11 : 9} style={tableStyles.emptyCell}>Loading...</td></tr>
+              ) : fetchError ? (
+                <tr><td colSpan={isDiffTab ? 11 : 9} style={tableStyles.emptyCell}>
+                  This report isn't available yet — check the "{activeTabLabel}" endpoint on the backend.
+                </td></tr>
+              ) : currentRows.length === 0 ? (
+                <tr><td colSpan={isDiffTab ? 11 : 9} style={tableStyles.emptyCell}>No records found matching your filters.</td></tr>
+              ) : (
+                currentRows.map((r, idx) => {
+                  const serialNumber = (currentPage - 1) * itemsPerPage + idx + 1;
+                  return (
+                    <tr 
+                      key={`${r.parentId}-${idx}`} 
+                      style={{ borderBottom: '1px solid var(--border-color)', transition: 'background-color 0.2s' }}
+                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--bg-app)'}
+                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                    >
+                      <td style={{ ...tableStyles.td, textAlign: 'center', color: 'var(--text-muted)', fontWeight: 500 }}>{serialNumber}</td>
+                      <td style={tableStyles.td}>{formatDate(r.date)}</td>
+                      <td style={{ ...tableStyles.td, fontWeight: 700, color: 'var(--text-main)' }}>{r.ref}</td>
+                      <td style={tableStyles.td}>{r.invoice}</td>
+                      <td style={tableStyles.td}>{r.customerName}</td>
+                      <td style={{ ...tableStyles.td, fontWeight: 600 }}>{r.product}</td>
+                      <td style={{ ...tableStyles.td, textAlign: 'center' }}>{r.quantity}</td>
+                      {isDiffTab ? (
+                        <>
+                          <td style={{ ...tableStyles.td, textAlign: 'left' }}>{typeof r.prevRate === 'number' ? r.prevRate.toFixed(2) : r.prevRate}</td>
+                          <td style={{ ...tableStyles.td, textAlign: 'left' }}>{typeof r.newRate === 'number' ? r.newRate.toFixed(2) : r.newRate}</td>
+                          <td style={{ ...tableStyles.td, textAlign: 'left', fontWeight: 600, color: r.diffRate > 0 ? 'var(--success)' : 'var(--danger)' }}>
+                            {typeof r.diffRate === 'number' ? r.diffRate.toFixed(2) : r.diffRate}
+                          </td>
+                          <td style={{ ...tableStyles.td, textAlign: 'left', fontWeight: 700, color: r.lineTotal > 0 ? 'var(--success)' : 'var(--danger)' }}>
+                            {typeof r.lineTotal === 'number' ? r.lineTotal.toFixed(2) : r.lineTotal}
+                          </td>
+                        </>
+                      ) : (
+                        <>
+                          <td style={{ ...tableStyles.td, textAlign: 'left' }}>{typeof r.rate === 'number' ? r.rate.toFixed(2) : r.rate}</td>
+                          <td style={{ ...tableStyles.td, textAlign: 'left', fontWeight: 600, color: 'var(--success)' }}>
+                            {typeof r.lineTotal === 'number' ? r.lineTotal.toFixed(2) : r.lineTotal}
+                          </td>
+                        </>
+                      )}
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+            
+            {/* Grand Total Footer */}
+            {currentRows.length > 0 && (
+              <tfoot>
+                <tr style={{ backgroundColor: 'var(--primary-light)', borderTop: '2px solid var(--border-color)' }}>
+                  <td 
+                    colSpan={isDiffTab ? 10 : 8} 
+                    style={{ ...tableStyles.td, textAlign: 'right', fontWeight: 700 }}
+                  >
+                    Grand Total:
+                  </td>
+                  <td 
+                    style={{ ...tableStyles.td, textAlign: 'left', fontWeight: 800, color: 'var(--text-main)' }}
+                  >
+                    {grandTotal.toFixed(2)}
+                  </td>
+                </tr>
+              </tfoot>
+            )}
+          </table>
+        </div>
+
+        {/* ==================== PAGINATION CONTROLS ==================== */}
+        {filtered.length > itemsPerPage && (
+          <div style={{ display: 'flex', gap: 'var(--space-md)', justifyContent: 'center', alignItems: 'center', padding: 'var(--space-md)' }}>
+            <button
+              className="btn btn-secondary"
+              disabled={currentPage <= 1}
+              onClick={() => setCurrentPage(prev => prev - 1)}
+              style={{ padding: '6px 12px' }}
+            >
+              ←
+            </button>
+            <span style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-muted)' }}>
+              Page {currentPage} of {totalPages || 1}
+            </span>
+            <button
+              className="btn btn-secondary"
+              disabled={currentPage >= totalPages || totalPages === 0}
+              onClick={() => setCurrentPage(prev => prev + 1)}
+              style={{ padding: '6px 12px' }}
+            >
+              →
+            </button>
+          </div>
+        )}
       </div>
 
-      {/* ==================== PAGINATION CONTROLS ==================== */}
-      <div style={{ marginTop: '20px', display: 'flex', gap: '15px', justifyContent: 'center', alignItems: 'center', paddingBottom: '20px' }}>
-        <button
-          disabled={currentPage <= 1}
-          onClick={() => setCurrentPage(prev => prev - 1)}
-          style={{
-            padding: '8px 16px',
-            backgroundColor: currentPage <= 1 ? '#e9ecef' : '#5aa7ef',
-            color: currentPage <= 1 ? '#6c757d' : 'white',
-            border: 'none',
-            borderRadius: '4px',
-            cursor: currentPage <= 1 ? 'not-allowed' : 'pointer',
-            fontWeight: '600'
-          }}
-        >
-          ←
-        </button>
-        <span style={{ fontSize: '12px', fontWeight: '400', color: '#868484' }}>
-          Page {currentPage} of {totalPages || 1}
-        </span>
-        <button
-          disabled={currentPage >= totalPages || totalPages === 0}
-          onClick={() => setCurrentPage(prev => prev + 1)}
-          style={{
-            padding: '8px 16px',
-            backgroundColor: (currentPage >= totalPages || totalPages === 0) ? '#e9ecef' : '#5aa7ef',
-            color: (currentPage >= totalPages || totalPages === 0) ? '#6c757d' : 'white',
-            border: 'none',
-            borderRadius: '4px',
-            cursor: (currentPage >= totalPages || totalPages === 0) ? 'not-allowed' : 'pointer',
-            fontWeight: '600'
-          }}
-        >
-          →
-        </button>
-      </div>
     </div>
   );
 }
 
-const styles = {
-  page: { padding: '7px 15px', background: '#f8fafc', minHeight: '100%', marginBottom: '60px' },
-  headerRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' },
-  actionBtn: { color: '#fff', border: 'none', padding: '9px 16px', borderRadius: '6px', cursor: 'pointer', fontWeight: 600, fontSize: '13px' },
-
-  tabContainer: { display: 'flex', gap: '10px', marginTop: '15px', marginBottom: '10px', flexWrap: 'wrap', width: '100%', alignItems: 'center' },
-  tab: { padding: '10px 18px', borderRadius: '6px', border: '1px solid #cbd5e1', backgroundColor: '#fff', color: '#475569', fontWeight: 600, cursor: 'pointer', fontSize: '13px', transition: 'all 0.2s ease-in-out' },
-  activeTab: { padding: '10px 18px', borderRadius: '6px', border: '1px solid #3c4e6b', backgroundColor: '#3c4e6b', color: '#fff', fontWeight: 600, cursor: 'pointer', fontSize: '13px', transition: 'all 0.2s ease-in-out' },
-
-  filterRow: { display: 'flex', gap: '16px', alignItems: 'flex-end', flexWrap: 'wrap' },
-  filterGroup: { display: 'flex', flexDirection: 'column', flex: '1', minWidth: '150px' },
-  filterLabel: { fontSize: '11px', fontWeight: 500, color: '#475569', textAlign: 'left' },
-  filterInput: { color: '#343a42', padding: '6.4px 12px', borderRadius: '4px', border: '1px solid #cbd5e1', fontSize: '14px', backgroundColor: '#fff', outline: 'none', width: '100%', boxSizing: 'border-box' },
-  clearFilterBtn: { padding: '10px 18px', background: '#6c757d', color: '#f9f9f9', border: '1px solid #cfcece', borderRadius: '8px', cursor: 'pointer', fontWeight: 600, fontSize: '13px', whiteSpace: 'nowrap' },
-  filterStats: { marginTop: '10px', fontSize: '13px', color: '#64748b', textAlign: 'right', fontWeight: 400 },
-
-  radioToggleWrapper: { display: 'flex', gap: '12px', alignItems: 'center', padding: '2.5px 12px', border: '1px solid #cbd5e1', borderRadius: '4px', backgroundColor: '#fff', height: '100%', boxSizing: 'border-box' },
-  radioLabel: { fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', color: '#475569', fontWeight: 500 },
-
-  tableWrapper: { marginTop: '10px', background: '#fff', borderRadius: '8px', border: '1px solid #cbd5e1', overflowX: 'auto', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', width: '100%' },
-  table: { width: '100%', minWidth: '900px', borderCollapse: 'collapse', tableLayout: 'auto' },
-  th: { textAlign: 'left', padding: '12px 10px', background: '#3c4e6b', fontSize: '11px', color: '#fefefe', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', borderBottom: '2px solid #94a3b8', borderRight: '1px solid #44576e', whiteSpace: 'nowrap' },
-  td: { padding: '10px 10px', textAlign: 'left', fontSize: '13px', borderBottom: '1px solid #e2e8f0', borderRight: '1px solid #e2e8f0', color: '#334155', whiteSpace: 'nowrap' },
-  altRow: { backgroundColor: '#f8fafc' },
-  emptyCell: { textAlign: 'center', padding: '40px 0', color: '#94a3b8', fontSize: '14px' },
+// Strict Table Styles Rule
+const tableStyles = {
+  th: {
+    padding: '12px 16px',
+    backgroundColor: 'var(--header)',
+    color: '#ffffff',
+    fontWeight: '600',
+    fontSize: '13px',
+    textAlign: 'left'
+  },
+  td: {
+    padding: '8px 16px',
+    color: 'var(--text-main)',
+    fontSize: '13px',
+    textAlign: 'left'
+  },
+  emptyCell: {
+    padding: '40px',
+    textAlign: 'center',
+    color: 'var(--text-muted)',
+    fontSize: '14px'
+  }
 };
 
 export default SalesReport;

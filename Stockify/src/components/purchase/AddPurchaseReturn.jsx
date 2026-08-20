@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef } from 'react';
-import './purchase.css';
 
 const PurchaseReturnByInvoice = () => {
   const [returnMode, setReturnMode] = useState('with');
@@ -56,14 +55,28 @@ const PurchaseReturnByInvoice = () => {
   const woQtyInputRef = useRef(null);
   const woProductWrapperRef = useRef(null);
 
-  // Load Initial Data on Mount
+  // ================= LOAD INITIAL DATA (WITH TOKEN) =================
   useEffect(() => {
     const fetchInitialData = async () => {
       try {
+        const token = localStorage.getItem('token');
+        const headers = {
+          'Authorization': `Bearer ${token}`
+        };
+
         const [invRes, supRes, prodRes] = await Promise.all([
-          fetch('http://localhost:5000/api/purchases', { cache: 'no-store' }),
-          fetch('http://localhost:5000/api/suppliers', { cache: 'no-store' }),
-          fetch('http://localhost:5000/api/products', { cache: 'no-store' })
+          fetch('http://localhost:5000/api/purchases', { 
+            cache: 'no-store',
+            headers 
+          }),
+          fetch('http://localhost:5000/api/suppliers', { 
+            cache: 'no-store',
+            headers 
+          }),
+          fetch('http://localhost:5000/api/products', { 
+            cache: 'no-store',
+            headers 
+          })
         ]);
         
         const invData = await invRes.json();
@@ -91,7 +104,6 @@ const PurchaseReturnByInvoice = () => {
   // Global Keyboard Shortcuts for Confirmation Modal
   useEffect(() => {
     const handleGlobalKeyDown = (e) => {
-      // Enter key on confirmation modal
       if (e.key === 'Enter' && confirmDialog.isOpen) {
         e.preventDefault();
         if (confirmDialog.onConfirm) {
@@ -99,7 +111,6 @@ const PurchaseReturnByInvoice = () => {
         }
       }
       
-      // Escape key on confirmation modal
       if (e.key === 'Escape' && confirmDialog.isOpen) {
         e.preventDefault();
         closeConfirmDialog();
@@ -205,15 +216,11 @@ const PurchaseReturnByInvoice = () => {
     switch (e.key) {
       case 'ArrowDown':
         e.preventDefault();
-        setHighlightedIndex(prev => 
-          prev < filteredSuggestions.length - 1 ? prev + 1 : 0
-        );
+        setHighlightedIndex(prev => prev < filteredSuggestions.length - 1 ? prev + 1 : 0);
         break;
       case 'ArrowUp':
         e.preventDefault();
-        setHighlightedIndex(prev => 
-          prev > 0 ? prev - 1 : filteredSuggestions.length - 1
-        );
+        setHighlightedIndex(prev => prev > 0 ? prev - 1 : filteredSuggestions.length - 1);
         break;
       case 'Enter':
         e.preventDefault();
@@ -236,6 +243,7 @@ const PurchaseReturnByInvoice = () => {
     }
   };
 
+  // ================= HANDLE SEARCH (WITH TOKEN) =================
   const handleSearch = async (overrideNumber = null) => {
     const queryNumber = typeof overrideNumber === 'string' ? overrideNumber : searchInvoiceNumber;
     if (!queryNumber || !queryNumber.trim()) return showMessage('Enter an invoice number.', 'error');
@@ -248,7 +256,11 @@ const PurchaseReturnByInvoice = () => {
     setHighlightedIndex(-1);
 
     try {
-      const res = await fetch(`http://localhost:5000/api/purchases/search?invoiceNumber=${encodeURIComponent(queryNumber.trim())}`, { cache: 'no-store' });
+      const token = localStorage.getItem('token');
+      const res = await fetch(`http://localhost:5000/api/purchases/search?invoiceNumber=${encodeURIComponent(queryNumber.trim())}`, {
+        cache: 'no-store',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
       const data = await res.json();
       
       if (data.success) {
@@ -290,6 +302,7 @@ const PurchaseReturnByInvoice = () => {
     }
   };
 
+  // ================= HANDLE COMPLETE WITH INVOICE =================
   const handleCompleteWithInvoice = async () => {
     closeConfirmDialog();
     
@@ -306,9 +319,13 @@ const PurchaseReturnByInvoice = () => {
 
     setCompleting(true);
     try {
+      const token = localStorage.getItem('token');
       const res = await fetch('http://localhost:5000/api/purchase-returns/complete', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({
           purchaseId: purchase._id,
           supplierId: purchase.supplier?._id,
@@ -379,15 +396,11 @@ const PurchaseReturnByInvoice = () => {
     switch (e.key) {
       case 'ArrowDown':
         e.preventDefault();
-        setWoHighlightedIndex(prev => 
-          prev < woFilteredProducts.length - 1 ? prev + 1 : 0
-        );
+        setWoHighlightedIndex(prev => prev < woFilteredProducts.length - 1 ? prev + 1 : 0);
         break;
       case 'ArrowUp':
         e.preventDefault();
-        setWoHighlightedIndex(prev => 
-          prev > 0 ? prev - 1 : woFilteredProducts.length - 1
-        );
+        setWoHighlightedIndex(prev => prev > 0 ? prev - 1 : woFilteredProducts.length - 1);
         break;
       case 'Enter':
         e.preventDefault();
@@ -454,6 +467,7 @@ const PurchaseReturnByInvoice = () => {
     setWoHighlightedIndex(-1);
   };
 
+  // ================= HANDLE COMPLETE WITHOUT INVOICE =================
   const handleCompleteWithoutInvoice = async () => {
     closeConfirmDialog();
     
@@ -475,9 +489,13 @@ const PurchaseReturnByInvoice = () => {
 
     setCompleting(true);
     try {
+      const token = localStorage.getItem('token');
       const res = await fetch('http://localhost:5000/api/purchase-returns/blind-return', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({
           supplierId: woSupplierId,
           returnDate: woDate,
@@ -522,82 +540,67 @@ const PurchaseReturnByInvoice = () => {
     return () => window.removeEventListener('keydown', handleGlobalKeyDown);
   }, [returnMode, purchase, withTotalAmount, woLineItems.length, woSupplierId, woTotalAmount, selectedSupplierObj, confirmDialog.isOpen, lineItems, woLineItems]);
 
-  return (
-    <div className="add-purchase-wrapper" style={{ width: '100%', marginBottom: '90px' }}>
-      
-      <div style={{ textAlign: 'center', alignItems: 'center', marginTop: '20px' }} className="po-header">
-        <h2 style={{ fontSize: '22px',fontWeight:'400px', color: '#3e576c', fontFamily: 'times new roman' }}>Purchase Return Management</h2>
-       
-      </div>
+  // Inline Message Component
+  const InlineMessage = ({ msg }) => {
+    if (!msg.text) return null;
+    const isError = msg.type === 'error';
+    const isSuccess = msg.type === 'success';
 
-      {/* INLINE MESSAGE ALERT */}
-      {message.text && (
-        <div style={{
-          padding: '12px 16px',
-          marginBottom: '20px',
-          borderRadius: '6px',
-          backgroundColor: message.type === 'error' ? '#f8d7da' : '#d1e7dd',
-          color: message.type === 'error' ? '#842029' : '#0f5132',
-          border: `1px solid ${message.type === 'error' ? '#f5c2c7' : '#badbcc'}`,
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          fontSize: '14px'
-        }}>
-          <span>
-            <strong>{message.type === 'error' ? '⚠️ Error: ' : '✅ Success: '}</strong>
-            {message.text}
-          </span>
-          <button
-            onClick={() => setMessage({ text: '', type: '' })}
-            style={{ 
-              background: 'none', 
-              border: 'none', 
-              cursor: 'pointer', 
-              fontSize: '20px', 
-              color: 'inherit',
-              lineHeight: '1'
-            }}
-          >
-            ×
-          </button>
-        </div>
-      )}
+    const bg = isError ? 'var(--danger-bg)' : isSuccess ? 'var(--success-bg)' : 'var(--info-bg)';
+    const text = isError ? 'var(--danger)' : isSuccess ? 'var(--success)' : 'var(--info)';
+    const icon = isError ? '⚠️' : isSuccess ? '✅' : 'ℹ️';
+
+    return (
+      <div style={{
+        padding: '12px 16px',
+        marginBottom: 'var(--space-md)',
+        borderRadius: 'var(--radius-md)',
+        backgroundColor: bg,
+        color: text,
+        border: `1px solid ${text}`,
+        fontSize: '14px',
+        fontWeight: 500,
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center'
+      }}>
+        <span>{icon} {msg.text}</span>
+        <button
+          onClick={() => setMessage({ text: '', type: '' })}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '20px', color: 'inherit', lineHeight: '1' }}
+        >
+          &times;
+        </button>
+      </div>
+    );
+  };
+
+  return (
+    <div className="dashboard-wrapper"> 
+
+
+      <InlineMessage msg={message} />
 
       {/* Mode Toggle Buttons */}
-      <div style={{ display: 'flex', gap: '10px', marginBottom: '20px', flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: 'var(--space-sm)', marginBottom: 'var(--space-sm)', flexWrap: 'wrap' }}>
         <button 
-          onClick={() => {
-            setReturnMode('with');
-            setMessage({ text: '', type: '' });
-          }}
+          onClick={() => { setReturnMode('with'); setMessage({ text: '', type: '' }); }}
           style={{ 
-            padding: '10px 24px', 
-            borderRadius: '25px', 
-            border: '1px solid #ccc', 
-            fontWeight: 600, 
-            cursor: 'pointer', 
-            backgroundColor: returnMode === 'with' ? '#24385b' : '#f8f9fa', 
-            color: returnMode === 'with' ? '#fff' : '#333',
-            transition: 'all 0.2s'
+            padding: '10px 24px', borderRadius: '30px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s',
+            border: returnMode === 'with' ? 'none' : '1px solid var(--border-color)', 
+            backgroundColor: returnMode === 'with' ? 'var(--primary-other)' : 'var(--bg-surface)', 
+            color: returnMode === 'with' ? '#fff' : 'var(--text-main)'
           }}
         >
           Return with Invoice
         </button>
         <button 
-          onClick={() => {
-            setReturnMode('without');
-            setMessage({ text: '', type: '' });
-          }}
+          onClick={() => { setReturnMode('without'); setMessage({ text: '', type: '' }); }}
           style={{ 
-            padding: '10px 24px', 
-            borderRadius: '25px', 
-            border: '1px solid #ccc', 
-            fontWeight: 600, 
-            cursor: 'pointer', 
-            backgroundColor: returnMode === 'without' ? '#24385b' : '#f8f9fa', 
-            color: returnMode === 'without' ? '#fff' : '#333',
-            transition: 'all 0.2s'
+            padding: '10px 24px', borderRadius: '30px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s',
+            border: returnMode === 'without' ? 'none' : '1px solid var(--border-color)', 
+            backgroundColor: returnMode === 'without' ? 'var(--primary-other)' : 'var(--bg-surface)', 
+            color: returnMode === 'without' ? '#fff' : 'var(--text-main)'
           }}
         >
           Return without Invoice
@@ -608,206 +611,226 @@ const PurchaseReturnByInvoice = () => {
       {/* RENDER: WITH INVOICE */}
       {/* ========================================== */}
       {returnMode === 'with' && (
-        <>
-          <div className="card" style={{ position: 'relative' }}>
-            <div style={{ display: 'flex', gap: '10px', position: 'relative' }}>
-              <div style={{ flex: 1, position: 'relative' }} ref={withInvoiceWrapperRef}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-md)' }}>
+          <div className="card" style={{ position: 'relative', zIndex: 100 }}>
+            <div className="form-group" style={{ marginBottom: 0, position: 'relative' }} ref={withInvoiceWrapperRef}>
+              <label className="form-label">Search Invoice Number *</label>
+              <div style={{ display: 'flex', gap: 'var(--space-sm)' }}>
                 <input 
                   type="text" 
+                  className="form-input"
                   autoComplete="off"
-                  placeholder="Search Invoice Number... (e.g. PU-1)" 
+                  placeholder="e.g. PU-1" 
                   value={searchInvoiceNumber} 
-                  onChange={(e) => { 
-                    setSearchInvoiceNumber(e.target.value.toUpperCase()); 
-                  }} 
-                  onFocus={() => { 
-                    if (searchInvoiceNumber.trim()) setShowSuggestions(true); 
-                  }} 
+                  onChange={(e) => setSearchInvoiceNumber(e.target.value.toUpperCase())} 
+                  onFocus={() => { if (searchInvoiceNumber.trim()) setShowSuggestions(true); }} 
                   onKeyDown={handleWithInvoiceKeyDown}
-                  style={{ width: '100%', padding: '12px 14px', border: '1px solid #ccc', borderRadius: '4px', outline: 'none' }} 
                 />
-                {showSuggestions && filteredSuggestions.length > 0 && (
-                  <div style={{ position: 'absolute', top: '100%', left: 0,textAlign:'left',fontSize:'12px', right: 0, backgroundColor: 'white', border: '1px solid #ccc', borderTop: 'none', borderRadius: '0 0 4px 4px', maxHeight: '200px', overflowY: 'auto', zIndex: 1000, boxShadow: '0 4px 8px rgba(0,0,0,0.1)' }}>
-                    {filteredSuggestions.map((num, index) => (
-                      <div 
-                        key={index} 
-                        id={`with-invoice-item-${index}`}
-                        onClick={() => { setSearchInvoiceNumber(num); setShowSuggestions(false); handleSearch(num); }} 
-                        onMouseEnter={() => setHighlightedIndex(index)} 
-                        style={{ 
-                          padding: '5px 14px', 
-                          cursor: 'pointer', 
-                          backgroundColor: index === highlightedIndex ? '#e8f4fd' : 'white', 
-                          color: index === highlightedIndex ? '#007bff' : '#333',
-                          borderBottom: '1px solid #f0f0f0'
-                        }}
-                      >
-                        {num}
-                      </div>
-                    ))}
-                  </div>
-                )}
+                <button className="btn btn-primary" onClick={() => handleSearch()} disabled={searching}>
+                  {searching ? 'Searching...' : 'Search'}
+                </button>
               </div>
+              
+              {showSuggestions && filteredSuggestions.length > 0 && (
+                <ul style={{ 
+                  position: 'absolute', top: '100%', left: 0, right: 0, 
+                  backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-color)', 
+                  borderTop: 'none', borderRadius: '0 0 var(--radius-md) var(--radius-md)', 
+                  maxHeight: '200px', overflowY: 'auto', padding: 0, margin: 'var(--space-xs) 0 0 0',
+                  zIndex: 9999, boxShadow: 'var(--shadow-md)', listStyle: 'none'
+                }}>
+                  {filteredSuggestions.map((num, index) => (
+                    <li 
+                      key={index} 
+                      id={`with-invoice-item-${index}`}
+                      onClick={() => { setSearchInvoiceNumber(num); setShowSuggestions(false); handleSearch(num); }} 
+                      onMouseEnter={() => setHighlightedIndex(index)} 
+                      style={{ 
+                        padding: '10px 14px', cursor: 'pointer', 
+                        backgroundColor: index === highlightedIndex ? 'var(--primary-light)' : 'var(--bg-surface)', 
+                        color: 'var(--text-main)', 
+                        borderBottom: index < filteredSuggestions.length - 1 ? '1px solid var(--border-color)' : 'none',
+                        fontWeight: index === highlightedIndex ? '600' : '400',
+                        borderLeft: index === highlightedIndex ? '3px solid var(--primary)' : '3px solid transparent'
+                      }}
+                    >
+                      {num}
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
-            {purchase && (
-              <div style={{ marginTop: '15px', display: 'flex', gap: '30px', fontSize: '13px', color: '#444', flexWrap: 'wrap', backgroundColor: '#f1f5f9', padding: '12px', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
-                <span><strong>Invoice #:</strong> {purchase.invoiceNumber}</span>
-                <span><strong>Date:</strong> {new Date(purchase.purchaseDate || purchase.createdAt).toLocaleDateString()}</span>
-                <span><strong>Supplier:</strong> {purchase.supplier?.contactPerson || purchase.supplier?.name || 'Unknown'}</span>
-                <span><strong>Orig. Qty:</strong> {purchase.origTotalQty}</span>
-                <span><strong>Orig. Amount:</strong> Rs. {(purchase.origTotalAmount || 0).toFixed(2)}</span>
-              </div>
-            )}
           </div>
+          
+          {purchase && (
+            <div className="card" style={{ display: 'flex', gap: 'var(--space-xl)', flexWrap: 'wrap', backgroundColor: 'var(--primary-light)', border: '1px dashed var(--btn-border)' }}>
+              <span style={{ fontSize: '14px', color: 'var(--text-main)' }}><strong>Invoice #:</strong> {purchase.invoiceNumber}</span>
+              <span style={{ fontSize: '14px', color: 'var(--text-main)' }}><strong>Date:</strong> {new Date(purchase.purchaseDate || purchase.createdAt).toLocaleDateString()}</span>
+              <span style={{ fontSize: '14px', color: 'var(--text-main)' }}><strong>Supplier:</strong> {purchase.supplier?.contactPerson || purchase.supplier?.name || 'Unknown'}</span>
+              <span style={{ fontSize: '14px', color: 'var(--text-main)' }}><strong>Orig. Qty:</strong> {purchase.origTotalQty}</span>
+              <span style={{ fontSize: '14px', color: 'var(--text-main)' }}><strong>Orig. Amount:</strong> Rs. {(purchase.origTotalAmount || 0).toFixed(2)}</span>
+            </div>
+          )}
 
-          <div className="card table-section" style={{ marginTop: '20px' }}>
-            <table className="po-table">
-              <thead>
-                <tr>
-                  <th style={{ width: '10%' }}> Name</th>
-                  <th style={{ width: '14%' }}>Invoice #</th>
-                  <th style={{ width: '17%' }}>Purchase Qty</th>
-                  <th style={{ width: '18%' }}>Previous Return</th>
-                  <th style={{ width: '14%' }}>Return Qty</th>
-                  <th style={{ width: '10%' }}>Price</th>
-                  <th style={{ width: '12%' }}>Refund</th>
-                  <th style={{ width: '10%' }} className="text-center">Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {lineItems.length === 0 ? (
-                  <tr><td colSpan="8" className="empty-state">No invoice items.</td></tr>
-                ) : (
-                  lineItems.map((row, index) => (
-                    <tr key={row.productId}>
-                      <td>{row.productName}</td>
-                      <td style={{ fontWeight: 600 }}>{purchase?.invoiceNumber || '—'}</td>
-                      <td>{row.purchaseQty}</td>
-                      <td>{row.returnQty}</td>
-                      <td>
-                        <input 
-                          ref={index === 0 ? firstQtyInputRef : null}
-                          type="number" 
-                          min="0" 
-                          max={row.maxReturnable} 
-                          value={row.transactionQty || ''} 
-                          disabled={row.maxReturnable === 0} 
-                          onChange={(e) => {
-                            let val = e.target.value.replace(/^0+/, '');
-                            const qty = Math.min(Math.max(0, Number(val)), row.maxReturnable);
-                            setLineItems(prev => prev.map(r => r.productId === row.productId ? { ...r, transactionQty: qty } : r));
-                          }}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') {
-                              e.preventDefault();
-                              if (withTotalAmount > 0) {
-                                openConfirmDialog(`Process return for Rs ${withTotalAmount.toFixed(2)}?`, handleCompleteWithInvoice);
+          <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr>
+                    <th style={tableStyles.th}>Name</th>
+                    <th style={tableStyles.th}>Invoice #</th>
+                    <th style={tableStyles.th}>Purchase Qty</th>
+                    <th style={tableStyles.th}>Previous Return</th>
+                    <th style={tableStyles.th}>Return Qty</th>
+                    <th style={tableStyles.th}>Price</th>
+                    <th style={tableStyles.th}>Refund</th>
+                    <th style={{ ...tableStyles.th, textAlign: 'center' }}>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {lineItems.length === 0 ? (
+                    <tr><td colSpan="8" style={tableStyles.emptyCell}>No invoice items.</td></tr>
+                  ) : (
+                    lineItems.map((row, index) => (
+                      <tr key={row.productId} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                        <td style={tableStyles.td}>{row.productName}</td>
+                        <td style={{ ...tableStyles.td, fontWeight: 600 }}>{purchase?.invoiceNumber || '—'}</td>
+                        <td style={tableStyles.td}>{row.purchaseQty}</td>
+                        <td style={tableStyles.td}>{row.returnQty}</td>
+                        <td style={tableStyles.td}>
+                          <input 
+                            ref={index === 0 ? firstQtyInputRef : null}
+                            type="number" min="0" max={row.maxReturnable} 
+                            className="form-input"
+                            style={{ padding: '6px', maxWidth: '100px' }}
+                            value={row.transactionQty || ''} 
+                            disabled={row.maxReturnable === 0} 
+                            onChange={(e) => {
+                              let val = e.target.value.replace(/^0+/, '');
+                              const qty = Math.min(Math.max(0, Number(val)), row.maxReturnable);
+                              setLineItems(prev => prev.map(r => r.productId === row.productId ? { ...r, transactionQty: qty } : r));
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                if (withTotalAmount > 0) {
+                                  openConfirmDialog(`Process return for Rs ${withTotalAmount.toFixed(2)}?`, handleCompleteWithInvoice);
+                                }
                               }
-                            }
-                          }}
-                          style={{ width: '100%', padding: '6px', border: '1px solid #ccc', borderRadius: '4px' }} 
-                        />
-                      </td>
-                      <td>{row.unitPrice}</td>
-                      <td>{((row.transactionQty || 0) * row.unitPrice).toFixed(2)}</td>
-                      <td className="text-center">
-                        <button 
-                          className="btn-remove" 
-                          onClick={() => setLineItems(prev => prev.map(r => r.productId === row.productId ? { ...r, transactionQty: 0 } : r))}
-                          disabled={row.transactionQty === 0}
-                          style={{ opacity: row.transactionQty === 0 ? 0.3 : 1 }}
-                        >
-                          ✕
-                        </button>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+                            }}
+                          />
+                        </td>
+                        <td style={tableStyles.td}>{row.unitPrice}</td>
+                        <td style={{ ...tableStyles.td, fontWeight: 600 }}>{((row.transactionQty || 0) * row.unitPrice).toFixed(2)}</td>
+                        <td style={{ ...tableStyles.td, textAlign: 'center' }}>
+                          <div style={{ display: 'flex', justifyContent: 'center' }}>
+                            <button 
+                              style={{ 
+                                ...actionStyles.iconBtnDelete, 
+                                opacity: row.transactionQty === 0 ? 0.4 : 1, 
+                                cursor: row.transactionQty === 0 ? 'not-allowed' : 'pointer' 
+                              }}
+                              onClick={() => setLineItems(prev => prev.map(r => r.productId === row.productId ? { ...r, transactionQty: 0 } : r))}
+                              disabled={row.transactionQty === 0}
+                              title="Clear Qty"
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
 
-          <div style={{ textAlign:'left',display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '20px', flexWrap: 'wrap', gap: '15px' }}>
-            <div style={{ border: '1px solid #1f6b3a',width:'30%', borderRadius: '8px', padding: '14px 24px', backgroundColor: '#f8f9fa' }}>
-              <label style={{ fontSize: '13px', fontWeight: 700, color: '#1f6b3a', display: 'block' }}>TOTAL AMOUNT</label>
-              <div style={{ fontSize: '28px', fontWeight: 700 }}>{withTotalAmount.toFixed(2)}</div>
+          <div className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 'var(--space-md)' }}>
+            <div style={{ padding: 'var(--space-sm) var(--space-md)', borderLeft: '4px solid var(--primary)', backgroundColor: 'var(--primary-light)', borderRadius: 'var(--radius-md)' }}>
+              <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--primary)', letterSpacing: '0.5px' }}>TOTAL REFUND AMOUNT</div>
+              <div style={{ fontSize: '28px', fontWeight: 700, color: 'var(--text-main)' }}>{withTotalAmount.toFixed(2)}</div>
             </div>
+            
             <button 
-              className="btn-submit-order" 
-              style={{ backgroundColor: '#4d9b6b',width:'18%', padding: '15px 1px', border: 'none', borderRadius: '4px', color: '#fff', fontWeight: 'bold', cursor: 'pointer' }} 
+              className="btn btn-primary" 
+              style={{ padding: '14px 28px', fontSize: '15px' }} 
               disabled={completing || !purchase || withTotalAmount === 0} 
               onClick={() => {
                 if (withTotalAmount > 0) {
-                  openConfirmDialog(
-                    `Process return for Rs ${withTotalAmount.toFixed(2)}?`,
-                    handleCompleteWithInvoice
-                  );
+                  openConfirmDialog(`Process return for Rs ${withTotalAmount.toFixed(2)}?`, handleCompleteWithInvoice);
                 }
               }}
               title="Shortcut: Ctrl + Enter"
             >
-              {completing ? 'Processing...' : 'Complete Return '}
+              {completing ? 'Processing...' : 'Complete Return'}
             </button>
           </div>
-        </>
+        </div>
       )}
 
       {/* ========================================== */}
       {/* RENDER: WITHOUT INVOICE */}
       {/* ========================================== */}
       {returnMode === 'without' && (
-        <>
-          <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap', alignItems: 'stretch' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-md)' }}>
+          <div style={{ display: 'flex', gap: 'var(--space-md)', flexWrap: 'wrap', alignItems: 'stretch' }}>
             
             {/* LEFT CARD: ADD PRODUCTS */}
             <div className="card" style={{ flex: 1, minWidth: '300px', display: 'flex', flexDirection: 'column' }}>
-              <h4 style={{ textAlign: 'center', color: '#4a5568', marginBottom: '15px', borderBottom: '1px solid #e2e8f0', paddingBottom: '10px' }}>Add Products</h4>
+              <h4 style={{ margin: '0 0 var(--space-md) 0', color: 'var(--primary)', fontSize: '15px', borderBottom: '1px solid var(--border-color)', paddingBottom: 'var(--space-sm)' }}>Add Products</h4>
               
-              <div style={{ position: 'relative', marginBottom: '15px' }} ref={woProductWrapperRef}>
-                <label style={{ fontSize: '12px', fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>Search Product *</label>
+              <div className="form-group" style={{ position: 'relative' }} ref={woProductWrapperRef}>
+                <label className="form-label">Search Product *</label>
                 <input 
                   type="text" 
+                  className="form-input"
                   autoComplete="off"
                   placeholder="Type to search..." 
                   value={woProductSearch} 
                   onChange={handleWoProductSearchChange} 
                   onKeyDown={handleWoProductKeyDown}
-                  onFocus={() => { 
-                    if (woProductSearch.trim()) setWoShowSuggestions(true); 
-                  }}
-                  style={{ width: '100%', padding: '10px', border: '1px solid #ccc', borderRadius: '4px', backgroundColor:'#fff', boxSizing: 'border-box' }} 
+                  onFocus={() => { if (woProductSearch.trim()) setWoShowSuggestions(true); }}
                 />
                 {woShowSuggestions && woFilteredProducts.length > 0 && (
-                  <div style={{ position: 'absolute', top: '100%',textAlign:'left',fontSize:'13px', left: 0, right: 0, backgroundColor: '#fff', border: '1px solid #ccc', zIndex: 1000, maxHeight: '200px', overflowY: 'auto', boxShadow: '0 4px 8px rgba(0,0,0,0.1)', borderRadius: '0 0 4px 4px' }}>
+                  <ul style={{ 
+                    position: 'absolute', top: '100%', left: 0, right: 0, 
+                    backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-color)', 
+                    borderTop: 'none', borderRadius: '0 0 var(--radius-md) var(--radius-md)', 
+                    maxHeight: '200px', overflowY: 'auto', padding: 0, margin: 'var(--space-xs) 0 0 0',
+                    zIndex: 1000, boxShadow: 'var(--shadow-md)', listStyle: 'none'
+                  }}>
                     {woFilteredProducts.map((p, i) => (
-                      <div 
+                      <li 
                         key={p._id} 
                         id={`wo-prod-item-${i}`}
                         onClick={() => selectWoProduct(p)} 
                         onMouseEnter={() => setWoHighlightedIndex(i)}
                         style={{ 
-                          padding: '10px 14px', 
-                          cursor: 'pointer', 
-                          borderBottom: '1px solid #eee',
-                          backgroundColor: i === woHighlightedIndex ? '#e8f4fd' : 'white',
-                          color: i === woHighlightedIndex ? '#007bff' : '#333'
+                          padding: '10px 14px', cursor: 'pointer', 
+                          backgroundColor: i === woHighlightedIndex ? 'var(--primary-light)' : 'var(--bg-surface)', 
+                          color: 'var(--text-main)', 
+                          borderBottom: i < woFilteredProducts.length - 1 ? '1px solid var(--border-color)' : 'none',
+                          fontWeight: i === woHighlightedIndex ? '600' : '400',
+                          borderLeft: i === woHighlightedIndex ? '3px solid var(--primary)' : '3px solid transparent'
                         }}
                       >
-                        <div style={{ fontWeight: 600 }}>{p.name}</div>
-                        <div style={{ fontSize: '11px', color: '#666' }}>
+                        <div style={{ fontSize: '14px' }}>{p.name}</div>
+                        <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
                           Stock: {p.quantity || 0} {p.barcode ? `| Barcode: ${p.barcode}` : ''}
                         </div>
-                      </div>
+                      </li>
                     ))}
-                  </div>
+                  </ul>
                 )}
               </div>
 
-              <div style={{ marginBottom: '20px' }}>
-                <label style={{ fontSize: '12px', fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>Quantity *</label>
+              <div className="form-group" style={{ marginBottom: 'var(--space-lg)' }}>
+                <label className="form-label">Quantity *</label>
                 <input 
                   ref={woQtyInputRef}
                   type="number" 
+                  className="form-input"
                   min="1" 
                   value={woQuantity || ''} 
                   onChange={e => {
@@ -817,15 +840,11 @@ const PurchaseReturnByInvoice = () => {
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') handleWoAddToCart();
                   }}
-                  style={{ width: '100%', backgroundColor:'#fff', padding: '10px', border: '1px solid #ccc', borderRadius: '4px', boxSizing: 'border-box' }} 
                 />
               </div>
 
-              <div style={{ marginTop: 'auto', textAlign: 'center' }}>
-                <button 
-                  onClick={handleWoAddToCart} 
-                  style={{ width: '100%', padding: '12px', backgroundColor: '#28a745', color: '#fff', border: 'none', borderRadius: '4px', fontWeight: 'bold', cursor: 'pointer', fontSize: '14px' }}
-                >
+              <div style={{ marginTop: 'auto' }}>
+                <button className="btn btn-primary" style={{ width: '30%',marginLeft:'36%' }} onClick={handleWoAddToCart}>
                   + Add to Cart
                 </button>
               </div>
@@ -833,111 +852,95 @@ const PurchaseReturnByInvoice = () => {
 
             {/* RIGHT CARD: SUPPLIER DETAILS */}
             <div className="card" style={{ flex: 1, minWidth: '300px', display: 'flex', flexDirection: 'column' }}>
-              <h4 style={{ textAlign: 'center', color: '#4a5568', marginBottom: '15px', borderBottom: '1px solid #e2e8f0', paddingBottom: '10px' }}>Supplier Details</h4>
+              <h4 style={{ margin: '0 0 var(--space-md) 0', color: 'var(--primary)', fontSize: '15px', borderBottom: '1px solid var(--border-color)', paddingBottom: 'var(--space-sm)' }}>Supplier Details</h4>
 
-              <div style={{ marginBottom: '15px' }}>
-                <label style={{ fontSize: '12px', fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>Select Supplier *</label>
-                <select 
-                  value={woSupplierId} 
-                  onChange={e => setWoSupplierId(e.target.value)} 
-                  style={{ width: '100%', backgroundColor:'#fff', padding: '10px', border: '1px solid #ccc', borderRadius: '4px', boxSizing: 'border-box' }}
-                >
+              <div className="form-group">
+                <label className="form-label">Select Supplier *</label>
+                <select className="form-input" value={woSupplierId} onChange={e => setWoSupplierId(e.target.value)}>
                   <option value="">-- Choose Supplier --</option>
                   {suppliers.map(s => <option key={s._id} value={s._id}>{s.contactPerson} {s.companyName ? `(${s.companyName})` : ''}</option>)}
                 </select>
               </div>
 
-              <div style={{ display: 'flex', gap: '15px', marginBottom: '15px' }}>
-                <div style={{ flex: 1 }}>
-                  <label style={{ fontSize: '12px', fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>Phone</label>
-                  <input 
-                    type="text" 
-                    readOnly 
-                    disabled 
-                    placeholder="Auto-fills on select" 
-                    value={selectedSupplierObj.phone || ''} 
-                    style={{ width: '100%', padding: '10px', backgroundColor: '#f5f5f5', border: '1px solid #ddd', borderRadius: '4px', boxSizing: 'border-box' }} 
-                  />
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-md)', marginBottom: 'var(--space-md)' }}>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label">Phone</label>
+                  <input type="text" className="form-input" readOnly disabled placeholder="Auto-fills" value={selectedSupplierObj.phone || ''} style={{ backgroundColor: 'var(--bg-app)', cursor: 'not-allowed' }} />
                 </div>
-                <div style={{ flex: 1 }}>
-                  <label style={{ fontSize: '12px', fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>Address</label>
-                  <input 
-                    type="text" 
-                    readOnly 
-                    disabled 
-                    placeholder="Auto-fills on select" 
-                    value={selectedSupplierObj.address || ''} 
-                    style={{ width: '100%', padding: '10px', backgroundColor: '#f5f5f5', border: '1px solid #ddd', borderRadius: '4px', boxSizing: 'border-box' }} 
-                  />
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label">Address</label>
+                  <input type="text" className="form-input" readOnly disabled placeholder="Auto-fills" value={selectedSupplierObj.address || ''} style={{ backgroundColor: 'var(--bg-app)', cursor: 'not-allowed' }} />
                 </div>
               </div>
 
-              <div style={{ marginBottom: '15px' }}>
-                <label style={{ fontSize: '12px', backgroundColor:'#fff', fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>Return Date *</label>
-                <input 
-                  type="date" 
-                  value={woDate} 
-                  onChange={e => setWoDate(e.target.value)} 
-                  style={{ width: '100%', backgroundColor:'#fff', padding: '10px', border: '1px solid #ccc', borderRadius: '4px', boxSizing: 'border-box' }} 
-                />
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="form-label">Return Date *</label>
+                <input type="date" className="form-input" value={woDate} onChange={e => setWoDate(e.target.value)} />
               </div>
             </div>
 
           </div>
 
-          <div className="card table-section" style={{ marginTop: '20px' }}>
-            <table className="po-table">
-              <thead style={{ backgroundColor: '#1f6b3a', color: 'white' }}>
-                <tr>
-                  <th style={{ textAlign: 'left', padding: '12px' }}>PRODUCT NAME</th>
-                  <th style={{ textAlign: 'center', padding: '12px' }}>IN STOCK</th>
-                  <th style={{ textAlign: 'center', padding: '12px' }}>RETURN QTY</th>
-                  <th style={{ textAlign: 'right', padding: '12px' }}>PRICE</th>
-                  <th style={{ textAlign: 'right', padding: '12px' }}>TOTAL PRICE</th>
-                  <th className="text-center" style={{ padding: '12px' }}>ACTION</th>
-                </tr>
-              </thead>
-              <tbody>
-                {woLineItems.length === 0 ? (
-                  <tr><td colSpan="6" className="empty-state">Cart is empty.</td></tr>
-                ) : (
-                  woLineItems.map((row, index) => (
-                    <tr key={index}>
-                      <td style={{ textAlign: 'left', padding: '12px' }}>{row.productName}</td>
-                      <td style={{ textAlign: 'center', padding: '12px' }}>{row.inStock}</td>
-                      <td style={{ textAlign: 'center', padding: '12px' }}>
-                        <input 
-                          type="number" 
-                          min="1" 
-                          value={row.transactionQty || ''} 
-                          onChange={(e) => {
-                            let val = e.target.value.replace(/^0+/, '');
-                            const qty = Math.max(1, Number(val));
-                            setWoLineItems(prev => prev.map((r, i) => i === index ? { ...r, transactionQty: qty, totalPrice: qty * r.unitPrice } : r));
-                          }} 
-                          style={{ width: '80px', padding: '6px', border: '1px solid #ccc', borderRadius: '4px', textAlign: 'center' }} 
-                        />
-                      </td>
-                      <td style={{ textAlign: 'right', padding: '12px' }}>{row.unitPrice.toFixed(2)}</td>
-                      <td style={{ textAlign: 'right', padding: '12px' }}>{row.totalPrice.toFixed(2)}</td>
-                      <td className="text-center" style={{ padding: '12px' }}>
-                        <button className="btn-remove" onClick={() => setWoLineItems(prev => prev.filter((_, i) => i !== index))}>✕</button>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+          <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr>
+                    <th style={tableStyles.th}>Product Name</th>
+                    <th style={{ ...tableStyles.th, textAlign: 'center' }}>In Stock</th>
+                    <th style={{ ...tableStyles.th, textAlign: 'center' }}>Return Qty</th>
+                    <th style={tableStyles.th}>Price</th>
+                    <th style={tableStyles.th}>Total Price</th>
+                    <th style={{ ...tableStyles.th, textAlign: 'center' }}>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {woLineItems.length === 0 ? (
+                    <tr><td colSpan="6" style={tableStyles.emptyCell}>Cart is empty.</td></tr>
+                  ) : (
+                    woLineItems.map((row, index) => (
+                      <tr key={index} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                        <td style={tableStyles.td}>{row.productName}</td>
+                        <td style={{ ...tableStyles.td, textAlign: 'center' }}>{row.inStock}</td>
+                        <td style={{ ...tableStyles.td, textAlign: 'center' }}>
+                          <input 
+                            type="number" min="1" 
+                            className="form-input"
+                            style={{ padding: '6px', maxWidth: '100px', textAlign: 'center', margin: '0 auto' }}
+                            value={row.transactionQty || ''} 
+                            onChange={(e) => {
+                              let val = e.target.value.replace(/^0+/, '');
+                              const qty = Math.max(1, Number(val));
+                              setWoLineItems(prev => prev.map((r, i) => i === index ? { ...r, transactionQty: qty, totalPrice: qty * r.unitPrice } : r));
+                            }} 
+                          />
+                        </td>
+                        <td style={tableStyles.td}>{row.unitPrice.toFixed(2)}</td>
+                        <td style={{ ...tableStyles.td, fontWeight: 600 }}>{row.totalPrice.toFixed(2)}</td>
+                        <td style={{ ...tableStyles.td, textAlign: 'center' }}>
+                          <div style={{ display: 'flex', justifyContent: 'center' }}>
+                            <button style={actionStyles.iconBtnDelete} onClick={() => setWoLineItems(prev => prev.filter((_, i) => i !== index))} title="Remove">
+                              ✕
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
 
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '20px', flexWrap: 'wrap', gap: '15px' }}>
-            <div style={{ border: '1px solid #121f41',width:'25%', borderRadius: '8px', padding: '14px 24px', backgroundColor: '#f8f9fa' }}>
-              <label style={{ fontSize: '13px', fontWeight: 700, color: '#1f6b3a', display: 'block' }}>TOTAL AMOUNT</label>
-              <div style={{ fontSize: '28px', fontWeight: 700 }}>{woTotalAmount.toFixed(2)}</div>
+          <div className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 'var(--space-md)' }}>
+            <div style={{ padding: 'var(--space-sm) var(--space-md)', borderLeft: '4px solid var(--primary)', backgroundColor: 'var(--primary-light)', borderRadius: 'var(--radius-md)' }}>
+              <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--primary)', letterSpacing: '0.5px' }}>TOTAL REFUND AMOUNT</div>
+              <div style={{ fontSize: '28px', fontWeight: 700, color: 'var(--text-main)' }}>{woTotalAmount.toFixed(2)}</div>
             </div>
+            
             <button 
-              className="btn-submit-order" 
-              style={{ backgroundColor: '#223747',width:'18%', padding: '14px 40px', border: 'none', borderRadius: '4px', color: '#fff', fontWeight: 'bold', cursor: 'pointer' }} 
+              className="btn btn-primary" 
+              style={{ padding: '14px 28px', fontSize: '15px' }} 
               disabled={completing || woLineItems.length === 0 || !woSupplierId} 
               onClick={() => {
                 if (!woSupplierId) {
@@ -945,142 +948,85 @@ const PurchaseReturnByInvoice = () => {
                   return;
                 }
                 if (woTotalAmount > 0 && woSupplierId) {
-                  openConfirmDialog(
-                    `Process blind return to ${selectedSupplierObj.companyName || selectedSupplierObj.contactPerson || 'supplier'} for Rs ${woTotalAmount.toFixed(2)}?`,
-                    handleCompleteWithoutInvoice
-                  );
+                  openConfirmDialog(`Process blind return to ${selectedSupplierObj.companyName || selectedSupplierObj.contactPerson || 'supplier'} for Rs ${woTotalAmount.toFixed(2)}?`, handleCompleteWithoutInvoice);
                 }
               }}
               title="Shortcut: Ctrl + Enter"
             >
-              {completing ? 'Processing...' : '↩ Return'}
+              {completing ? 'Processing...' : 'Complete Return'}
             </button>
-          </div>
-        </>
-      )}
-
-      {/* ========================================== */}
-      {/* CUSTOM CONFIRMATION MODAL with Enter Key Support */}
-      {/* ========================================== */}
-      {confirmDialog.isOpen && (
-        <div 
-          className="modal-force-top" 
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: 'rgba(51, 69, 86, 0.9)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 99999,
-            backdropFilter: 'blur(4px)'
-          }}
-          onClick={(e) => {
-            if (e.target === e.currentTarget) {
-              closeConfirmDialog();
-            }
-          }}
-        >
-          <div 
-            style={{ 
-              backgroundColor: '#fff', 
-              borderRadius: '12px', 
-              padding: '28px', 
-              maxWidth: '420px', 
-              width: '90%', 
-              boxShadow: '0 20px 60px rgba(0,0,0,0.3)', 
-              borderTop: '6px solid #1f6b3a',
-              animation: 'slideIn 0.3s ease-out'
-            }}
-          >
-            <h3 style={{ 
-              marginTop: 0, 
-              color: '#1f6b3a', 
-              fontSize: '20px',
-              display: 'flex', 
-              alignItems: 'center', 
-              gap: '10px' 
-            }}>
-              <span style={{ fontSize: '24px' }}>⚠️</span> Confirm Return
-            </h3>
-            <p style={{ 
-              color: '#555', 
-              fontSize: '15px', 
-              lineHeight: '1.6',
-              margin: '16px 0 24px 0' 
-            }}>
-              {confirmDialog.message}
-            </p>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
-              <button 
-                onClick={closeConfirmDialog}
-                style={{ 
-                  padding: '10px 24px', 
-                  backgroundColor: '#f1f1f1', 
-                  border: 'none', 
-                  borderRadius: '6px', 
-                  cursor: 'pointer',
-                  fontWeight: '600',
-                  color: '#333',
-                  transition: 'background-color 0.2s'
-                }}
-                onMouseEnter={(e) => e.target.style.backgroundColor = '#e0e0e0'}
-                onMouseLeave={(e) => e.target.style.backgroundColor = '#f1f1f1'}
-              >
-                Cancel (Esc)
-              </button>
-              <button 
-                ref={confirmButtonRef}
-                onClick={() => {
-                  if (confirmDialog.onConfirm) {
-                    confirmDialog.onConfirm();
-                  }
-                }}
-                style={{ 
-                  padding: '10px 24px', 
-                  backgroundColor: '#1f6b3a', 
-                  color: '#fff', 
-                  border: 'none', 
-                  borderRadius: '6px', 
-                  cursor: 'pointer',
-                  fontWeight: '600',
-                  transition: 'background-color 0.2s',
-                  outline: '2px solid transparent',
-                  outlineOffset: '2px'
-                }}
-                onMouseEnter={(e) => e.target.style.backgroundColor = '#155d2e'}
-                onMouseLeave={(e) => e.target.style.backgroundColor = '#1f6b3a'}
-              >
-                Yes, Complete (Enter)
-              </button>
-            </div>
           </div>
         </div>
       )}
 
-      {/* Add CSS animation for modal */}
-      <style>{`
-        @keyframes slideIn {
-          from {
-            opacity: 0;
-            transform: translateY(-30px) scale(0.95);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0) scale(1);
-          }
-        }
-        .modal-force-top button:focus-visible {
-          outline: 2px solid #1f6b3a;
-          outline-offset: 2px;
-        }
-      `}</style>
+      {/* ========================================== */}
+      {/* CUSTOM CONFIRMATION MODAL */}
+      {/* ========================================== */}
+      {confirmDialog.isOpen && (
+        <div className="modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) closeConfirmDialog(); }}>
+          <div className="modal-container" style={{ borderTop: '6px solid var(--primary)', padding: 'var(--space-xl)', maxWidth: '450px' }}>
+            
+            <h3 style={{ margin: '0 0 var(--space-md) 0', color: 'var(--text-main)', fontSize: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ fontSize: '24px' }}>⚠️</span> Confirm Return
+            </h3>
+            
+            <p style={{ color: 'var(--text-muted)', fontSize: '15px', lineHeight: '1.5', margin: '0 0 var(--space-lg) 0' }}>
+              {confirmDialog.message}
+            </p>
+            
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--space-sm)' }}>
+              <button className="btn btn-secondary" onClick={closeConfirmDialog}>
+                Cancel (Esc)
+              </button>
+              <button className="btn btn-primary" ref={confirmButtonRef} onClick={() => confirmDialog.onConfirm && confirmDialog.onConfirm()}>
+                Yes, Complete (Enter)
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
 
     </div>
   );
+};
+
+// Strict Table Styles Enforced
+const tableStyles = {
+  th: {
+    padding: '12px 16px',
+    backgroundColor: 'var(--header)',
+    color: '#ffffff',
+    fontWeight: '600',
+    fontSize: '13px',
+    textAlign: 'left'
+  },
+  td: {
+    padding: '8px 16px',
+    color: 'var(--text-main)',
+    fontSize: '13px',
+    textAlign: 'left'
+  },
+  emptyCell: {
+    padding: '40px',
+    textAlign: 'center',
+    color: 'var(--text-muted)',
+    fontSize: '14px'
+  }
+};
+
+// Strict Actions Styles Enforced
+const actionStyles = {
+  iconBtnDelete: {
+    backgroundColor: 'var(--danger-bg)',
+    color: 'var(--danger)',
+    border: 'none',
+    padding: '6px',
+    borderRadius: '4px',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center'
+  }
 };
 
 export default PurchaseReturnByInvoice;

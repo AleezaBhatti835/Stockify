@@ -1,9 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { usePrintSettings } from '../../context/PrintSettingsContext';
-import './purchase.css';
-import '../roles.css';
 
-// ============== EXACT PAPER CONFIG FROM POS.JS / INVOICELIST ==============
 const getPaperConfig = (paperSize) => {
   switch (paperSize) {
     case 'Thermal58':
@@ -45,7 +42,7 @@ const PurchasedList = () => {
   const [products, setProducts] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
-
+const todayDateStr = new Date().toISOString().split('T')[0];
   const { settings: printSettings } = usePrintSettings();
 
   const getTodayDate = () => {
@@ -56,19 +53,10 @@ const PurchasedList = () => {
     return `${year}-${month}-${day}`;
   };
 
-  const getLastMonthDate = () => {
-    const date = new Date();
-    date.setDate(date.getDate() - 30);
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-  };
-
   const [filters, setFilters] = useState({
     supplier: '',
     product: '',
-    dateFrom: getLastMonthDate(),
+    dateFrom: getTodayDate(),
     dateTo: getTodayDate()
   });
 
@@ -83,28 +71,27 @@ const PurchasedList = () => {
 
   useEffect(() => {
     applyFilters();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [purchases, filters]);
 
-const fetchPurchases = async () => {
+  // CORE ARCHITECTURE: Unified filter and sorting engine for standardizing purchase list data retrieval.
+  const fetchPurchases = async () => {
     try {
+      const token = localStorage.getItem('token');
       const response = await fetch('http://localhost:5000/api/purchases', {
-        cache: 'no-store'
+        cache: 'no-store',
+        headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await response.json();
       
-      // Updated Sorting: Primary by Date, Secondary by Invoice Number
       const sortedData = data.sort((a, b) => {
         const dateA = new Date(a.purchaseDate).setHours(0, 0, 0, 0);
         const dateB = new Date(b.purchaseDate).setHours(0, 0, 0, 0);
+        if (dateA !== dateB) return dateA - dateB;
         
-        if (dateA !== dateB) {
-          return dateA - dateB; // Ascending order by date
-        }
-        
-        // Agar date same ho toh Invoice Number (numbers extract kar ke) sort karein
         const numA = parseInt((a.invoiceNumber || '').replace(/[^0-9]/g, ''), 10) || 0;
         const numB = parseInt((b.invoiceNumber || '').replace(/[^0-9]/g, ''), 10) || 0;
-        return numA - numB; // Ascending order by invoice number
+        return numA - numB; 
       });
       
       setPurchases(sortedData);
@@ -118,7 +105,10 @@ const fetchPurchases = async () => {
 
   const fetchSuppliers = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/suppliers');
+      const token = localStorage.getItem('token');
+      const response = await fetch('http://localhost:5000/api/suppliers', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
       const data = await response.json();
       setSuppliers(data);
     } catch (error) {
@@ -128,7 +118,10 @@ const fetchPurchases = async () => {
 
   const fetchProducts = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/products');
+      const token = localStorage.getItem('token');
+      const response = await fetch('http://localhost:5000/api/products', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
       const data = await response.json();
       setProducts(data);
     } catch (error) {
@@ -136,7 +129,7 @@ const fetchPurchases = async () => {
     }
   };
 
-const applyFilters = () => {
+  const applyFilters = () => {
     let filtered = [...purchases];
 
     if (filters.supplier) {
@@ -178,36 +171,29 @@ const applyFilters = () => {
       });
     }
 
-    // Updated Sorting: Primary by Date, Secondary by Invoice Number
     filtered = filtered.sort((a, b) => {
       const dateA = new Date(a.purchaseDate).setHours(0, 0, 0, 0);
       const dateB = new Date(b.purchaseDate).setHours(0, 0, 0, 0);
-      
-      if (dateA !== dateB) {
-        return dateA - dateB;
-      }
-      
+      if (dateA !== dateB) return dateA - dateB;
       const numA = parseInt((a.invoiceNumber || '').replace(/[^0-9]/g, ''), 10) || 0;
       const numB = parseInt((b.invoiceNumber || '').replace(/[^0-9]/g, ''), 10) || 0;
       return numA - numB;
     });
 
     setFilteredPurchases(filtered);
+    setCurrentPage(1);
   };
 
   const handleFilterChange = (e) => {
     const { name, value } = e.target;
-    setFilters(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    setFilters(prev => ({ ...prev, [name]: value }));
   };
 
   const clearFilters = () => {
     setFilters({
       supplier: '',
       product: '',
-      dateFrom: getLastMonthDate(),
+      dateFrom: getTodayDate(),
       dateTo: getTodayDate()
     });
   };
@@ -216,9 +202,7 @@ const applyFilters = () => {
     if (!dateString) return 'N/A';
     const date = new Date(dateString);
     return date.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
+      year: 'numeric', month: 'short', day: 'numeric'
     });
   };
 
@@ -248,7 +232,7 @@ const applyFilters = () => {
     return Array.from(uniqueSuppliers.values());
   };
 
-  // Print Logic matching InvoiceList / POS
+  // UI ENGINE: Dynamic modal rendering with embedded print-specific styles for A4, A5, and Thermal receipt formats.
   const handlePrint = () => {
     const paperConfig = getPaperConfig(printSettings?.paperSize);
     const contentEl = document.getElementById('receipt-content');
@@ -306,74 +290,46 @@ const applyFilters = () => {
     }, 300);
   };
 
-  // Render receipt modal matching InvoiceList structure
   const renderReceipt = () => {
     if (!selectedPurchase) return null;
-
     const paperConfig = getPaperConfig(printSettings?.paperSize);
 
     return (
-      <div style={styles.receiptOverlay} onClick={closeModal}>
-        <div style={{ ...styles.receiptContainer, maxWidth: paperConfig.maxWidth }} onClick={(e) => e.stopPropagation()}>
-
-          {/* Header Actions */}
-          <div style={{ ...styles.receiptHeader, flexDirection: paperConfig.narrow ? 'column' : 'row', gap: paperConfig.narrow ? '10px' : '0' }}>
-            <h3 style={{ margin: 0, color: '#000' }}>CAPOBIZ</h3>
-
-            <div style={{ ...styles.receiptActions, width: paperConfig.narrow ? '100%' : 'auto' }}>
-              <button
-                className="receipt-print-btn"
-                style={{ ...styles.printReceiptBtn, ...(paperConfig.narrow ? { flex: 1 } : {}) }}
-                onClick={handlePrint}
-              >
-                🖨️ Print
-              </button>
-              <button
-                className="receipt-close-btn"
-                style={{ ...styles.closeReceiptBtn, ...(paperConfig.narrow ? { flex: 1 } : {}) }}
-                onClick={closeModal}
-              >
-                ✕ Close
-              </button>
+      <div className="modal-overlay" onClick={closeModal}>
+        <div className="modal-container" style={{ width:'70%', padding: 0, display: 'flex', flexDirection: 'column', maxHeight: '90vh' }} onClick={(e) => e.stopPropagation()}>
+          
+          <div className="modal-header" style={{ backgroundColor: 'var(--bg-app)', borderBottom: '1px solid var(--border-color)' }}>
+            <h3 style={{ margin: 0, color: 'var(--text-main)' }}>CAPOBIZ</h3>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button className="btn btn-primary" onClick={handlePrint}>🖨️ Print</button>
+              <button className="btn btn-secondary" onClick={closeModal}>✕ Close</button>
             </div>
           </div>
 
-          {/* Printable Content Area */}
-          <div
-            style={{
-              ...styles.receiptBody,
-              padding: paperConfig.bodyPadding,
-              fontSize: paperConfig.fontSize,
-              fontFamily: paperConfig.mono ? "'Courier New', monospace" : 'inherit'
-            }}
-            id="receipt-content"
-          >
-            <div style={styles.receiptHeaderInfo}>
-              <h4 style={{ textAlign: 'center', margin: '4px 0', color: '#333' }}>PURCHASE INVOICE</h4>
-              <p style={{ textAlign: 'left', margin: '4px 0', color: '#333' }}>Invoice #: {selectedPurchase.invoiceNumber || 'N/A'}</p>
-              <p style={{ textAlign: 'left', margin: '4px 0', color: '#333' }}>Purchase ID: {selectedPurchase.purchaseNumber || 'N/A'}</p>
-              <p style={{ textAlign: 'left', margin: '4px 0', color: '#333' }}>Date: {formatDate(selectedPurchase.purchaseDate)}</p>
-              <p style={{ textAlign: 'left', margin: '4px 0', color: '#333' }}>
-                Supplier: {selectedPurchase.supplier?.contactPerson || selectedPurchase.supplier?.name || 'Unknown'}
-              </p>
-              <p style={{ margin: '4px 0', color: '#137333', fontWeight: 'bold' }}>[ COMPLETED ]</p>
+          <div className="modal-body" id="receipt-content" style={{ padding: paperConfig.bodyPadding, fontSize: paperConfig.fontSize, fontFamily: paperConfig.mono ? "'Courier New', monospace" : 'inherit', overflowY: 'auto' }}>
+            <div style={{ textAlign: 'center', marginBottom: '16px' }}>
+              <h4 style={{ margin: '4px 0', color: '#333', textDecoration: 'underline' }}>PURCHASE INVOICE</h4>
+              <p style={{ textAlign: 'left', margin: '4px 0', color: '#333' }}>Invoice #: <strong>{selectedPurchase.invoiceNumber || 'N/A'}</strong></p>
+              <p style={{ textAlign: 'left', margin: '4px 0', color: '#333' }}>Purchase ID: <strong>{selectedPurchase.purchaseNumber || 'N/A'}</strong></p>
+              <p style={{ textAlign: 'left', margin: '4px 0', color: '#333' }}>Date: <strong>{formatDate(selectedPurchase.purchaseDate)}</strong></p>
+              <p style={{ textAlign: 'left', margin: '4px 0', color: '#333' }}>Supplier: <strong>{selectedPurchase.supplier?.contactPerson || selectedPurchase.supplier?.name || 'Unknown'}</strong></p>
+              <p style={{ margin: '4px 0', color: '#10b981', fontWeight: 'bold', textAlign: 'center' }}>[ COMPLETED ]</p>
             </div>
-            <div style={styles.receiptDivider}></div>
+            
+            <div style={{ borderTop: '2px dashed #000', margin: '14px 0' }}></div>
 
             {paperConfig.mono ? (
               <div>
                 {(selectedPurchase.items || []).map((item, idx) => {
                   const lineTotal = item.totalPrice || (item.quantity * item.unitPrice) || 0;
                   return (
-                    <div key={idx} style={styles.thermalItemRow}>
-                      <div style={styles.thermalItemLine1}>
+                    <div key={idx} style={{ borderBottom: '1px dashed #000', padding: '6px 0' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 700, color: '#000' }}>
                         <span>{item.product?.name || 'Unknown Product'}</span>
                         <span>x{item.quantity}</span>
                       </div>
-                      <div style={styles.thermalItemLine2}>
-                        <span>
-                          @{item.unitPrice?.toFixed(2)} {item.expiryDate ? `(Exp: ${formatDate(item.expiryDate)})` : ''}
-                        </span>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85em', color: '#000', marginTop: '2px' }}>
+                        <span>@{item.unitPrice?.toFixed(2)} {item.expiryDate ? `(Exp: ${formatDate(item.expiryDate)})` : ''}</span>
                         <span style={{ fontWeight: 700 }}>{lineTotal.toFixed(2)}</span>
                       </div>
                     </div>
@@ -381,14 +337,14 @@ const applyFilters = () => {
                 })}
               </div>
             ) : (
-              <table style={styles.receiptTable}>
+              <table style={{ width: '100%', tableLayout: 'fixed', borderCollapse: 'collapse', marginBottom: '12px' }}>
                 <thead>
                   <tr>
-                    <th style={{ ...styles.receiptTh, width: '32%' }}>Product Name</th>
-                    <th style={{ ...styles.receiptTh, textAlign: 'left', width: '12%' }}>Qty</th>
-                    <th style={{ ...styles.receiptTh, textAlign: 'left', width: '18%' }}>Unit Price</th>
-                    <th style={{ ...styles.receiptTh, textAlign: 'left', width: '18%' }}>Expiry</th>
-                    <th style={{ ...styles.receiptTh, textAlign: 'left', width: '20%' }}>Total</th>
+                    <th style={{ textAlign: 'left', padding: '6px 8px', backgroundColor: 'var(--header)', fontSize: '12px', fontWeight: 600, color: '#ffffff', textTransform: 'uppercase', width: '32%' }}>Product Name</th>
+                    <th style={{ textAlign: 'left', padding: '6px 8px', backgroundColor: 'var(--header)', fontSize: '12px', fontWeight: 600, color: '#ffffff', textTransform: 'uppercase', width: '12%' }}>Qty</th>
+                    <th style={{ textAlign: 'left', padding: '6px 8px', backgroundColor: 'var(--header)', fontSize: '12px', fontWeight: 600, color: '#ffffff', textTransform: 'uppercase', width: '18%' }}>Unit Price</th>
+                    <th style={{ textAlign: 'left', padding: '6px 8px', backgroundColor: 'var(--header)', fontSize: '12px', fontWeight: 600, color: '#ffffff', textTransform: 'uppercase', width: '18%' }}>Expiry</th>
+                    <th style={{ textAlign: 'left', padding: '6px 8px', backgroundColor: 'var(--header)', fontSize: '12px', fontWeight: 600, color: '#ffffff', textTransform: 'uppercase', width: '20%' }}>Total</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -396,13 +352,11 @@ const applyFilters = () => {
                     const lineTotal = item.totalPrice || (item.quantity * item.unitPrice) || 0;
                     return (
                       <tr key={idx}>
-                        <td style={styles.receiptTdName}>{item.product?.name || 'Unknown Product'}</td>
-                        <td style={{ ...styles.receiptTd, textAlign: 'left' }}>{item.quantity}</td>
-                        <td style={{ ...styles.receiptTd, textAlign: 'left' }}>{item.unitPrice?.toFixed(2)}</td>
-                        <td style={{ ...styles.receiptTd, textAlign: 'left' }}>{item.expiryDate ? formatDate(item.expiryDate) : '—'}</td>
-                        <td style={{ ...styles.receiptTd, fontWeight: 600, textAlign: 'left' }}>
-                          {lineTotal.toFixed(2)}
-                        </td>
+                        <td style={{ padding: '6px 8px', borderBottom: '1px solid #ccc', fontSize: '13px', color: '#000', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.product?.name || 'Unknown Product'}</td>
+                        <td style={{ padding: '6px 8px', borderBottom: '1px solid #ccc', fontSize: '13px', color: '#000', textAlign: 'left' }}>{item.quantity}</td>
+                        <td style={{ padding: '6px 8px', borderBottom: '1px solid #ccc', fontSize: '13px', color: '#000', textAlign: 'left' }}>{item.unitPrice?.toFixed(2)}</td>
+                        <td style={{ padding: '6px 8px', borderBottom: '1px solid #ccc', fontSize: '13px', color: '#000', textAlign: 'left' }}>{item.expiryDate ? formatDate(item.expiryDate) : '—'}</td>
+                        <td style={{ padding: '6px 8px', borderBottom: '1px solid #ccc', fontSize: '13px', color: '#000', fontWeight: 600, textAlign: 'left' }}>{lineTotal.toFixed(2)}</td>
                       </tr>
                     );
                   })}
@@ -410,23 +364,27 @@ const applyFilters = () => {
               </table>
             )}
 
-            <div style={styles.receiptDivider}></div>
-            <div style={styles.receiptTotals}>
-              <div style={styles.receiptTotalRow}>
+            <div style={{ borderTop: '2px dashed #000', margin: '14px 0' }}></div>
+            <div style={{ marginTop: '14px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', fontSize: '13px', color: '#000' }}>
                 <span>Grand Total</span>
                 <span>Rs. {(selectedPurchase.totalAmount || 0).toFixed(2)}</span>
               </div>
-              <div style={styles.receiptTotalRow}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', fontSize: '13px', color: '#000' }}>
                 <span>Paid Amount</span>
                 <span>Rs. {(selectedPurchase.paidAmount || 0).toFixed(2)}</span>
               </div>
-              <div style={{ ...styles.receiptTotalRow, fontWeight: 700, fontSize: '1.15em', borderTop: '2px solid #000', paddingTop: '10px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', fontSize: '1.15em', color: '#000', fontWeight: 700, borderTop: '2px solid #000' }}>
                 <span>Balance Due</span>
                 <span>Rs. {((selectedPurchase.totalAmount || 0) - (selectedPurchase.paidAmount || 0)).toFixed(2)}</span>
               </div>
             </div>
+            
+            <div style={{ borderTop: '2px dashed #000', margin: '16px 0' }}></div>
+            <div style={{ textAlign: 'center', color: '#555', fontSize: '13px' }}>
+              <p>System Generated Receipt</p>
+            </div>
           </div>
-
         </div>
       </div>
     );
@@ -437,271 +395,125 @@ const applyFilters = () => {
   const currentItems = filteredPurchases.slice(indexOfFirstItem, indexOfLastItem);
   const totalPages = Math.ceil(filteredPurchases.length / itemsPerPage);
 
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [filters]);
-
-  if (loading) return <div style={{ padding: '20px' }}>Loading purchases...</div>;
+  if (loading) return <div style={{ padding: '20px', color: 'var(--text-muted)' }}>Loading purchases...</div>;
 
   return (
-    <div className="panel" style={{ padding: '15px 25px', borderRadius: '8px', backgroundColor: '#fff' }}>
-
+    <div className="dashboard-wrapper">
 
       {/* FILTER SECTION */}
-      <div style={{
-        borderRadius: '6px',
-        display: 'flex',
-        flexWrap: 'wrap',
-        gap: '15px',
-        alignItems: 'flex-end'
-        , textAlign: 'left',
-      }}>
-        <div style={{ flex: '1', minWidth: '150px' }}>
-          <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#555' }}>
-            Supplier
-          </label>
-          <select
-            name="supplier"
-            value={filters.supplier}
-            onChange={handleFilterChange}
-            style={{
-              width: '100%',
-              padding: '8px 12px',
-              borderRadius: '4px',
-              backgroundColor: '#ffffff'
-              ,
-              border: '1px solid #ced4da',
-              fontSize: '14px'
-            }}
-          >
+      <div className="card" style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', alignItems: 'flex-end' }}>
+        <div className="form-group" style={{ flex: '1 1 200px', marginBottom: 0 }}>
+          <label className="form-label">Supplier</label>
+          <select className="form-input" name="supplier" value={filters.supplier} onChange={handleFilterChange}>
             <option value="">All Suppliers</option>
             {getUniqueSuppliers().map(supplier => (
-              <option key={supplier._id} value={supplier._id}>
-                {supplier.name}
-              </option>
+              <option key={supplier._id} value={supplier._id}>{supplier.name}</option>
             ))}
           </select>
         </div>
 
-        <div style={{ flex: '1', minWidth: '130px', textAlign: 'left' }}>
-          <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#555' }}>
-            Date From
-          </label>
-          <input
-            type="date"
-            name="dateFrom"
-            value={filters.dateFrom}
-            onChange={handleFilterChange}
-            max={filters.dateTo}
-            style={{
-              width: '100%',
-              padding: '8px 12px',
-              borderRadius: '4px',
-              border: '1px solid #ced4da',
-              fontSize: '14px',
-              backgroundColor: '#ffffff'
-
-            }}
-          />
+        <div className="form-group" style={{ flex: '1 1 150px', marginBottom: 0 }}>
+          <label className="form-label">Date From</label>
+          <input className="form-input" type="date" name="dateFrom" value={filters.dateFrom} onChange={handleFilterChange} max={filters.dateTo} />
         </div>
 
-        <div style={{ flex: '1', minWidth: '130px' }}>
-          <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#555' }}>
-            Date To
-          </label>
-          <input
-            type="date"
-            name="dateTo"
-            value={filters.dateTo}
-            onChange={handleFilterChange}
-            min={filters.dateFrom}
-            style={{
-              width: '100%',
-              padding: '8px 12px',
-              borderRadius: '4px',
-              border: '1px solid #ced4da',
-              fontSize: '14px',
-              backgroundColor: '#ffffff'
-
-            }}
-          />
+        <div className="form-group" style={{ flex: '1 1 150px', marginBottom: 0 }}>
+          <label className="form-label">Date To</label>
+          <input className="form-input" type="date" name="dateTo" value={filters.dateTo} onChange={handleFilterChange} min={filters.dateFrom} max={todayDateStr} />
         </div>
 
         <div style={{ display: 'flex', gap: '8px' }}>
-          <button
-            onClick={clearFilters}
-            style={{
-              padding: '8px 16px',
-              backgroundColor: '#6c757d',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer',
-              fontWeight: '600',
-              fontSize: '14px',
-              height: '38px'
-            }}
-          >
-            Clear Filters
-          </button>
+          <button className="btn btn-secondary" onClick={clearFilters}>Clear Filters</button>
         </div>
       </div>
 
-      {/* RESULTS COUNT */}
-      <div style={{
- marginBottom: '10px',
-        marginTop: '10px',
-                fontSize: '12px',
-        color: '#555',
-        display: 'flex',
-        justifyContent: 'space-between',
-        textAlign:'right',
-        marginLeft:'80%'
-      }}>
-        <span>Showing {filteredPurchases.length} of {purchases.length} purchases</span>
-      </div>
+      {/* TABLE SECTION */}
+      <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+        
+      
 
-      {/* MAIN SUMMARY TABLE */}
-      <div style={{ overflowX: 'auto', borderRadius: '6px'}}>
-        <table className="po-table">
-          <thead>
-            <tr>
-              <th style={{ textAlign: 'left' }}>Sr #</th>
-              <th style={{ textAlign: 'left' }}>Invoice #</th>
-              <th style={{ textAlign: 'left' }}>Date</th>
-              <th style={{ textAlign: 'left' }}>Supplier</th>
-              <th style={{ textAlign: 'left' }}>Total Amount</th>
-              <th style={{ textAlign: 'center',width:'15%',marginRight:'10px' }}>Action</th>
-            </tr>
-          </thead>
-          <tbody style={{ color: '#2b3a4a' }}>
-            {currentItems.length > 0 ? (
-              currentItems.map((purchase, index) => {
-                const serialNumber = (currentPage - 1) * itemsPerPage + index + 1;
-                return (
-                  <tr key={purchase._id || index}>
-                    <td style={{ textAlign: 'left' }}>{serialNumber}</td>
-                    <td style={{ textAlign: 'left' }}>
-                      {purchase.invoiceNumber || 'N/A'}
-                    </td>
-                    <td style={{ textAlign: 'left' }}>
-                      {formatDate(purchase.purchaseDate)}
-                    </td>
-                    <td style={{ textAlign: 'left' }}>
-                      {purchase.supplier?.contactPerson || purchase.supplier?.name || 'Unknown'}
-                    </td>
-                    <td style={{ fontWeight: 'bold', color: '#137333', fontSize: '14px', textAlign: 'left' }}>
-                      {purchase.totalAmount || 0}
-                    </td>
-                    <td style={{ marginLeft:'20%' }}>
-                      <button
-                        style={styles.iconBtnView}
-                        onClick={() => openModal(purchase)}
-                        title="View"
-                      >
-                        <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
-                          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                          <circle cx="12" cy="12" r="3"></circle>
-                        </svg>
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })
-            ) : (
-              <tr>
-                <td colSpan="6" style={{ padding: '40px', textAlign: 'center', color: '#777' }}>
-                  No purchases found matching your filters.
-                </td>
+        <div style={{ overflowX: 'auto', width: '100%' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '800px' }}>
+            <thead>
+              <tr style={{ backgroundColor: 'var(--header)' }}>
+                <th style={{ padding: '12px 16px', color: 'white', textAlign: 'left', fontSize: '13px', fontWeight: '600', width: '8%' }}>Sr #</th>
+                <th style={{ padding: '12px 16px', color: 'white', textAlign: 'left', fontSize: '13px', fontWeight: '600', width: '15%' }}>Invoice #</th>
+                <th style={{ padding: '12px 16px', color: 'white', textAlign: 'left', fontSize: '13px', fontWeight: '600', width: '15%' }}>Date</th>
+                <th style={{ padding: '12px 16px', color: 'white', textAlign: 'left', fontSize: '13px', fontWeight: '600', width: '25%' }}>Supplier</th>
+                <th style={{ padding: '12px 16px', color: 'white', textAlign: 'left', fontSize: '13px', fontWeight: '600', width: '20%' }}>Total Amount</th>
+                <th style={{ padding: '12px 16px', color: 'white', textAlign: 'center', fontSize: '13px', fontWeight: '600', width: '17%' }}>Action</th>
               </tr>
-            )}
-          </tbody>
-        </table>
-
-        {/* Pagination */}
-        <div style={{ marginTop: '20px', display: 'flex', gap: '15px', justifyContent: 'center', alignItems: 'center', paddingBottom: '20px' }}>
-          <button
-            disabled={currentPage === 1}
-            onClick={() => setCurrentPage(prev => prev - 1)}
-            style={{
-              padding: '8px 16px',
-              backgroundColor: currentPage === 1 ? '#e9ecef' : '#5aa7ef',
-              color: currentPage === 1 ? '#6c757d' : 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
-              fontWeight: '600'
-            }}
-          >
-            ←
-          </button>
-          <span style={{ fontSize: '12px', fontWeight: '400',color:'#868484'}}>Page {currentPage} of {totalPages || 1}</span>
-          <button
-            disabled={currentPage >= totalPages}
-            onClick={() => setCurrentPage(prev => prev + 1)}
-            style={{
-              padding: '8px 16px',
-              backgroundColor: currentPage >= totalPages ? '#e9ecef' : '#5aa7ef',
-              color: currentPage >= totalPages ? '#6c757d' : 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: currentPage >= totalPages ? 'not-allowed' : 'pointer',
-              fontWeight: '600'
-            }}
-          >
-            →
-          </button>
+            </thead>
+            <tbody>
+              {currentItems.length > 0 ? (
+                currentItems.map((purchase, index) => {
+                  const serialNumber = (currentPage - 1) * itemsPerPage + index + 1;
+                  return (
+                    <tr 
+                      key={purchase._id || index}
+                      style={{ borderBottom: '1px solid var(--border-color)', transition: 'background-color 0.2s' }}
+                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--bg-app)'}
+                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                    >
+                      <td style={{ padding: '10px 16px', fontSize: '13px', color: 'var(--text-main)', textAlign: 'left' }}>{serialNumber}</td>
+                      <td style={{ padding: '10px 16px', fontSize: '13px', color: 'var(--text-main)', textAlign: 'left', fontWeight: '500' }}>{purchase.invoiceNumber || 'N/A'}</td>
+                      <td style={{ padding: '10px 16px', fontSize: '13px', color: 'var(--text-muted)', textAlign: 'left' }}>{formatDate(purchase.purchaseDate)}</td>
+                      <td style={{ padding: '10px 16px', fontSize: '13px', color: 'var(--text-main)', textAlign: 'left' }}>{purchase.supplier?.contactPerson || purchase.supplier?.name || 'Unknown'}</td>
+                      <td style={{ padding: '10px 16px', fontSize: '14px', color: 'var(--success)', textAlign: 'left', fontWeight: '600' }}>Rs. {purchase.totalAmount || 0}</td>
+                      <td style={{ padding: '10px 16px', textAlign: 'center' }}>
+                        <div style={{ display: 'flex', justifyContent: 'center' }}>
+                          <button style={styles.iconBtnView} onClick={() => openModal(purchase)} title="View">
+                            <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+                              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                              <circle cx="12" cy="12" r="3"></circle>
+                            </svg>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              ) : (
+                <tr>
+                  <td colSpan="6" style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '14px' }}>
+                    No purchases found matching your filters.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
+
+        {/* PAGINATION */}
+        {filteredPurchases.length > itemsPerPage && (
+          <div style={{ display: 'flex', gap: '15px', justifyContent: 'center', alignItems: 'center', padding: '16px' }}>
+            <button className="btn btn-secondary" disabled={currentPage === 1} onClick={() => setCurrentPage(prev => prev - 1)} style={{ padding: '6px 12px' }}>
+              ←
+            </button>
+            <span style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-muted)' }}>Page {currentPage} of {totalPages || 1}</span>
+            <button className="btn btn-secondary" disabled={currentPage >= totalPages} onClick={() => setCurrentPage(prev => prev + 1)} style={{ padding: '6px 12px' }}>
+              →
+            </button>
+          </div>
+        )}
       </div>
 
-      {/* DETAILED RECEIPT VIEW MODAL */}
       {isModalOpen && selectedPurchase && renderReceipt()}
     </div>
   );
 };
 
 const styles = {
-  actionGroup: {
-    display: 'flex',
-    justifyContent: 'center',
-    gap: '12px',
-  },
   iconBtnView: {
-    background: '#f0fdf4',
-    color: '#264b61',
-    border: '1px solid #ddecf5',
-    padding: '8px',
-    borderRadius: '6px',
+    backgroundColor: 'var(--view)',
+    color: 'var(--success)',
+    border: 'none',
+    padding: '6px',
+    borderRadius: '4px',
     cursor: 'pointer',
     display: 'flex',
-    alignItems: 'left',
-    transition: 'all 0.2s',
-    backgroundColor: '#ebf5fc',
-    marginLeft:'35%',
-  },
-  td: {
-    padding: '10px 12px',
-  },
-
-  // Receipt Modal Styles ported from InvoiceList/POS
-  receiptOverlay: { position: 'fixed', inset: 0, background: 'rgba(0, 0, 0, 0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000, padding: '20px' },
-  receiptContainer: { background: '#ffffff', borderRadius: '10px', border: '1px solid #000', width: '100%', maxHeight: '92vh', display: 'flex', flexDirection: 'column', boxShadow: '0 25px 80px rgba(0,0,0,0.3)', overflow: 'hidden' },
-  receiptHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'right', padding: '14px 18px', borderBottom: '2px solid #000', background: '#ffffff', flexShrink: 0 },
-  receiptActions: { margin: '0 65%', textAlign: 'right', display: 'flex', gap: '10px', alignItems: 'right' },
-  printReceiptBtn: { background: '#294463', color: '#fff', border: '1px solid #000', padding: '8px 14px', borderRadius: '6px', cursor: 'pointer', fontWeight: 600, fontSize: '13px', whiteSpace: 'nowrap' },
-  closeReceiptBtn: { background: '#fff', color: '#000', border: '1px solid #000', padding: '8px 14px', borderRadius: '6px', cursor: 'pointer', fontWeight: 600, fontSize: '13px', whiteSpace: 'nowrap' },
-  receiptBody: { overflowY: 'auto', overflowX: 'hidden', flex: 1, color: '#000' },
-  receiptHeaderInfo: { textAlign: 'center', marginBottom: '16px' },
-  receiptDivider: { borderTop: '2px dashed #000', margin: '14px 0' },
-  receiptTable: { width: '100%', tableLayout: 'fixed', borderCollapse: 'collapse', marginBottom: '12px' },
-  receiptTh: { textAlign: 'left', padding: '6px 8px', backgroundColor: '#293746', borderBottom: '2px solid #000', fontSize: '12px', fontWeight: 600, color: '#ffffff', textTransform: 'uppercase', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
-  receiptTd: { padding: '6px 8px', borderBottom: '1px solid #ccc', fontSize: '13px', color: '#000' },
-  receiptTdName: { padding: '6px 8px', borderBottom: '1px solid #ccc', fontSize: '13px', color: '#000', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textAlign: 'left' },
-  receiptTotals: { marginTop: '14px' },
-  receiptTotalRow: { display: 'flex', justifyContent: 'space-between', padding: '5px 0', fontSize: '13px', color: '#000' },
-  thermalItemRow: { borderBottom: '1px dashed #000', padding: '6px 0' },
-  thermalItemLine1: { display: 'flex', justifyContent: 'space-between', fontWeight: 700, fontSize: '1em', color: '#000' },
-  thermalItemLine2: { display: 'flex', justifyContent: 'space-between', fontSize: '0.85em', color: '#000', marginTop: '2px' }
+    alignItems: 'center'
+  }
 };
 
 export default PurchasedList;
