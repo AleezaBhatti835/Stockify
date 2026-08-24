@@ -644,7 +644,7 @@ function AddPurchase() {
               <input type="date" className="form-input" value={draftItem.expiryDate} onChange={(e) => setDraftItem({ ...draftItem, expiryDate: e.target.value })} />
             </div>
 
-            <button type="button" className="btn btn-primary" style={{ width: '30%',marginLeft:'35%' }} onClick={handleAddDraftToTable}>
+            <button type="button" className="btn btn-primary" style={{ width: '30%'}} onClick={handleAddDraftToTable}>
               + Add to Cart
             </button>
           </div>

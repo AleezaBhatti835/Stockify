@@ -662,12 +662,12 @@ function StockBreakage() {
 
             <div className="modal-body" style={{ overflowY: 'auto' }}>
               <div style={{ textAlign: 'center', marginBottom: '20px' }}>
-                <h4 style={{ margin: '0 0 8px 0', fontSize: '18px', textDecoration: 'underline' }}>
+                <h4 style={{ margin: '0 0 8px 0', fontSize: '18px'}}>
                   STOCK BREAKAGE RECEIPT {viewModalData.isSingleItemView ? '(SINGLE ITEM)' : ''}
                 </h4>
-                <p style={{ margin: '4px 0', fontSize: '14px' }}>Breakage #: <strong>{viewModalData.invoiceNumber}</strong></p>
-                <p style={{ margin: '4px 0', fontSize: '14px' }}>Date: <strong>{new Date(viewModalData.date).toLocaleDateString()}</strong></p>
-                {viewModalData.remarks && <p style={{ margin: '4px 0', fontSize: '14px' }}>Remarks: {viewModalData.remarks}</p>}
+                <p style={{ margin: '4px 0', fontSize: '14px',textAlign:'left'  }}>Breakage #: <strong>{viewModalData.invoiceNumber}</strong></p>
+                <p style={{ margin: '4px 0', fontSize: '14px' ,textAlign:'left' }}>Date: <strong>{new Date(viewModalData.date).toLocaleDateString()}</strong></p>
+                {viewModalData.remarks && <p style={{ margin: '4px 0', fontSize: '14px',textAlign:'left'  }}>Remarks: {viewModalData.remarks}</p>}
               </div>
 
               <div style={{ borderTop: '2px dashed var(--border-color)', margin: '20px 0' }}></div>
@@ -684,7 +684,7 @@ function StockBreakage() {
                 <tbody>
                   {viewModalData.items.map((item, idx) => (
                     <tr key={idx}>
-                      <td style={{ padding: '10px', borderBottom: '1px solid var(--border-color)', fontSize: '14px' }}>{item.product?.name || item.productName || 'Unknown Product'}</td>
+                      <td style={{ padding: '10px', borderBottom: '1px solid var(--border-color)', fontSize: '14px',textAlign:'left'  }}>{item.product?.name || item.productName || 'Unknown Product'}</td>
                       <td style={{ padding: '10px', borderBottom: '1px solid var(--border-color)', fontSize: '14px', textAlign: 'center', color: 'var(--danger)', fontWeight: '600' }}>{item.quantity}</td>
                       <td style={{ padding: '10px', borderBottom: '1px solid var(--border-color)', fontSize: '14px', textAlign: 'center' }}>{item.previousQuantity || '-'}</td>
                       <td style={{ padding: '10px', borderBottom: '1px solid var(--border-color)', fontSize: '14px', textAlign: 'center' }}>{item.newQuantity || '-'}</td>

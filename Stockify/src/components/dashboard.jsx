@@ -8,7 +8,10 @@ import Designations from './Designation.jsx';
 import Employees from './Employee.jsx';
 import UOM from './catalogue/UOM.jsx';
 import Category from './catalogue/Category.jsx';
+import GenerateSalary from './payroll/GenerateSalary.jsx';
+import YearlyCalendar from './payroll/YearlyCalendar.jsx';
 import Product from './catalogue/Product.jsx';
+import SalaryPayments from './payroll/SalaryPayments.jsx';
 import Stock from './catalogue/Stock.jsx';
 import AddPurchase from './purchase/AddPurchase.jsx';
 import PurchasedList from './purchase/PurchasedList.jsx';
@@ -18,6 +21,8 @@ import OpeningStock from './catalogue/OpeningStock.jsx';
 import StockAdjustment from './catalogue/Stockadjustment.jsx';
 import AccessControl from './AccessControl';
 import POS from './sales/POS.jsx';
+import ConfigureSalary from './payroll/ConfigureSalary.jsx';
+import EmployeeLoanRecovery from './payroll/EmployeeLoanRecovery.jsx';
 import InvoiceList from './sales/InvoiceList.jsx';
 import PrintSettingsPage from './Printsettingspage';
 import ClientDetails from './ClientDetails.jsx';
@@ -26,6 +31,7 @@ import AttendanceRules from './AttendanceRules.jsx';
 import EmployeeAttendance from './EmployeeAttendance.jsx'
 import StockReport from './reports/StockReport.jsx';
 import PurchaseReport from './reports/PurchaseReport.jsx';
+import ExpiryReport from './reports/ExpiryReport.jsx';
 import SalesReport from './reports/SalesReport.jsx';
 import RegisterReport from './reports/RegisterReport.jsx';
 import CatalogueReport from './reports/CatalogueReport.jsx';
@@ -51,6 +57,8 @@ import AddSalesRebate from './sales/AddSalesRebate.jsx';
 import SalesRebateList from './sales/SalesRebateList.jsx';
 import SaleRateDifference from './sales/SaleRateDifference.jsx';
 import SaleRateDifferenceList from './sales/SaleRateDifferenceList.jsx';
+import EmployeeLoan from './payroll/EmployeeLoan.jsx';
+import BatchManagement from './BatchManagement.jsx';
 import { PrintSettingsProvider } from '../context/PrintSettingsContext';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
@@ -126,7 +134,6 @@ function Dashboard({ user, onLogout }) {
   });
   const [chartData, setChartData] = useState([]);
   const checkAccess = (permissionKeys) => {
-    // 1. Agar email admin ki hai ya role mein admin hai toh direct true
     if (userInfo?.email === 'admin@gmail.com' || userInfo?.email?.includes('admin')) return true;
     if (String(userInfo?.role || '').toLowerCase().includes('admin')) return true;
 
@@ -368,17 +375,17 @@ function Dashboard({ user, onLogout }) {
       'stock-adjustment': 'Stock Adjustment', 'invoice-list': 'Sales Invoice List', 'settings': 'Settings',
       'print-settings': 'Print Settings', 'client-details': 'Client Details', 'accountsreport': 'Accounts Report',
       'catalogue-report': 'Catalogue Report', 'stock-report': 'Stock Report', 'attendance-report': 'Attendance Report', 'customer-types': 'Customer Types',
-      'sales-return': 'Sales Return', 'cash-register': 'Cash Register', 'sale-return-list': 'Sales Return List',
+      'sales-return': 'Sales Return', 'expiry-product': 'Expiry Product', 'cash-register': 'Cash Register', 'sale-return-list': 'Sales Return List',
       'customer-account': 'Customer Account', 'supplier-account': 'Supplier Account', 'employee-account': 'Employee Account',
       'expense-category': 'Expense Category', 'expense': 'Expense', 'stock-breakage': 'Stock Breakage',
       'add-purchase-rebate': 'Add Purchase Rebate', 'purchase-rebate-list': 'Purchase Rebate List',
       'rate-difference': 'Purchase Rate Difference', 'rate-difference-list': 'Purchase Rate Difference List',
       'add-sales-rebate': 'Add Sales Rebate', 'sales-rebate-list': 'Sales Rebate List', 'Sales-Rate-Difference': 'Sales Rate Difference',
       'Sales-Rate-Difference-List': 'Sales Rate Difference List', 'purchase-report': 'Purchase Report', 'sales-report': 'SalesReport',
-      'register-report': 'Register Report', 'people-report': 'People Report', 'ProfitLossReport': 'Profit & Loss Report',
-      'StockMovementReport': 'Stock Movement Report', 'payablereceivable': 'Payable & Receivable Report',
-      'BusinessCapitalReport': 'Business Capital Report', 'access-control': 'Access Control',
-      'employee-attendance': 'Employee Attendance',
+      'register-report': 'Register Report', 'salary-config': 'Salary Configuration', 'loan-recovery': 'Loan Recovery', 'people-report': 'People Report', 'ProfitLossReport': 'Profit & Loss Report',
+      'StockMovementReport': 'Stock Movement Report','salary-payment':'Salary Payment', 'generate-salary': 'Generate Salary', 'payablereceivable': 'Payable & Receivable Report',
+      'BusinessCapitalReport': 'Business Capital Report', 'batch-manage': 'Batch Management', 'access-control': 'Access Control',
+      'employee-attendance': 'Employee Attendance', 'calendar': 'Calendar', 'employee-loan': 'Employee Loan'
     };
     return titles[activeTab] || 'Dashboard';
   };
@@ -558,6 +565,27 @@ function Dashboard({ user, onLogout }) {
               </>
             )}
 
+            {checkAccess(['employee-loan']) && (
+              <>
+                <li className="parent-menu-item" onClick={() => toggleDropdown('payroll')} style={{ cursor: 'pointer', display: 'flex', justifyContent: 'space-between', textAlign: 'left', padding: '10px 10px', backgroundColor: openDropdown === 'accounts' ? 'rgba(255,255,255,0.15)' : 'transparent' }}>
+                  <span><span className="nav-icon"><FontAwesomeIcon icon={faMoneyCheckDollar} /></span> PayRoll</span>
+                  <span className='drop'>{openDropdown === 'payroll' ? '<' : '>'}</span>
+                </li>
+                {openDropdown === 'payroll' && (
+                  <ul className="submenu" style={{ paddingLeft: '20px', listStyleType: 'none', margin: 0 }}>
+                    {checkAccess(['salary-config']) && <li className={activeTab === 'salary-config' ? 'active' : ''} onClick={() => { handleTabChange('salary-config'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Salary Configuration</li>}
+                    {checkAccess(['calendar']) && <li className={activeTab === 'calendar' ? 'active' : ''} onClick={() => { handleTabChange('calendar'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Yearly Calendar</li>}
+                    {checkAccess(['generate-salary']) && <li className={activeTab === 'generate-salary' ? 'active' : ''} onClick={() => { handleTabChange('generate-salary'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Generate Salary</li>}
+                    {checkAccess(['employee-loan']) && <li className={activeTab === 'employee-loan' ? 'active' : ''} onClick={() => { handleTabChange('employee-loan'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Employee Loan</li>}
+                    {checkAccess(['loan-recovery']) && <li className={activeTab === 'loan-recovery' ? 'active' : ''} onClick={() => { handleTabChange('loan-recovery'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Loan Recovery</li>}
+                    {checkAccess(['salary-payment']) && <li className={activeTab === 'salary-payment' ? 'active' : ''} onClick={() => { handleTabChange('salary-payment'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Salary Payment</li>}
+
+                  </ul>
+                )}
+              </>
+            )}
+
+
             {checkAccess(['customer_account_view', 'supplier_account_view', 'employee_account_view']) && (
               <>
                 <li className="parent-menu-item" onClick={() => toggleDropdown('accounts')} style={{ cursor: 'pointer', display: 'flex', justifyContent: 'space-between', textAlign: 'left', padding: '10px 10px', backgroundColor: openDropdown === 'accounts' ? 'rgba(255,255,255,0.15)' : 'transparent' }}>
@@ -608,7 +636,9 @@ function Dashboard({ user, onLogout }) {
                     {checkAccess(['report_payable_receivable_view']) && <li className={activeTab === 'payablereceivable' ? 'active' : ''} onClick={() => { handleTabChange('payablereceivable'); if (isMobile) setIsSidebarOpen(false); }} style={{ cursor: 'pointer', padding: '4px 0', textAlign: 'left' }}><div style={{ marginRight: '10px', marginLeft: '10px' }}>⋄</div>Payable and Receivable </li>}
                     {checkAccess(['report_profit_loss_view']) && <li className={activeTab === 'ProfitLossReport' ? 'active' : ''} onClick={() => { handleTabChange('ProfitLossReport'); if (isMobile) setIsSidebarOpen(false); }} style={{ cursor: 'pointer', padding: '4px 0', textAlign: 'left' }}><div style={{ marginRight: '10px', marginLeft: '10px' }}>⋄</div>Profit & Loss Report</li>}
                     {checkAccess(['report_business_capital_view']) && <li className={activeTab === 'BusinessCapitalReport' ? 'active' : ''} onClick={() => { handleTabChange('BusinessCapitalReport'); if (isMobile) setIsSidebarOpen(false); }} style={{ cursor: 'pointer', padding: '4px 0', textAlign: 'left' }}><div style={{ marginRight: '10px', marginLeft: '10px' }}>⋄</div>Business Capital Report</li>}
-                    {checkAccess(['report_business_capital_view']) && <li className={activeTab === 'BusinessCapitalReport' ? 'active' : ''} onClick={() => { handleTabChange('attendance-report'); if (isMobile) setIsSidebarOpen(false); }} style={{ cursor: 'pointer', padding: '4px 0', textAlign: 'left' }}><div style={{ marginRight: '10px', marginLeft: '10px' }}>⋄</div>Attendance Report</li>}
+                    {checkAccess(['attendance-report']) && <li className={activeTab === 'attendance-report' ? 'active' : ''} onClick={() => { handleTabChange('attendance-report'); if (isMobile) setIsSidebarOpen(false); }} style={{ cursor: 'pointer', padding: '4px 0', textAlign: 'left' }}><div style={{ marginRight: '10px', marginLeft: '10px' }}>⋄</div>Attendance Report</li>}
+                    {checkAccess(['expiry-product']) && <li className={activeTab === 'expiry-product' ? 'active' : ''} onClick={() => { handleTabChange('expiry-product'); if (isMobile) setIsSidebarOpen(false); }} style={{ cursor: 'pointer', padding: '4px 0', textAlign: 'left' }}><div style={{ marginRight: '10px', marginLeft: '10px' }}>⋄</div>Expiry Products Report</li>}
+
                   </ul>
                 )}
               </>
@@ -642,6 +672,7 @@ function Dashboard({ user, onLogout }) {
                     {checkAccess(['client_details_view']) && <li className={activeTab === 'client-details' ? 'active' : ''} onClick={() => { handleTabChange('client-details'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Client Details</li>}
                     {checkAccess(['customer_types_view']) && <li className={activeTab === 'customer-types' ? 'active' : ''} onClick={() => { handleTabChange('customer-types'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Customer Types</li>}
                     {checkAccess(['access_control_view']) && <li className={activeTab === 'access-control' ? 'active' : ''} onClick={() => { handleTabChange('access-control'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Access Control</li>}
+                    {checkAccess(['batch-manage']) && <li className={activeTab === 'batch-manage' ? 'active' : ''} onClick={() => { handleTabChange('batch-manage'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Batch Management</li>}
 
                   </ul>
                 )}
@@ -1024,10 +1055,17 @@ function Dashboard({ user, onLogout }) {
             {activeTab === 'BusinessCapitalReport' && <BusinessCapitalReport />}
             {activeTab === 'access-control' && <AccessControl />}
             {activeTab === 'employee-attendance' && <EmployeeAttendance />}
-            {activeTab === 'attendance-rules' && <AttendanceRules />}   
+            {activeTab === 'attendance-rules' && <AttendanceRules />}
             {activeTab === 'attendance-report' && <AttendanceSummaryReport />}
-
-             </PrintSettingsProvider>
+            {activeTab === 'expiry-product' && <ExpiryReport />}
+            {activeTab === 'batch-manage' && <BatchManagement />}
+            {activeTab === 'employee-loan' && <EmployeeLoan />}
+            {activeTab === 'loan-recovery' && <EmployeeLoanRecovery />}
+            {activeTab === 'salary-config' && <ConfigureSalary />}
+            {activeTab === 'calendar' && <YearlyCalendar />}
+            {activeTab === 'generate-salary' && <GenerateSalary />}
+            {activeTab === 'salary-payment' && <SalaryPayments />}
+          </PrintSettingsProvider>
         </div>
       </main>
 

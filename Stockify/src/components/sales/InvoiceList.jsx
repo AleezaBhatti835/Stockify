@@ -207,8 +207,8 @@ function InvoiceList() {
         let pageSizeCss;
         if (paperConfig.mono) {
             const itemCount = (viewSale.items || []).length;
-            const THERMAL_BASE_MM = 75;  
-            const THERMAL_ITEM_MM = 9;    
+            const THERMAL_BASE_MM = 75;
+            const THERMAL_ITEM_MM = 9;
             const heightMm = THERMAL_BASE_MM + itemCount * THERMAL_ITEM_MM;
             pageSizeCss = `@page { size: 58mm ${heightMm}mm; margin: 4mm; }`;
         } else if ((printSettings?.paperSize || 'A4') === 'A5') {
@@ -264,8 +264,8 @@ function InvoiceList() {
 
         return (
             <div className="modal-overlay" onClick={() => setViewSale(null)}>
-                <div className="modal-container" style={{ maxWidth: paperConfig.maxWidth, padding: 0, display: 'flex', flexDirection: 'column', maxHeight: '90vh' }} onClick={(e) => e.stopPropagation()}>
-                    
+                <div className="modal-container" style={{ width: '850px', padding: 0, display: 'flex', flexDirection: 'column', maxHeight: '90vh' }} onClick={(e) => e.stopPropagation()}>
+
                     <div className="modal-header" style={{ backgroundColor: 'var(--bg-app)', borderBottom: '1px solid var(--border-color)' }}>
                         <h3 style={{ margin: 0, color: 'var(--text-main)' }}>CAPOBIZ</h3>
                         <div style={{ display: 'flex', gap: '8px' }}>
@@ -284,6 +284,8 @@ function InvoiceList() {
                         id="receipt-content"
                     >
                         <div style={{ textAlign: 'left', marginBottom: '16px' }}>
+                            <h4 style={{ margin: '4px 0', textAlign:'center',fontSize:'16px' }}>Sales Invoice</h4>
+
                             <p style={{ margin: '4px 0', color: '#333' }}>Invoice: <strong>{viewSale.saleNumber}</strong></p>
                             <p style={{ margin: '4px 0', color: '#333' }}>Date: <strong>{new Date(viewSale.saleDate).toLocaleDateString()}</strong></p>
                             <p style={{ margin: '4px 0', color: '#333' }}>
@@ -320,17 +322,17 @@ function InvoiceList() {
                             <table style={{ width: '100%', tableLayout: 'fixed', borderCollapse: 'collapse', marginBottom: '12px' }}>
                                 <thead>
                                     <tr>
-                                        <th style={{ textAlign: 'left', padding: '6px 8px', backgroundColor: '#f1f5f9', borderBottom: '2px solid #000', fontSize: '12px', fontWeight: 600, color: '#000', textTransform: 'uppercase', width: '32%' }}>Product</th>
-                                        <th style={{ textAlign: 'left', padding: '6px 8px', backgroundColor: '#f1f5f9', borderBottom: '2px solid #000', fontSize: '12px', fontWeight: 600, color: '#000', textTransform: 'uppercase', width: '14%' }}>Qty</th>
-                                        <th style={{ textAlign: 'left', padding: '6px 8px', backgroundColor: '#f1f5f9', borderBottom: '2px solid #000', fontSize: '12px', fontWeight: 600, color: '#000', textTransform: 'uppercase', width: '18%' }}>Price</th>
-                                        <th style={{ textAlign: 'left', padding: '6px 8px', backgroundColor: '#f1f5f9', borderBottom: '2px solid #000', fontSize: '12px', fontWeight: 600, color: '#000', textTransform: 'uppercase', width: '16%' }}>Disc</th>
-                                        <th style={{ textAlign: 'left', padding: '6px 8px', backgroundColor: '#f1f5f9', borderBottom: '2px solid #000', fontSize: '12px', fontWeight: 600, color: '#000', textTransform: 'uppercase', width: '20%' }}>Total</th>
+                                        <th style={{ textAlign: 'left', padding: '6px 8px', backgroundColor: 'var(--header)', fontSize: '12px', fontWeight: 600, color: '#fefefe', textTransform: 'uppercase', width: '18%' }}>Product</th>
+                                        <th style={{ textAlign: 'left', padding: '6px 8px', backgroundColor: 'var(--header)', fontSize: '12px', fontWeight: 600, color: '#fefefe', textTransform: 'uppercase', width: '14%' }}>Qty</th>
+                                        <th style={{ textAlign: 'left', padding: '6px 8px', backgroundColor: 'var(--header)', fontSize: '12px', fontWeight: 600, color: '#fefefe', textTransform: 'uppercase', width: '18%' }}>Price</th>
+                                        <th style={{ textAlign: 'left', padding: '6px 8px', backgroundColor: 'var(--header)', fontSize: '12px', fontWeight: 600, color: '#fefefe', textTransform: 'uppercase', width: '16%' }}>Disc</th>
+                                        <th style={{ textAlign: 'left', padding: '6px 8px', backgroundColor: 'var(--header)', fontSize: '12px', fontWeight: 600, color: '#fefefe', textTransform: 'uppercase', width: '10%' }}>Total</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {viewSale.items.map((item, idx) => (
                                         <tr key={idx}>
-                                            <td style={{ padding: '6px 8px', borderBottom: '1px solid #ccc', fontSize: '13px', color: '#000', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.name}</td>
+                                            <td style={{ padding: '6px 8px', borderBottom: '1px solid #ccc', fontSize: '13px', color: '#000', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textAlign: 'left' }}>{item.name}</td>
                                             <td style={{ padding: '6px 8px', borderBottom: '1px solid #ccc', fontSize: '13px', color: '#000', textAlign: 'left' }}>{item.quantity}</td>
                                             <td style={{ padding: '6px 8px', borderBottom: '1px solid #ccc', fontSize: '13px', color: '#000', textAlign: 'left' }}>{item.unitPrice.toFixed(2)}</td>
                                             <td style={{ padding: '6px 8px', borderBottom: '1px solid #ccc', fontSize: '13px', color: '#000', textAlign: 'left' }}>{item.discount?.toFixed(2) || '0.00'}</td>
@@ -549,7 +551,7 @@ const styles = {
     },
     receiptOverlay: { position: 'fixed', inset: 0, background: 'rgba(0, 0, 0, 0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000, padding: '20px' },
     receiptContainer: { background: '#ffffff', borderRadius: '10px', border: '1px solid #000', width: '100%', maxHeight: '92vh', display: 'flex', flexDirection: 'column', boxShadow: '0 25px 80px rgba(0,0,0,0.3)', overflow: 'hidden' },
-    receiptHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 18px', borderBottom: '2px solid #000', background: '#ffffff', flexShrink: 0 },
+    receiptHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 18px', background: '#ffffff', flexShrink: 0 },
     receiptActions: { display: 'flex', gap: '10px' },
     printReceiptBtn: { background: '#294463', color: '#fff', border: '1px solid #000', padding: '8px 14px', borderRadius: '6px', cursor: 'pointer', fontWeight: 600, fontSize: '13px', whiteSpace: 'nowrap' },
     closeReceiptBtn: { background: '#fff', color: '#000', border: '1px solid #000', padding: '8px 14px', borderRadius: '6px', cursor: 'pointer', fontWeight: 600, fontSize: '13px', whiteSpace: 'nowrap' },
@@ -557,7 +559,7 @@ const styles = {
     receiptHeaderInfo: { textAlign: 'left', marginBottom: '16px' },
     receiptDivider: { borderTop: '2px dashed #000', margin: '14px 0' },
     receiptTable: { width: '100%', tableLayout: 'fixed', borderCollapse: 'collapse', marginBottom: '12px' },
-    receiptTh: { textAlign: 'left', padding: '6px 8px', backgroundColor: '#394654', borderBottom: '2px solid #000', fontSize: '12px', fontWeight: 600, color: '#ffffff', textTransform: 'uppercase', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
+    receiptTh: { textAlign: 'left', padding: '6px 8px', backgroundColor: '#394654', fontSize: '12px', fontWeight: 600, color: '#ffffff', textTransform: 'uppercase', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
     receiptTd: { textAlign: 'left', padding: '6px 8px', borderBottom: '1px solid #ccc', fontSize: '13px', color: '#000' },
     receiptTdName: { textAlign: 'left', padding: '6px 8px', borderBottom: '1px solid #ccc', fontSize: '13px', color: '#000', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
     receiptTotals: { marginTop: '14px' },

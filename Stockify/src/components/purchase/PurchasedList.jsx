@@ -308,7 +308,7 @@ const todayDateStr = new Date().toISOString().split('T')[0];
 
           <div className="modal-body" id="receipt-content" style={{ padding: paperConfig.bodyPadding, fontSize: paperConfig.fontSize, fontFamily: paperConfig.mono ? "'Courier New', monospace" : 'inherit', overflowY: 'auto' }}>
             <div style={{ textAlign: 'center', marginBottom: '16px' }}>
-              <h4 style={{ margin: '4px 0', color: '#333', textDecoration: 'underline' }}>PURCHASE INVOICE</h4>
+              <h4 style={{ margin: '4px 0',fontSize:'16px' }}>PURCHASE INVOICE</h4>
               <p style={{ textAlign: 'left', margin: '4px 0', color: '#333' }}>Invoice #: <strong>{selectedPurchase.invoiceNumber || 'N/A'}</strong></p>
               <p style={{ textAlign: 'left', margin: '4px 0', color: '#333' }}>Purchase ID: <strong>{selectedPurchase.purchaseNumber || 'N/A'}</strong></p>
               <p style={{ textAlign: 'left', margin: '4px 0', color: '#333' }}>Date: <strong>{formatDate(selectedPurchase.purchaseDate)}</strong></p>
@@ -352,7 +352,7 @@ const todayDateStr = new Date().toISOString().split('T')[0];
                     const lineTotal = item.totalPrice || (item.quantity * item.unitPrice) || 0;
                     return (
                       <tr key={idx}>
-                        <td style={{ padding: '6px 8px', borderBottom: '1px solid #ccc', fontSize: '13px', color: '#000', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.product?.name || 'Unknown Product'}</td>
+                        <td style={{ padding: '6px 8px', borderBottom: '1px solid #ccc', fontSize: '13px', color: '#000', textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.product?.name || 'Unknown Product'}</td>
                         <td style={{ padding: '6px 8px', borderBottom: '1px solid #ccc', fontSize: '13px', color: '#000', textAlign: 'left' }}>{item.quantity}</td>
                         <td style={{ padding: '6px 8px', borderBottom: '1px solid #ccc', fontSize: '13px', color: '#000', textAlign: 'left' }}>{item.unitPrice?.toFixed(2)}</td>
                         <td style={{ padding: '6px 8px', borderBottom: '1px solid #ccc', fontSize: '13px', color: '#000', textAlign: 'left' }}>{item.expiryDate ? formatDate(item.expiryDate) : '—'}</td>

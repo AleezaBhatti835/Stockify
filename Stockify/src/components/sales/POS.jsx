@@ -1375,7 +1375,7 @@ function POS({ onExit, initialOpenRegister = false }) {
   if (showRegisterPage) {
     return (
       <div style={{
-        width: '100vw', height: '100vh', background: 'var(--bg-app)',
+        width: '78vw', height: '87vh', background: 'var(--bg-app)',
         display: 'flex', flexDirection: 'column', overflowY: 'auto', padding: '20px',
         boxSizing: 'border-box'
       }}>

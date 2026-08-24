@@ -271,8 +271,8 @@ function StockMovementReport() {
       </div>
 
       {/* FILTER BAR */}
-      <div className="card" style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', alignItems: 'flex-end' }}>
-        <div className="form-group" style={{ marginBottom: 0, flex: '1 1 200px' }}>
+      <div className="card" style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', alignItems: 'flex-end' }}>
+        <div className="form-group" style={{ marginBottom: 0, flex: '1 1 120px' }}>
           <label className="form-label">Select Product</label>
           <select 
             className="form-input"
@@ -286,7 +286,7 @@ function StockMovementReport() {
           </select>
         </div>
 
-        <div className="form-group" style={{ marginBottom: 0, flex: '1 1 160px' }}>
+        <div className="form-group" style={{ marginBottom: 0, flex: '1 1 120px' }}>
           <label className="form-label">Movement Type</label>
           <select 
             className="form-input"
@@ -299,7 +299,7 @@ function StockMovementReport() {
           </select>
         </div>
 
-        <div className="form-group" style={{ marginBottom: 0, flex: '1 1 180px' }}>
+        <div className="form-group" style={{ marginBottom: 0, flex: '1 1 150px' }}>
           <label className="form-label">Reference (Source)</label>
           <select 
             className="form-input"
@@ -313,12 +313,12 @@ function StockMovementReport() {
           </select>
         </div>
 
-        <div className="form-group" style={{ marginBottom: 0, flex: '1 1 150px' }}>
+        <div className="form-group" style={{ marginBottom: 0, flex: '1 1 100px' }}>
           <label className="form-label">From Date</label>
           <input type="date" className="form-input" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
         </div>
 
-        <div className="form-group" style={{ marginBottom: 0, flex: '1 1 150px' }}>
+        <div className="form-group" style={{ marginBottom: 0, flex: '1 1 100px' }}>
           <label className="form-label">To Date</label>
           <input type="date" className="form-input" value={toDate} onChange={(e) => setToDate(e.target.value)} />
         </div>

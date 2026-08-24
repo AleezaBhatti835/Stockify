@@ -277,7 +277,7 @@ const PurchaseReturnList = () => {
 
           <div className="modal-body" id="receipt-content" style={{ padding: paperConfig.bodyPadding, fontSize: paperConfig.fontSize, fontFamily: paperConfig.mono ? "'Courier New', monospace" : 'inherit', overflowY: 'auto' }}>
             <div style={{ textAlign: 'center', marginBottom: '16px' }}>
-              <h4 style={{ margin: '4px 0', color: '#333', textDecoration: 'underline' }}>PURCHASE RETURN</h4>
+              <h4 style={{ margin: '4px 0',fontSize:'16px' }}>PURCHASE RETURN</h4>
               <p style={{ textAlign: 'left', margin: '4px 0', color: '#333' }}>Return #: <strong>{selectedReturn.returnNumber}</strong></p>
               <p style={{ textAlign: 'left', margin: '4px 0', color: '#333' }}>Original PO #: <strong>{selectedReturn.purchase?.invoiceNumber || 'N/A'}</strong></p>
               <p style={{ textAlign: 'left', margin: '4px 0', color: '#333' }}>Date: <strong>{new Date(selectedReturn.returnDate || selectedReturn.createdAt).toLocaleDateString()}</strong></p>
@@ -310,13 +310,13 @@ const PurchaseReturnList = () => {
                     <th style={{ textAlign: 'left', padding: '6px 8px', backgroundColor: 'var(--header)', fontSize: '12px', fontWeight: 600, color: '#ffffff', textTransform: 'uppercase', width: '32%' }}>Reason</th>
                     <th style={{ textAlign: 'left', padding: '6px 8px', backgroundColor: 'var(--header)', fontSize: '12px', fontWeight: 600, color: '#ffffff', textTransform: 'uppercase', width: '32%' }}>Qty</th>
                     <th style={{ textAlign: 'left', padding: '6px 8px', backgroundColor: 'var(--header)', fontSize: '12px', fontWeight: 600, color: '#ffffff', textTransform: 'uppercase', width: '32%' }}>Price</th>
-                    <th style={{ textAlign: 'left', padding: '6px 8px', backgroundColor: 'var(--header)', fontSize: '12px', fontWeight: 600, color: '#ffffff', textTransform: 'uppercase', width: '32%' }}>Total</th>
+                    <th style={{ textAlign: 'left', padding: '6px 8px', backgroundColor: 'var(--header)', fontSize: '12px', fontWeight: 600, color: '#ffffff', textTransform: 'uppercase', width: '22%' }}>Total</th>
                   </tr>
                 </thead>
                 <tbody>
                   {(selectedReturn.items || []).map((item, idx) => (
                     <tr key={idx}>
-                      <td style={{ padding: '6px 8px', borderBottom: '1px solid #ccc', fontSize: '13px', color: '#000', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.product?.name || 'Unknown Product'}</td>
+                      <td style={{ padding: '6px 8px', borderBottom: '1px solid #ccc', fontSize: '13px', color: '#000', textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.product?.name || 'Unknown Product'}</td>
                       <td style={{ padding: '6px 8px', borderBottom: '1px solid #ccc', fontSize: '13px', color: '#000', textAlign: 'left' }}>{item.reason}N/A</td>
                       <td style={{ padding: '6px 8px', borderBottom: '1px solid #ccc', fontSize: '13px', color: '#000', textAlign: 'left' }}>{item.quantity}</td>
                       <td style={{ padding: '6px 8px', borderBottom: '1px solid #ccc', fontSize: '13px', color: '#000', textAlign: 'left' }}>{item.unitPrice?.toFixed(2)}</td>

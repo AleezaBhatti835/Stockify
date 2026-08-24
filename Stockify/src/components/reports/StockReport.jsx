@@ -132,7 +132,7 @@ function StockReport() {
     setSelectedUom('');
   };
 
-  const columns = ['Sr#', 'Date', 'Code', 'Product Name', 'Category', 'UOM', 'Qty Available', 'Reorder Level', 'Expiry Date'];
+  const columns = ['Sr#', 'Date', 'Product Name', 'Category', 'UOM', 'Qty Available', 'Reorder Level', 'Expiry Date'];
 
   const getRow = (p, idx) => [
     idx + 1,
@@ -205,7 +205,6 @@ function StockReport() {
               <tr>
                 <th style="width: 40px; text-align: center;">Sr#</th>
                 <th style="width: 80px;">Date</th>
-                <th style="width: 80px;">Code</th>
                 <th style="width: 150px;">Product Name</th>
                 <th style="width: 100px;">Category</th>
                 <th style="width: 60px;">UOM</th>
@@ -358,7 +357,7 @@ function StockReport() {
             <thead>
               <tr style={{ backgroundColor: 'var(--header)' }}>
                 {columns.map((c, i) => (
-                  <th key={i} style={{ padding: '12px 16px', color: 'white', textAlign: i === 0 ? 'center' : 'left', fontSize: '13px', fontWeight: '600', width: i === 0 ? '60px' : 'auto' }}>
+                  <th key={i} style={{ padding: '12px 16px', color: 'white', textAlign: i === 0 ? 'left' : 'left', fontSize: '13px', fontWeight: '600', width: i === 0 ? '60px' : 'auto' }}>
                     {c}
                   </th>
                 ))}
@@ -385,7 +384,7 @@ function StockReport() {
                   return (
                     <tr 
                       key={p._id || idx} 
-                      style={{ borderBottom: '1px solid var(--border-color)', transition: 'background-color 0.2s' }}
+                      style={{ borderBottom: '1px solid var(--border-color)', transition: 'background-color 0.2s',textAlign:'left' }}
                       onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--bg-app)'}
                       onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                     >

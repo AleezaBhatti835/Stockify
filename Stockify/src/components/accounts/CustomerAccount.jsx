@@ -301,14 +301,14 @@ function CustomerAccount() {
                     <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '800px' }}>
                         <thead>
                             <tr>
-                                <th style={{ padding: '12px 16px', backgroundColor: 'var(--header)', color: 'white', textAlign: 'left', fontSize: '13px', fontWeight: '600' }}>Sr#</th>
-                                <th style={{ padding: '12px 16px', backgroundColor: 'var(--header)', color: 'white', textAlign: 'left', fontSize: '13px', fontWeight: '600' }}>Date</th>
-                                <th style={{ padding: '12px 16px', backgroundColor: 'var(--header)', color: 'white', textAlign: 'left', fontSize: '13px', fontWeight: '600' }}>Invoice</th>
-                                <th style={{ padding: '12px 16px', backgroundColor: 'var(--header)', color: 'white', textAlign: 'left', fontSize: '13px', fontWeight: '600' }}>Debit</th>
-                                <th style={{ padding: '12px 16px', backgroundColor: 'var(--header)', color: 'white', textAlign: 'left', fontSize: '13px', fontWeight: '600' }}>Credit</th>
-                                <th style={{ padding: '12px 16px', backgroundColor: 'var(--header)', color: 'white', textAlign: 'left', fontSize: '13px', fontWeight: '600' }}>Balance</th>
-                                <th style={{ padding: '12px 16px', backgroundColor: 'var(--header)', color: 'white', textAlign: 'left', fontSize: '13px', fontWeight: '600' }}>Prev Balance</th>
-                                <th style={{ padding: '12px 16px', backgroundColor: 'var(--header)', color: 'white', textAlign: 'left', fontSize: '13px', fontWeight: '600' }}>Net</th>
+                                <th style={{ padding: '12px 16px', backgroundColor: 'var(--header)', color: 'white', textAlign: 'center', fontSize: '13px', fontWeight: '600' }}>Sr#</th>
+                                <th style={{ padding: '12px 16px', backgroundColor: 'var(--header)', color: 'white', textAlign: 'center', fontSize: '13px', fontWeight: '600' }}>Date</th>
+                                <th style={{ padding: '12px 16px', backgroundColor: 'var(--header)', color: 'white', textAlign: 'center', fontSize: '13px', fontWeight: '600' }}>Invoice</th>
+                                <th style={{ padding: '12px 16px', backgroundColor: 'var(--header)', color: 'white', textAlign: 'center', fontSize: '13px', fontWeight: '600' }}>Debit</th>
+                                <th style={{ padding: '12px 16px', backgroundColor: 'var(--header)', color: 'white', textAlign: 'center', fontSize: '13px', fontWeight: '600' }}>Credit</th>
+                                <th style={{ padding: '12px 16px', backgroundColor: 'var(--header)', color: 'white', textAlign: 'center', fontSize: '13px', fontWeight: '600' }}>Balance</th>
+                                <th style={{ padding: '12px 16px', backgroundColor: 'var(--header)', color: 'white', textAlign: 'center', fontSize: '13px', fontWeight: '600' }}>Prev Balance</th>
+                                <th style={{ padding: '12px 16px', backgroundColor: 'var(--header)', color: 'white', textAlign: 'center', fontSize: '13px', fontWeight: '600' }}>Net</th>
                             </tr>
                         </thead>
                         <tbody>

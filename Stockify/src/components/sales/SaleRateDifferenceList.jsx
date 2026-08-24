@@ -263,10 +263,10 @@ const SaleRateDifferenceList = () => {
 
         return (
             <div className="modal-overlay" onClick={closeModal}>
-                <div className="modal-container" style={{ maxWidth: paperConfig.maxWidth, padding: 0, overflow: 'hidden' }} onClick={(e) => e.stopPropagation()}>
+                <div className="modal-container" style={{ width:'850px', padding: 0, overflow: 'hidden' }} onClick={(e) => e.stopPropagation()}>
 
                     <div className="modal-header" style={{ flexDirection: paperConfig.narrow ? 'column' : 'row', gap: paperConfig.narrow ? 'var(--space-md)' : '0' }}>
-                        <h3 className="modal-title" style={{ color: '#000' }}>CAPOBIZ</h3>
+                        <h3 className="modal-title" >CAPOBIZ</h3>
 
                         <div style={{ display: 'flex', gap: 'var(--space-sm)', width: paperConfig.narrow ? '100%' : 'auto' }}>
                             <button
@@ -297,7 +297,7 @@ const SaleRateDifferenceList = () => {
                         id="receipt-content"
                     >
                         <div style={styles.receiptHeaderInfo}>
-                            <h4 style={{ textAlign: 'center', margin: '4px 0', color: '#333' }}>SALE RATE DIFFERENCE VOUCHER</h4>
+                            <h4 style={{ textAlign: 'center', margin: '4px 0',fontSize:'16px',color:'var(--primary)'}}>SALE RATE DIFFERENCE VOUCHER</h4>
                             <p style={{ textAlign: 'left', margin: '4px 0', color: '#333' }}>Voucher #: {selectedDifference.differenceNumber || 'N/A'}</p>
                             <p style={{ textAlign: 'left', margin: '4px 0', color: '#333' }}>Linked Invoice #: {selectedDifference.invoiceNumber || 'N/A'}</p>
                             <p style={{ textAlign: 'left', margin: '4px 0', color: '#333' }}>Date: {formatDate(selectedDifference.createdAt || selectedDifference.date)}</p>
@@ -381,11 +381,7 @@ const SaleRateDifferenceList = () => {
 
     return (
         <div className="dashboard-wrapper">
-            
-            {/* HEADER */}
-            <div className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <h4 style={{ margin: 0, color: 'var(--primary)', fontSize: '22px', fontWeight: 600 }}>Sale Rate Differences</h4>
-            </div>
+
 
             {/* FILTER SECTION */}
             <div className="card" style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-md)', alignItems: 'flex-end' }}>
@@ -581,7 +577,7 @@ const styles = {
     receiptHeaderInfo: { textAlign: 'center', marginBottom: '16px' },
     receiptDivider: { borderTop: '2px dashed #000', margin: '14px 0' },
     receiptTable: { width: '100%', tableLayout: 'fixed', borderCollapse: 'collapse', marginBottom: '12px' },
-    receiptTh: { textAlign: 'left', padding: '6px 8px', backgroundColor: '#394654', borderBottom: '2px solid #000', fontSize: '12px', fontWeight: 600, color: '#ffffff', textTransform: 'uppercase', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
+    receiptTh: { textAlign: 'left', padding: '6px 8px', backgroundColor: 'var(--header)', fontSize: '12px', fontWeight: 600, color: '#ffffff', textTransform: 'uppercase', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
     receiptTd: { padding: '6px 8px', borderBottom: '1px solid #ccc', fontSize: '13px', color: '#000' },
     receiptTdName: { padding: '6px 8px', borderBottom: '1px solid #ccc', fontSize: '13px', color: '#000', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textAlign: 'left' },
     receiptTotals: { marginTop: '14px' },

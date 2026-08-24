@@ -236,7 +236,7 @@ function SalesReturnList() {
 
         return (
             <div className="modal-overlay" onClick={closeReceipt}>
-                <div className="modal-container" style={{ maxWidth: '850px', padding: 0, overflow: 'hidden' }} onClick={(e) => e.stopPropagation()}>
+                <div className="modal-container" style={{ width: '850px', padding: 0, overflow: 'hidden' }} onClick={(e) => e.stopPropagation()}>
                     <div className="modal-header">
                         <h3 className="modal-title" style={{ color: '#000' }}>CAPOBIZ</h3>
                         <div style={{ display: 'flex', gap: 'var(--space-sm)' }}>
@@ -255,7 +255,7 @@ function SalesReturnList() {
                         id="receipt-content"
                     >
                         <div style={{ textAlign: 'left', marginBottom: '16px' }}>
-                            <h4 style={{ margin: '0 0 10px 0', fontSize: '18px', textAlign: 'center' }}>SALES RETURN RECEIPT</h4>
+                            <h4 style={{ margin: '0 0 10px 0', fontSize: '16px', textAlign: 'center' }}>SALES RETURN RECEIPT</h4>
                             <p style={{ margin: '4px 0', color: '#333' }}>Return #: {displayReturnNum}</p>
                             <p style={{ margin: '4px 0', color: '#333' }}>
                                 Customer: {getCustomerName(selectedReturn)}
@@ -280,7 +280,7 @@ function SalesReturnList() {
                                     const lineTotal = item.quantity * item.unitPrice;
                                     return (
                                         <tr key={idx} style={{ borderBottom: '1px solid var(--border-color)' }}>
-                                            <td style={{ padding: '8px', fontSize: '13px', color: '#000', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{itemName}</td>
+                                            <td style={{ padding: '8px', fontSize: '13px', color: '#000', overflow: 'hidden',textAlign: 'left', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{itemName}</td>
                                             <td style={{ padding: '8px', fontSize: '13px', color: '#000', textAlign: 'left' }}>
                                                 {!selectedReturn.isBlindReturn ? invNumber : 'N/A'}
                                             </td>
@@ -316,11 +316,7 @@ function SalesReturnList() {
 
     return (
         <div className="dashboard-wrapper">
-            
-            {/* HEADER */}
-            <div className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <h4 style={{ margin: 0, color: 'var(--primary)', fontSize: '22px', fontWeight: 600 }}>Sales Return List</h4>
-            </div>
+       
 
             {/* ==================== FILTERS ==================== */}
             <div className="card" style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-md)', alignItems: 'flex-end' }}>

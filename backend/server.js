@@ -101,6 +101,7 @@ import PrintSettings from './models/Printsettings.js';
 import Client from './models/Client.js';
 import CashRegister from './models/CashRegister.js';
 import CustomerType from './models/CustomerType.js';
+import Holiday from './models/Holiday.js';
 import SaleReturn from './models/SaleReturn.js';
 import EmployeeAccount from './models/EmployeeAccount.js';
 import ExpenseCategory from './models/ExpenseCategory.js';
@@ -113,7 +114,11 @@ import SalesRebate from './models/SalesRebate.js';
 import SalesRebateDetail from './models/SalesRebateDetail.js';
 import SaleRateDifference from './models/SaleRateDifference.js';
 import Attendance from './models/Attendance.js';
+import EmployeeLoanRecovery from './models/EmployeeLoanRecovery.js';
 import AttendanceRule from './models/AttendanceRule.js';
+import Batch from './models/Batch.js';
+import EmployeeLoan from './models/EmployeeLoan.js';
+import SalaryConfig from './models/SalaryConfig.js';
 console.log("Checking URI:", process.env.MONGO_URI);
 
 const __filename = fileURLToPath(import.meta.url);
@@ -190,7 +195,7 @@ app.post('/api/login', async (req, res) => {
 app.get('/api/purchases/last-invoice', authorize('purchases_view'), async (req, res) => {  try {
     // Find the last purchase and sort by createdAt descending
     const lastPurchase = await Purchase.findOne()
-      .sort({ createdAt: -1 })
+      .sort({ createdAt: 1 })
       .select('invoiceNumber');
 
     let lastInvoiceNumber = null;
@@ -231,7 +236,7 @@ app.put('/api/roles/:id', authorize('roles_edit'), async (req, res) => {  if (!r
         role: role ? role.trim() : undefined,
         permissions: permissions || []
       },
-      { new: true }
+      { returnDocument: 'after' }
     );
     return res.json(updatedRole);
   } catch (error) {
@@ -273,7 +278,7 @@ app.delete('/api/roles/:id', authorize('roles_delete'), async (req, res) => {  c
     const deletedRole = await Role.findByIdAndUpdate(
       id,
       { status: 'inactive' },
-      { new: true }
+      { returnDocument: 'after' }
     );
 
     if (deletedRole) {
@@ -310,7 +315,7 @@ app.put('/api/users/:id', authorize('users_edit'), async (req, res) => {  if (!r
   }
 
   try {
-    const updatedUser = await User.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    const updatedUser = await User.findByIdAndUpdate(req.params.id, req.body, { returnDocument: 'after' });
     return res.json(updatedUser);
   } catch (error) {
     return res.status(400).json({ message: 'Error updating user', error });
@@ -318,7 +323,7 @@ app.put('/api/users/:id', authorize('users_edit'), async (req, res) => {  if (!r
 });
 
 app.delete('/api/users/:id', authorize('users_delete'), async (req, res) => {  try {
-    await User.findByIdAndUpdate(req.params.id, { status: 'Inactive' }, { new: true });
+    await User.findByIdAndUpdate(req.params.id, { status: 'Inactive' }, { returnDocument: 'after' });
     return res.json({ message: 'User deleted successfully' });
   } catch (error) {
     return res.status(400).json({ message: 'Error deleting user', error });
@@ -375,7 +380,7 @@ app.post('/api/customers', authorize('customers_add'), async (req, res) => {  tr
 });
 
 app.put('/api/customers/:id', authorize('customers_edit'), async (req, res) => {  try {
-    const updatedCustomer = await Customer.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    const updatedCustomer = await Customer.findByIdAndUpdate(req.params.id, req.body, { returnDocument: 'after' });
     res.json(updatedCustomer);
   } catch (error) {
     res.status(400).json({ message: 'Error updating customer', error });
@@ -383,7 +388,7 @@ app.put('/api/customers/:id', authorize('customers_edit'), async (req, res) => {
 });
 
 app.delete('/api/customers/:id', authorize('customers_delete'), async (req, res) => {  try {
-    await Customer.findByIdAndUpdate(req.params.id, { status: 'Inactive' }, { new: true });
+    await Customer.findByIdAndUpdate(req.params.id, { status: 'Inactive' }, { returnDocument: 'after' });
     res.json({ message: 'Customer deleted' });
   } catch (error) {
     res.status(400).json({ message: 'Error deleting customer', error });
@@ -409,7 +414,7 @@ app.post('/api/suppliers', authorize('suppliers_add'), async (req, res) => {  tr
 });
 
 app.put('/api/suppliers/:id', authorize('suppliers_edit'), async (req, res) => {  try {
-    const updatedSupplier = await Supplier.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    const updatedSupplier = await Supplier.findByIdAndUpdate(req.params.id, req.body, { returnDocument: 'after' });
     res.json(updatedSupplier);
   } catch (error) {
     res.status(400).json({ message: 'Error updating supplier', error });
@@ -417,7 +422,7 @@ app.put('/api/suppliers/:id', authorize('suppliers_edit'), async (req, res) => {
 });
 
 app.delete('/api/suppliers/:id', authorize('suppliers_delete'), async (req, res) => {  try {
-    await Supplier.findByIdAndUpdate(req.params.id, { status: 'inactive' }, { new: true });
+    await Supplier.findByIdAndUpdate(req.params.id, { status: 'inactive' }, { returnDocument: 'after' });
     res.json({ message: 'Supplier deleted' });
   } catch (error) {
     res.status(400).json({ message: 'Error deleting supplier', error });
@@ -449,7 +454,7 @@ app.put('/api/designations/:id', authorize('settings_edit'), async (req, res) =>
     const updatedDesignation = await Designation.findByIdAndUpdate(
       req.params.id,
       { designation: req.body.designation },
-      { new: true }
+      { returnDocument: 'after' }
     );
     return res.json(updatedDesignation);
   } catch (error) {
@@ -471,7 +476,7 @@ app.delete('/api/designations/:id', authorize('settings_edit'), async (req, res)
     const deletedDesignation = await Designation.findByIdAndUpdate(
       id,
       { status: 'inactive' },
-      { new: true }
+      { returnDocument: 'after' }
     );
 
     if (deletedDesignation) {
@@ -507,7 +512,7 @@ app.put('/api/employees/:id', authorize('employees_edit'), async (req, res) => {
     const updatedEmployee = await Employee.findByIdAndUpdate(
       req.params.id,
       req.body,
-      { new: true }
+      { returnDocument: 'after' }
     ).populate('designation');
     return res.json(updatedEmployee);
   } catch (error) {
@@ -519,7 +524,7 @@ app.delete('/api/employees/:id', authorize('employees_delete'), async (req, res)
     const deletedEmployee = await Employee.findByIdAndUpdate(
       req.params.id,
       { status: 'inactive' },
-      { new: true }
+      { returnDocument: 'after' }
     );
     if (deletedEmployee) {
       return res.json({ success: true, message: 'Employee deactivated successfully' });
@@ -554,7 +559,7 @@ app.post('/api/employee-payments', authorize('employee_account_add'), async (req
     const counter = await Counter.findOneAndUpdate(
       { name: 'employeeEntryNumber' },
       { $inc: { seq: 1 } },
-      { new: true, upsert: true, returnDocument: 'after' }
+      { returnDocument: 'after', upsert: true, returnDocument: 'after' }
     );
     const invoiceNumber = `EMP-${counter.seq}`;
 
@@ -575,8 +580,9 @@ app.post('/api/employee-payments', authorize('employee_account_add'), async (req
   }
 });
 
-// ==================== EMPLOYEE LEDGER (Full ledger with filters) ====================
-app.get('/api/employee-ledger', authorize('employee_account_view'), async (req, res) => {  try {
+// ==================== EMPLOYEE LEDGER (Strict Creation Sequence) ====================
+app.get('/api/employee-ledger', authorize('employee_account_view'), async (req, res) => {
+  try {
     const { employeeId, fromDate, toDate } = req.query;
 
     const filter = {};
@@ -584,8 +590,7 @@ app.get('/api/employee-ledger', authorize('employee_account_view'), async (req, 
 
     const allEntries = await EmployeeAccount.find(filter)
       .populate('employee', 'name')
-      .sort({ date: 1, createdAt: 1 });
-
+.sort({ date: 1, createdAt: 1 });
     let runningBalance = 0;
     const rows = [];
     let srNo = 0;
@@ -675,7 +680,7 @@ app.put('/api/uoms/:id', authorize('uom_edit'), async (req, res) => {  try {
     const uom = await UOM.findByIdAndUpdate(
       id,
       { code, name, abbreviation },
-      { new: true }
+      { returnDocument: 'after' }
     );
 
     if (!uom) {
@@ -692,7 +697,7 @@ app.delete('/api/uoms/:id', authorize('uom_delete'), async (req, res) => {  try 
     const uom = await UOM.findByIdAndUpdate(
       req.params.id,
       { status: 'inactive' },
-      { new: true }
+      { returnDocument: 'after' }
     );
 
     if (!uom) {
@@ -749,7 +754,7 @@ app.put('/api/categories/:id', authorize('categories_edit'), async (req, res) =>
     const category = await Category.findByIdAndUpdate(
       id,
       { name, description },
-      { new: true }
+      { returnDocument: 'after' }
     );
 
     if (!category) {
@@ -766,7 +771,7 @@ app.delete('/api/categories/:id', authorize('categories_delete'), async (req, re
     const category = await Category.findByIdAndUpdate(
       req.params.id,
       { status: 'inactive' },
-      { new: true }
+      { returnDocument: 'after' }
     );
 
     if (!category) {
@@ -780,11 +785,14 @@ app.delete('/api/categories/:id', authorize('categories_delete'), async (req, re
 });
 
 // ==================== PRODUCTS ====================
-app.get('/api/products', authorize('products_view'), async (req, res) => {  try {
+app.get('/api/products', authorize('products_view'), async (req, res) => { 
+  try {
     const products = await Product.find({ status: 'active' })
       .populate('categoryId', 'name')
       .populate('uomId', 'name abbreviation')
+      .populate('approvedSuppliers.supplier', 'companyName name contactPerson')
       .sort({ name: 1 });
+      
     res.json(products);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -814,7 +822,7 @@ app.put('/api/products/:id', authorize('products_edit'), async (req, res) => {  
     const product = await Product.findByIdAndUpdate(
       id,
       req.body,
-      { new: true }
+      { returnDocument: 'after' }
     )
       .populate('categoryId', 'name')
       .populate('uomId', 'name abbreviation');
@@ -833,7 +841,7 @@ app.delete('/api/products/:id', authorize('products_delete'), async (req, res) =
     const product = await Product.findByIdAndUpdate(
       req.params.id,
       { status: 'inactive' },
-      { new: true }
+      { returnDocument: 'after' }
     );
 
     if (!product) {
@@ -865,7 +873,7 @@ app.put('/api/products/:id/activate', authorize('products_edit'), async (req, re
     const product = await Product.findByIdAndUpdate(
       req.params.id,
       { status: 'active' },
-      { new: true }
+      { returnDocument: 'after' }
     );
 
     if (!product) {
@@ -940,7 +948,6 @@ app.post('/api/purchases', authorize('purchases_add'), async (req, res) => {  co
     });
     const savedPurchase = await newPurchase.save({ session });
 
-    // Update product stock
     for (const item of items) {
       const product = await Product.findById(item.product).session(session);
       if (!product) {
@@ -948,14 +955,21 @@ app.post('/api/purchases', authorize('purchases_add'), async (req, res) => {  co
       }
 
       product.quantity += item.quantity;
-      product.costPrice = item.unitPrice;
+      product.costPrice = item.unitPrice; // Last purchase price
       product.openingStockLocked = true;
-
-      if (item.expiryDate && (!product.expiryDate || new Date(item.expiryDate) < new Date(product.expiryDate))) {
-        product.expiryDate = item.expiryDate;
-      }
-
       await product.save({ session });
+
+      const batchNo = item.batchNumber || `B-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+
+      await Batch.create([{
+        product: item.product,
+        batchNumber: batchNo,
+        purchasePrice: item.unitPrice,
+        quantity: item.quantity,
+        originalQuantity: item.quantity,
+        expiryDate: item.expiryDate || new Date(new Date().setFullYear(new Date().getFullYear() + 1)), // default 1 year expiry if null
+        purchaseId: savedPurchase._id
+      }], { session });
 
       await StockMovement.create([{
         product: item.product,
@@ -965,7 +979,6 @@ app.post('/api/purchases', authorize('purchases_add'), async (req, res) => {  co
         referenceId: savedPurchase._id
       }], { session });
     }
-
     const paid = Number(paidAmount) || 0;
     if (paid < 0) throw new Error('Paid amount cannot be negative.');
     if (paid > totalAmount) throw new Error('Paid amount cannot exceed the total purchase amount.');
@@ -1175,7 +1188,7 @@ app.post('/api/purchase-returns', authorize('purchase_returns_add'), async (req,
     const counter = await Counter.findOneAndUpdate(
       { name: 'returnNumber' },
       { $inc: { seq: 1 } },
-      { new: true, upsert: true, returnDocument: 'after' }
+      { returnDocument: 'after', upsert: true, returnDocument: 'after' }
     );
     const returnNumber = `PR-${counter.seq.toString()}`;
 
@@ -1205,7 +1218,7 @@ app.get('/api/purchase-returns', authorize('purchase_returns_view'), async (req,
       .populate('supplier')
       .populate('purchase', 'purchaseNumber invoiceNumber')
       .populate('items.product')
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: 1 });
     res.json(returns);
   } catch (error) {
     res.status(500).json({ success: false, message: 'Server error', error: error.message });
@@ -1364,7 +1377,7 @@ app.post('/api/purchase-returns/complete', authorize('purchase_returns_add'), as
     const counter = await Counter.findOneAndUpdate(
       { name: 'returnNumber' },
       { $inc: { seq: 1 } },
-      { new: true, upsert: true, session, returnDocument: 'after' }
+      { returnDocument: 'after', upsert: true, session, returnDocument: 'after' }
     );
     const returnNumber = `PR-${counter.seq.toString()}`;
 
@@ -1482,7 +1495,7 @@ app.post('/api/purchase-returns/blind-return', authorize('purchase_returns_add')
     const counter = await Counter.findOneAndUpdate(
       { name: 'returnNumber' },
       { $inc: { seq: 1 } },
-      { new: true, upsert: true, session, returnDocument: 'after' }
+      { returnDocument: 'after', upsert: true, session, returnDocument: 'after' }
     );
     const returnNumber = `PR-${counter.seq.toString()}`;
 
@@ -1585,7 +1598,7 @@ app.post('/api/supplier-payments', authorize('supplier_account_add'), async (req
       const counter = await Counter.findOneAndUpdate(
         { name: 'supplierPaymentNumber' },
         { $inc: { seq: 1 } },
-        { new: true, upsert: true, returnDocument: 'after' }
+        { returnDocument: 'after', upsert: true, returnDocument: 'after' }
       );
       finalInvoiceNumber = `SP-${counter.seq}`;
     }
@@ -1715,7 +1728,7 @@ app.post('/api/customer-payments', authorize('customer_account_add'), async (req
     const counter = await Counter.findOneAndUpdate(
       { name: 'customerPaymentNumber' },
       { $inc: { seq: 1 } },
-      { new: true, upsert: true, returnDocument: 'after' }
+      { returnDocument: 'after', upsert: true, returnDocument: 'after' }
     );
     const invoiceNumber = `CA-${counter.seq}`;
 
@@ -1862,7 +1875,7 @@ app.post('/api/stock-adjustment', authorize('stock_adjustment_add'), async (req,
     const counter = await Counter.findOneAndUpdate(
       { name: 'adjustmentNumber' },
       { $inc: { seq: 1 } },
-      { new: true, upsert: true, session, returnDocument: 'after' }
+      { returnDocument: 'after', upsert: true, session, returnDocument: 'after' }
     );
     const adjustmentNumber = `ADJ-${counter.seq.toString()}`;
 
@@ -2007,7 +2020,7 @@ app.post('/api/stock-adjustment/batch', authorize('stock_adjustment_add'), async
 app.get('/api/stock-adjustment', authorize('stock_adjustment_view'), async (req, res) => {  try {
     const adjustments = await StockAdjustment.find()
       .populate('product', 'name')
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: 1 });
     res.json(adjustments);
   } catch (error) {
     console.error('Error fetching stock adjustments:', error);
@@ -2020,7 +2033,7 @@ app.get('/api/products/:id/stock-adjustment', authorize('stock_adjustment_view')
   try {
     const adjustments = await StockAdjustment.find({ product: req.params.id })
       .populate('product', 'name')
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: 1 });
     res.json(adjustments);
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -2087,7 +2100,7 @@ app.post('/api/sales', authorize('pos_add'), async (req, res) => {  const { cust
     const counter = await Counter.findOneAndUpdate(
       { name: 'saleNumber' },
       { $inc: { seq: 1 } },
-      { new: true, upsert: true, session, returnDocument: 'after' }
+      { returnDocument: 'after', upsert: true, session, returnDocument: 'after' }
     );
     const saleNumber = `SL-${counter.seq.toString()}`;
 
@@ -2112,11 +2125,43 @@ app.post('/api/sales', authorize('pos_add'), async (req, res) => {  const { cust
     }], { session });
     const savedSale = createdSale[0];
 
-    // Deduct stock, create SaleDetail rows, log StockMovement
+   // Deduct stock, create SaleDetail rows, log StockMovement
     for (const prepared of preparedItems) {
+      // 1. Master product se total quantity minus karein
       prepared.product.quantity -= prepared.qty;
       await prepared.product.save({ session });
 
+      // 2. FEFO Logic: Find batches for this product that have stock, sorted by Expiry Date (Ascending)
+      const batches = await Batch.find({ 
+        product: prepared.product._id, 
+        quantity: { $gt: 0 } 
+      }).sort({ expiryDate: 1 }).session(session);
+
+      let quantityToDeduct = prepared.qty;
+
+      // 3. Deduct from batches one by one until order is fulfilled
+      for (const batch of batches) {
+        if (quantityToDeduct <= 0) break;
+
+        if (batch.quantity >= quantityToDeduct) {
+          // This batch has enough stock to fulfill the remaining required quantity
+          batch.quantity -= quantityToDeduct;
+          quantityToDeduct = 0;
+          await batch.save({ session });
+        } else {
+          // This batch doesn't have enough stock, take whatever is left and move to the next batch
+          quantityToDeduct -= batch.quantity;
+          batch.quantity = 0;
+          await batch.save({ session });
+        }
+      }
+
+      if (quantityToDeduct > 0) {
+        // Fallback safety (Ideally shouldn't happen if master product quantity check passed)
+        throw new Error(`Critical Error: Master stock mismatch for "${prepared.product.name}". Not enough batch stock available.`);
+      }
+
+      // Record Sale Detail
       await SaleDetail.create([{
         sale: savedSale._id,
         product: prepared.product._id,
@@ -2126,6 +2171,7 @@ app.post('/api/sales', authorize('pos_add'), async (req, res) => {  const { cust
         lineTotal: prepared.lineTotal
       }], { session });
 
+      // Log Movement
       await StockMovement.create([{
         product: prepared.product._id,
         movementType: 'OUT',
@@ -2134,8 +2180,7 @@ app.post('/api/sales', authorize('pos_add'), async (req, res) => {  const { cust
         referenceId: savedSale._id
       }], { session });
     }
-
-    // Ledger entry — debit what they owe, credit what they paid now
+        // Ledger entry — debit what they owe, credit what they paid now
     await CustomerAccount.create([{
       customer: customerId,
       invoiceNumber: saleNumber,
@@ -2166,7 +2211,7 @@ app.post('/api/sales', authorize('pos_add'), async (req, res) => {  const { cust
 app.get('/api/sales', authorize('pos_view'), async (req, res) => {  try {
     const sales = await Sale.find()
       .populate('customer')
-      .sort({ saleDate: -1, createdAt: -1 })
+      .sort({ saleDate: -1, createdAt: 1 })
       .lean();
 
     const saleIds = sales.map(s => s._id);
@@ -2293,7 +2338,7 @@ app.post('/api/sales/hold', authorize('pos_add'), async (req, res) => {  const {
     const counter = await Counter.findOneAndUpdate(
       { name: 'holdNumber' },
       { $inc: { seq: 1 } },
-      { new: true, upsert: true, returnDocument: 'after' }
+      { returnDocument: 'after', upsert: true, returnDocument: 'after' }
     );
     const saleNumber = `HO-${counter.seq.toString()}`;
 
@@ -2339,7 +2384,7 @@ app.post('/api/sales/hold', authorize('pos_add'), async (req, res) => {  const {
 app.get('/api/sales/hold', authorize('pos_view'), async (req, res) => {  try {
     const holds = await Sale.find({ status: 'Hold' })
       .populate('customer')
-      .sort({ createdAt: -1 })
+      .sort({ createdAt: 1 })
       .lean();
 
     const saleIds = holds.map(h => h._id);
@@ -2557,7 +2602,7 @@ app.put('/api/client/:id', authorize('settings_edit'), async (req, res) => {  tr
     const updatedClient = await Client.findByIdAndUpdate(
       id,
       { businessName, contact, address, logo },
-      { new: true, runValidators: true }
+      { returnDocument: 'after', runValidators: true }
     );
 
     if (!updatedClient) {
@@ -2654,7 +2699,7 @@ app.post('/api/cash-register/close', authorize('cash_register_manage'), async (r
 
 // ==================== CASH REGISTER HISTORY (for reports) ====================
 app.get('/api/cash-register/history', authorize('cash_register_view'), async (req, res) => {  try {
-    const registers = await CashRegister.find().sort({ createdAt: -1 });
+    const registers = await CashRegister.find().sort({ createdAt: 1 });
     res.json({ success: true, registers });
   } catch (err) {
     console.error('Error fetching register history:', err);
@@ -2679,7 +2724,7 @@ app.post('/api/customer-types', authorize('customers_add'), async (req, res) => 
 });
 
 app.get('/api/customer-types', authorize('customers_view'), async (req, res) => {  try {
-    const types = await CustomerType.find().sort({ createdAt: -1 });
+    const types = await CustomerType.find().sort({ createdAt: 1 });
     res.status(200).json(types);
   } catch (error) {
     res.status(500).json({ success: false, message: 'Server error' });
@@ -2691,7 +2736,7 @@ app.put('/api/customer-types/:id', authorize('customers_edit'), async (req, res)
     const updatedType = await CustomerType.findByIdAndUpdate(
       req.params.id,
       { name },
-      { new: true }
+      { returnDocument: 'after' }
     );
 
     if (!updatedType) return res.status(404).json({ success: false, message: 'Customer Type not found' });
@@ -2747,7 +2792,7 @@ app.post('/api/sale-returns/complete', authorize('sale_returns_add'), async (req
     const counter = await Counter.findOneAndUpdate(
       { name: 'saleReturnNumber' },
       { $inc: { seq: 1 } },
-      { new: true, upsert: true, session, returnDocument: 'after' }
+      { returnDocument: 'after', upsert: true, session, returnDocument: 'after' }
     );
     const returnNumber = `SR-${counter.seq.toString()}`;
 
@@ -2855,7 +2900,7 @@ app.post('/api/sale-returns/blind-return', authorize('sale_returns_add'), async 
     const counter = await Counter.findOneAndUpdate(
       { name: 'saleReturnNumber' },
       { $inc: { seq: 1 } },
-      { new: true, upsert: true, session, returnDocument: 'after' }
+      { returnDocument: 'after', upsert: true, session, returnDocument: 'after' }
     );
     const returnNumber = `SR-${counter.seq.toString()}`;
 
@@ -2936,7 +2981,7 @@ app.get('/api/sale-returns', authorize('sale_returns_view'), async (req, res) =>
       .populate('customer', 'name customerName phone address')
       .populate('sale', 'saleNumber invoiceNumber')
       .populate('items.product', 'name barcode')
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: 1 });
 
     res.status(200).json({
       success: true,
@@ -3019,7 +3064,7 @@ app.put('/api/expense-categories/:id', authorize('expense_category_edit'), async
     const category = await ExpenseCategory.findByIdAndUpdate(
       req.params.id,
       { name: name.trim() },
-      { new: true }
+      { returnDocument: 'after' }
     );
     if (!category) {
       return res.status(404).json({ message: 'Category not found' });
@@ -3042,7 +3087,7 @@ app.delete('/api/expense-categories/:id', authorize('expense_category_delete'), 
     const category = await ExpenseCategory.findByIdAndUpdate(
       req.params.id,
       { status: 'inactive' },
-      { new: true }
+      { returnDocument: 'after' }
     );
     if (!category) {
       return res.status(404).json({ message: 'Category not found' });
@@ -3058,7 +3103,7 @@ app.get('/api/expenses', authorize('expenses_view'), async (req, res) => {
   try {
     const expenses = await Expense.find({ status: { $ne: 'inactive' } })
       .populate('category', 'name')
-      .sort({ date: -1, createdAt: -1 });
+      .sort({ date: -1, createdAt: 1 });
     res.json(expenses);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -3116,7 +3161,7 @@ app.put('/api/expenses/:id', authorize('expenses_edit'), async (req, res) => {
         addedBy: addedBy.trim(),
         description: description ? description.trim() : ''
       },
-      { new: true }
+      { returnDocument: 'after' }
     ).populate('category', 'name');
 
     if (!expense) {
@@ -3133,7 +3178,7 @@ app.delete('/api/expenses/:id', authorize('expenses_delete'), async (req, res) =
     const expense = await Expense.findByIdAndUpdate(
       req.params.id,
       { status: 'inactive' },
-      { new: true }
+      { returnDocument: 'after' }
     );
     if (!expense) {
       return res.status(404).json({ message: 'Expense not found' });
@@ -3149,7 +3194,7 @@ app.delete('/api/expenses/:id', authorize('expenses_delete'), async (req, res) =
 app.get('/api/stock-breakage', authorize('stock_breakage_view'), async (req, res) => {  try {
     const records = await StockBreakage.find()
       .populate('product', 'name categoryId uomId') // Make sure to populate product
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: 1 });
     res.json(records);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -3338,7 +3383,7 @@ app.post('/api/purchase-rebates/complete', authorize('purchase_rebates_add'), as
     const counter = await Counter.findOneAndUpdate(
       { name: 'rebateNumber' },
       { $inc: { seq: 1 } },
-      { new: true, upsert: true, session, returnDocument: 'after' }
+      { returnDocument: 'after', upsert: true, session, returnDocument: 'after' }
     );
     const rebateNumber = `PRB-${counter.seq.toString()}`;
 
@@ -3403,7 +3448,7 @@ app.get('/api/purchase-rebates', authorize('purchase_rebates_view'), async (req,
     const rebates = await PurchaseRebate.find()
       .populate('supplier')
       .populate('purchase', 'purchaseNumber invoiceNumber')
-      .sort({ createdAt: -1 })
+      .sort({ createdAt: 1 })
       .lean();
 
     const rebateIds = rebates.map(r => r._id);
@@ -3465,7 +3510,7 @@ app.post('/api/purchase-rate-difference/complete', authorize('purchase_rate_diff
     const counter = await Counter.findOneAndUpdate(
       { name: 'rateDifferenceNumber' },
       { $inc: { seq: 1 } },
-      { new: true, upsert: true, session, returnDocument: 'after' }
+      { returnDocument: 'after', upsert: true, session, returnDocument: 'after' }
     );
     const differenceNumber = `PRD-${counter.seq.toString()}`;
 
@@ -3564,7 +3609,7 @@ app.get('/api/purchase-rate-difference', authorize('purchase_rate_difference_vie
       .populate('supplierId', 'companyName contactPerson')
       .populate('purchaseId', 'purchaseNumber invoiceNumber')
       .populate('items.product', 'name')
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: 1 });
     res.json(records);
   } catch (error) {
     console.error('Error fetching rate differences:', error);
@@ -3692,7 +3737,7 @@ app.post('/api/sales-rebates/complete', authorize('sales_rebates_add'), async (r
     const counter = await Counter.findOneAndUpdate(
       { name: 'salesRebateNumber' },
       { $inc: { seq: 1 } },
-      { new: true, upsert: true, session, returnDocument: 'after' }
+      { returnDocument: 'after', upsert: true, session, returnDocument: 'after' }
     );
     const rebateNumber = `SRB-${counter.seq.toString()}`;
 
@@ -3758,7 +3803,7 @@ app.get('/api/sales-rebates', authorize('sales_rebates_view'), async (req, res) 
     const rebates = await SalesRebate.find()
       .populate('customer')
       .populate('sale', 'saleNumber')
-      .sort({ createdAt: -1 })
+      .sort({ createdAt: 1 })
       .lean();
 
     const rebateIds = rebates.map(r => r._id);
@@ -3808,7 +3853,7 @@ app.get('/api/sale-rate-difference', authorize('sale_rate_difference_view'), asy
       .populate('customerId', 'name customerName')
       .populate('saleId', 'saleNumber invoiceNumber')
       .populate('items.product', 'name')
-      .sort({ createdAt: -1 }); // Latest sab se upar aayegi list mein
+      .sort({ createdAt: 1 }); 
 
     res.json(records);
   } catch (error) {
@@ -3855,7 +3900,7 @@ app.post('/api/sale-rate-difference/complete', authorize('sale_rate_difference_a
     const counter = await Counter.findOneAndUpdate(
       { name: 'saleRateDifferenceNumber' },
       { $inc: { seq: 1 } },
-      { new: true, upsert: true, session, returnDocument: 'after' }
+      { returnDocument: 'after', upsert: true, session, returnDocument: 'after' }
     );
     const differenceNumber = `SRD-${counter.seq.toString()}`;
 
@@ -4187,7 +4232,7 @@ app.get('/api/stock-movements', authorize('report_stock_movement_view'), async (
   try {
     const movements = await StockMovement.find()
       .populate('product', 'name productCode code')
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: 1 });
     res.json(movements);
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -4473,6 +4518,469 @@ app.get('/api/reports/attendance-summary', authorize('reports_view'), async (req
   }
 });
 
+// ==================== EXPIRY REPORT API ====================
+app.get('/api/reports/expiring-stock', authorize('report_view'), async (req, res) => {
+  try {
+    const days = parseInt(req.query.days) || 30; 
+    
+    const currentDate = new Date();
+    const targetDate = new Date();
+    targetDate.setDate(currentDate.getDate() + days);
+
+    const expiringBatches = await Batch.find({
+      quantity: { $gt: 0 },
+      expiryDate: { $lte: targetDate } 
+    })
+    .populate('product', 'name categoryId')
+    .sort({ expiryDate: 1 }); 
+
+    // Status set karna (Expired ya Expiring Soon)
+    const formattedBatches = expiringBatches.map(batch => {
+      const isExpired = new Date(batch.expiryDate) < currentDate;
+      return {
+        _id: batch._id,
+        productName: batch.product?.name || 'Unknown',
+        batchNumber: batch.batchNumber,
+        quantity: batch.quantity,
+        purchasePrice: batch.purchasePrice,
+        expiryDate: batch.expiryDate,
+        status: isExpired ? 'Expired' : 'Expiring Soon'
+      };
+    });
+
+    res.status(200).json({ success: true, data: formattedBatches });
+  } catch (error) {
+    console.error('Error fetching expiring stock:', error);
+    res.status(500).json({ success: false, message: 'Server error generating expiry report.' });
+  }
+});
+
+// ==================== BATCH MANAGEMENT ====================
+// Get all active batches
+app.get('/api/batches', authorize('products_view'), async (req, res) => {
+  try {
+    const batches = await Batch.find({ quantity: { $gt: 0 } })
+      .populate('product', 'name categoryId')
+      .sort({ expiryDate: 1 });
+    res.json({ success: true, data: batches });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// Update specific batch expiry date
+app.put('/api/batches/:id/expiry', authorize('products_edit'), async (req, res) => {
+  try {
+    const { expiryDate } = req.body;
+    if (!expiryDate) return res.status(400).json({ success: false, message: 'Expiry date is required' });
+
+    const batch = await Batch.findByIdAndUpdate(
+      req.params.id,
+      { expiryDate },
+      { returnDocument: 'after' }
+    ).populate('product', 'name');
+
+    if (!batch) return res.status(404).json({ success: false, message: 'Batch not found' });
+
+    res.json({ success: true, message: 'Batch expiry updated successfully', batch });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// ==================== EMPLOYEE LOAN / ADVANCE ====================
+
+// GET: List all loans
+app.get('/api/employee-loans', authorize('employee_account_view'), async (req, res) => {
+  try {
+    const loans = await EmployeeLoan.find({ status: { $ne: 'Inactive' } })
+      .populate('employee', 'name designation')
+      .sort({ _id: 1 });;
+    res.json({ success: true, data: loans });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// POST: Issue new loan
+app.post('/api/employee-loans', authorize('employee_account_add'), async (req, res) => {
+  const { employeeId, amount, date, notes } = req.body;
+  const session = await mongoose.startSession();
+
+  try {
+    session.startTransaction();
+
+    if (!employeeId) throw new Error('Employee is required.');
+    const loanAmount = Number(amount);
+    if (!loanAmount || loanAmount <= 0) throw new Error('Loan amount must be greater than zero.');
+
+    // 1. Auto-generate Loan Number (LN-XXXX)
+    const counter = await Counter.findOneAndUpdate(
+      { name: 'loanNumber' },
+      { $inc: { seq: 1 } },
+      { returnDocument: 'after', upsert: true, session }
+    );
+    const loanNumber = `LN-${counter.seq}`;
+
+    // 2. Create Loan Record
+    const createdLoan = await EmployeeLoan.create([{
+      loanNumber,
+      employee: employeeId,
+      amount: loanAmount,
+      date: date || new Date(),
+      notes
+    }], { session });
+
+    // 3. Update Employee Ledger (Safe format based on your existing schema)
+    await EmployeeAccount.create([{
+      employee: employeeId,
+      invoiceNumber: loanNumber,
+      transactionType: 'Payment', 
+      debit: 0,
+      credit: loanAmount,
+      date: date || new Date(),
+      notes: `Advance/Loan - ${notes || 'Issued'}`
+    }], { session });
+
+    // 4. Update Cash Register
+    const activeRegister = await CashRegister.findOne({ closingDate: null }).session(session);
+    if (activeRegister) {
+      activeRegister.purchaseAmount = (activeRegister.purchaseAmount || 0) + loanAmount;
+      await activeRegister.save({ session });
+    }
+
+    await session.commitTransaction();
+    res.status(201).json({ success: true, message: 'Loan issued successfully', data: createdLoan[0] });
+
+  } catch (error) {
+    await session.abortTransaction();
+    console.error('Error issuing loan:', error); // Yeh terminal mein batayega ke exact masla kya hai
+    res.status(400).json({ success: false, message: error.message });
+  } finally {
+    session.endSession();
+  }
+});
+// DELETE: Soft delete / Cancel Loan
+app.delete('/api/employee-loans/:id', authorize('employee_account_add'), async (req, res) => {
+  try {
+    const loan = await EmployeeLoan.findByIdAndUpdate(
+      req.params.id, 
+      { status: 'Inactive' }, 
+      { returnDocument: 'after' }
+    );
+    if (!loan) return res.status(404).json({ success: false, message: 'Loan not found' });
+    
+    // Reverse from ledger
+    await EmployeeAccount.findOneAndDelete({ referenceId: loan._id, transactionType: 'Loan / Advance' });
+
+    res.json({ success: true, message: 'Loan cancelled successfully' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+
+
+// ==================== SALARY CONFIGURATION ====================
+
+// GET: Fetch all salary configurations
+app.get('/api/salary-config', authorize('employee_account_view'), async (req, res) => {
+  try {
+    const configs = await SalaryConfig.find()
+      .populate('employee', 'name designation department')
+      .sort({ updatedAt: -1 });
+    res.json({ success: true, data: configs });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// POST / PUT: Create or Update Salary Configuration
+app.post('/api/salary-config', authorize('employee_account_add'), async (req, res) => {
+  const { employeeId, basicSalary, allowances, deductions, notes, effectiveDate } = req.body;
+
+  try {
+    if (!employeeId) throw new Error('Employee is required.');
+    
+    const basic = Number(basicSalary) || 0;
+    const allow = Number(allowances) || 0;
+    const deduct = Number(deductions) || 0;
+    
+    if (basic <= 0) throw new Error('Basic Salary must be greater than zero.');
+
+    const netSalary = basic + allow - deduct;
+
+    // findOneAndUpdate with upsert: true will create a new record if it doesn't exist, 
+    // or update the existing one if the employee already has a configuration.
+    const config = await SalaryConfig.findOneAndUpdate(
+      { employee: employeeId },
+      { 
+        basicSalary: basic, 
+        allowances: allow, 
+        deductions: deduct, 
+        netSalary, 
+        notes,
+        effectiveDate: effectiveDate || new Date()
+      },
+      { returnDocument: 'after', upsert: true, runValidators: true }
+    ).populate('employee', 'name');
+
+    res.status(200).json({ success: true, message: 'Salary Configuration saved successfully', data: config });
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message });
+  }
+});
+
+// ==================== PAYROLL / GENERATE SALARY ====================
+
+// GET: Preview Salary (Now connected with Attendance)
+app.get('/api/payroll/preview', authorize('employee_account_view'), async (req, res) => {
+  try {
+    const { month, year } = req.query; // e.g., 'August', '2026'
+
+    // 1. Get total days in the selected month
+    const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+    const monthIndex = monthNames.indexOf(month);
+    const totalDaysInMonth = new Date(year, monthIndex + 1, 0).getDate();
+    
+    // YYYY-MM prefix for filtering attendance (e.g., "2026-08")
+    const monthString = String(monthIndex + 1).padStart(2, '0');
+    const yearMonthPrefix = `${year}-${monthString}`;
+
+    // 2. Get active salary configs
+    const configs = await SalaryConfig.find().populate('employee', 'name');
+    const previewData = [];
+
+    for (const config of configs) {
+      const empId = config.employee._id;
+      
+      // 3. Fetch Attendance for this employee for the selected month
+      const attendances = await Attendance.find({
+        employeeId: empId,
+        date: { $regex: `^${yearMonthPrefix}` } // Matches dates like "2026-08-01"
+      });
+
+      let presentCount = 0;
+      let absentCount = 0;
+      let halfDayCount = 0;
+      let leaveCount = 0;
+
+      attendances.forEach(att => {
+         if (att.status === 'Present' || att.status === 'Late') presentCount++;
+         if (att.status === 'Absent') absentCount++;
+         if (att.status === 'Half-day') halfDayCount++;
+         if (att.status === 'Leave') leaveCount++; // Assuming Leave is Paid
+      });
+
+      // Calculate Deductions (1 Absent = 1 Day Deduct, 1 Half-Day = 0.5 Day Deduct)
+      const totalAbsentPenaltyDays = absentCount + (halfDayCount * 0.5);
+      const perDaySalary = config.netSalary / totalDaysInMonth;
+      const absentDeduction = totalAbsentPenaltyDays * perDaySalary;
+      const finalCalculatedSalary = Math.max(0, Math.round(config.netSalary - absentDeduction));
+
+      // 4. Check if salary already generated
+      const salaryNotes = `Salary for ${month} ${year}`;
+      const existingEntry = await EmployeeAccount.findOne({
+        employee: empId,
+        transactionType: 'Salary',
+        notes: salaryNotes
+      });
+
+      // 5. Get Current Ledger Balance
+      const ledgerEntries = await EmployeeAccount.find({ employee: empId });
+      const currentBalance = ledgerEntries.reduce((sum, entry) => sum + (entry.debit || 0) - (entry.credit || 0), 0);
+
+      previewData.push({
+        employeeId: empId,
+        employeeName: config.employee.name,
+        netFixedSalary: config.netSalary,
+        totalDaysInMonth,
+        presentCount,
+        absentCount,
+        halfDayCount,
+        absentDeduction: Math.round(absentDeduction),
+        finalCalculatedSalary, // Salary after attendance deduction
+        currentBalance, 
+        projectedBalance: currentBalance + finalCalculatedSalary,
+        status: existingEntry ? 'Generated' : 'Pending',
+        notes: salaryNotes
+      });
+    }
+
+    res.json({ success: true, data: previewData });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// POST: Process / Generate Salary (Saves Final Calculated Salary)
+app.post('/api/payroll/process', authorize('employee_account_add'), async (req, res) => {
+  const { employeesToProcess } = req.body;
+  const session = await mongoose.startSession();
+  
+  try {
+    session.startTransaction();
+
+    const counter = await Counter.findOneAndUpdate(
+      { name: 'salaryNumber' },
+      { $inc: { seq: 1 } },
+      { returnDocument: 'after', upsert: true, session }
+    );
+    const batchNumber = `SAL-B${counter.seq}`;
+
+    const ledgerEntries = [];
+    
+    for (const emp of employeesToProcess) {
+      ledgerEntries.push({
+        employee: emp.employeeId,
+        invoiceNumber: batchNumber,
+        transactionType: 'Salary',
+        debit: emp.finalCalculatedSalary,
+        credit: 0,
+        date: new Date(),
+        notes: emp.notes
+      });
+    }
+
+    if (ledgerEntries.length > 0) {
+      await EmployeeAccount.insertMany(ledgerEntries, { session });
+    }
+
+    await session.commitTransaction();
+    res.status(200).json({ success: true, message: `Salary generated successfully for ${ledgerEntries.length} employees.` });
+  } catch (error) {
+    await session.abortTransaction();
+    res.status(400).json({ success: false, message: error.message });
+  } finally {
+    session.endSession();
+  }
+});
+
+// ==================== EMPLOYEE LOAN RECOVERIES ====================
+
+app.get('/api/employee-loan-recoveries', authorize('employee_account_view'), async (req, res) => {
+    try {
+        const recoveries = await EmployeeLoanRecovery.find()
+            .populate('employee', 'name designation')
+            .sort({ date: -1, createdAt: -1 });
+            
+        const formattedData = recoveries.map(rec => ({
+            ...rec._doc,
+            debit: rec.amount 
+        }));
+
+        res.status(200).json({ success: true, data: formattedData });
+    } catch (error) {
+        console.error('Error fetching loan recoveries:', error);
+        res.status(500).json({ success: false, message: 'Server error' });
+    }
+});
+
+// POST: Add a new loan recovery & Update Ledger
+app.post('/api/employee-loan-recoveries', authorize('employee_account_add'), async (req, res) => {
+    const session = await mongoose.startSession();
+    try {
+        session.startTransaction();
+        const { employeeId, date, amount, notes } = req.body;
+
+        if (!employeeId || !amount || amount <= 0) {
+            return res.status(400).json({ success: false, message: 'Invalid data provided.' });
+        }
+
+        // ================= NEW VALIDATION LOGIC =================
+        const ledgerEntries = await EmployeeAccount.find({ employee: employeeId }).session(session);
+        const currentBalance = ledgerEntries.reduce((sum, entry) => sum + (entry.debit || 0) - (entry.credit || 0), 0);
+
+        if (currentBalance >= 0) {
+            await session.abortTransaction();
+            session.endSession();
+            return res.status(400).json({ 
+                success: false, 
+                message: 'This employee has no outstanding loan/advance to recover.' 
+            });
+        }
+
+        const outstandingAmount = Math.abs(currentBalance);
+        if (Number(amount) > outstandingAmount) {
+            await session.abortTransaction();
+            session.endSession();
+            return res.status(400).json({ 
+                success: false, 
+                message: `Recovery amount (PKR ${amount}) cannot be greater than the outstanding loan (PKR ${outstandingAmount}).` 
+            });
+        }
+        // ========================================================
+
+
+        const counter = await Counter.findOneAndUpdate(
+            { name: 'loanRecoveryNumber' },
+            { $inc: { seq: 1 } },
+            { returnDocument: 'after', upsert: true, session }
+        );
+        const receiptNumber = `LR-${counter.seq}`;
+
+        const newRecovery = new EmployeeLoanRecovery({
+            employee: employeeId,
+            date,
+            amount: Number(amount),
+            invoiceNumber: receiptNumber,
+            notes: notes || 'Loan Repayment'
+        });
+        await newRecovery.save({ session });
+
+        const ledgerEntry = new EmployeeAccount({
+            employee: employeeId,
+            date,
+            transactionType: 'Loan Recovery',
+            invoiceNumber: receiptNumber,
+            debit: Number(amount), 
+            credit: 0,
+            notes: notes ? `[Loan Recovery] ${notes}` : '[Loan Recovery] Cash Received'
+        });
+        await ledgerEntry.save({ session });
+
+        await session.commitTransaction();
+        res.status(201).json({ success: true, message: 'Recovery recorded successfully.' });
+
+    } catch (error) {
+        await session.abortTransaction();
+        console.error('Error saving loan recovery:', error);
+        res.status(500).json({ success: false, message: 'Server error while saving recovery.' });
+    } finally {
+        session.endSession();
+    }
+});
+// GET: Get all holidays for a year/month or general
+app.get('/api/holidays', authorize('settings_view'), async (req, res) => {
+    try {
+        const holidays = await Holiday.find({});
+        res.status(200).json({ success: true, holidays });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
+// POST: Add or Remove Holiday (Toggle)
+app.post('/api/holidays', authorize('settings_edit'), async (req, res) => {
+    try {
+        const { date, title } = req.body;
+        if (!date) return res.status(400).json({ success: false, message: 'Date is required' });
+
+        const existing = await Holiday.findOne({ date });
+        if (existing) {
+            // If already a holiday, remove it (Toggle off)
+            await Holiday.deleteOne({ date });
+            return res.status(200).json({ success: true, message: 'Holiday removed successfully', isHoliday: false });
+        } else {
+            // Add holiday
+            const newHoliday = new Holiday({ date, title: title || 'Public Holiday' });
+            await newHoliday.save();
+            return res.status(201).json({ success: true, message: 'Holiday marked successfully', isHoliday: true });
+        }
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
 // ==================== ROOT ROUTE ====================
 app.get('/', (req, res) => {
   res.send('Backend is running and connected to DB!');

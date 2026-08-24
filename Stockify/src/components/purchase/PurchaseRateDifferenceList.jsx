@@ -321,11 +321,11 @@ const PurchaseRateDifferenceList = () => {
                             <table style={styles.receiptTable}>
                                 <thead>
                                     <tr>
-                                        <th style={{ ...styles.receiptTh, width: '30%' }}>Product Name</th>
-                                        <th style={{ ...styles.receiptTh, textAlign: 'left', width: '12%' }}>Qty</th>
-                                        <th style={{ ...styles.receiptTh, textAlign: 'left', width: '19%' }}>Prev Rate</th>
-                                        <th style={{ ...styles.receiptTh, textAlign: 'left', width: '19%' }}>New Rate</th>
-                                        <th style={{ ...styles.receiptTh, textAlign: 'right', width: '20%' }}>Diff</th>
+                                        <th style={{ ...styles.receiptTh, width: '20%' }}>Product Name</th>
+                                        <th style={{ ...styles.receiptTh, textAlign: 'left', width: '15%' }}>Qty</th>
+                                        <th style={{ ...styles.receiptTh, textAlign: 'left', width: '21%' }}>Prev Rate</th>
+                                        <th style={{ ...styles.receiptTh, textAlign: 'left', width: '22%' }}>New Rate</th>
+                                        <th style={{ ...styles.receiptTh, textAlign: 'left', width: '20%' }}>Diff</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -335,7 +335,7 @@ const PurchaseRateDifferenceList = () => {
                                             <td style={{ ...styles.receiptTd, textAlign: 'left' }}>{item.purchasedQuantity}</td>
                                             <td style={{ ...styles.receiptTd, textAlign: 'left' }}>{item.prevRate?.toFixed(2)}</td>
                                             <td style={{ ...styles.receiptTd, textAlign: 'left' }}>{item.newRate?.toFixed(2)}</td>
-                                            <td style={{ ...styles.receiptTd, fontWeight: 600, textAlign: 'right', color: item.totalDifference > 0 ? 'var(--danger)' : 'var(--success)' }}>
+                                            <td style={{ ...styles.receiptTd, fontWeight: 600, textAlign: 'left', color: item.totalDifference > 0 ? 'var(--danger)' : 'var(--success)' }}>
                                                 {item.totalDifference > 0 ? '+' : ''}{item.totalDifference?.toFixed(2)}
                                             </td>
                                         </tr>
@@ -459,7 +459,7 @@ const PurchaseRateDifferenceList = () => {
                                             <td style={{ ...tableStyles.td, textAlign: 'center' }}>
                                                 <div style={{ display: 'flex', justifyContent: 'center' }}>
                                                     <button
-                                                        style={actionStyles.iconBtnView}
+                                                        style={{ backgroundColor: 'var(--view)', color: 'var(--success)', border: 'none', padding: '6px', borderRadius: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
                                                         onClick={() => openModal(diff)}
                                                         title="View Details"
                                                     >

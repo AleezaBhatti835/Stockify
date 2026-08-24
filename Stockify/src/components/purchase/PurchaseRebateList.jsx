@@ -374,7 +374,7 @@ function PurchaseRebateList() {
 
                         <div id="rebate-receipt-content" className="modal-body" style={{ maxHeight: '80vh', overflowY: 'auto', padding: 'var(--space-lg)' }}>
                             <div style={{ textAlign: 'center', marginBottom: '20px' }}>
-                                <h4 style={{ margin: '0 0 8px 0', fontSize: '14px', color: '#333' }}>PURCHASE REBATE RECEIPT</h4>
+                                <h4 style={{ margin: '0 0 8px 0', fontSize: '16px' }}>PURCHASE REBATE RECEIPT</h4>
                                 <p style={{ textAlign: 'left', margin: '4px 0', fontSize: '14px' }}>Rebate #: {viewRebate.rebateNumber}</p>
                                 <p style={{ textAlign: 'left', margin: '4px 0', fontSize: '14px' }}>Date: {new Date(viewRebate.rebateDate || viewRebate.createdAt).toLocaleDateString()}</p>
                                 <p style={{ textAlign: 'left', margin: '4px 0', fontSize: '14px' }}>Invoice #: {viewRebate.invoiceNumber || viewRebate.purchase?.invoiceNumber || '—'}</p>

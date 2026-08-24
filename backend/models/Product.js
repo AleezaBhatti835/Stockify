@@ -37,14 +37,29 @@ const productSchema = new mongoose.Schema({
   expiryDate: {
     type: Date
   },
-openingStockLocked: { type: Boolean, default: false },
-  
+  openingStockLocked: { type: Boolean, default: false },
+
   reorderQuantity: {
     type: Number,
     required: true,
     min: 0,
     default: 10
   },
+  approvedSuppliers: [{
+        supplier: { 
+            type: mongoose.Schema.Types.ObjectId, 
+            ref: 'Supplier',
+            required: true 
+        },
+        purchasePrice: { 
+            type: Number, 
+            required: true 
+        },
+        supplierSKU: { 
+            type: String, 
+            default: '' 
+        }
+    }],
   status: {
     type: String,
     enum: ['active', 'inactive', 'discontinued'],

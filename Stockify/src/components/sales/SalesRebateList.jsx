@@ -230,7 +230,7 @@ function SalesRebateList() {
 
     return (
       <div className="modal-overlay" onClick={closeModal}>
-        <div className="modal-container" style={{ maxWidth: paperConfig.maxWidth, padding: 0, display: 'flex', flexDirection: 'column', maxHeight: '90vh' }} onClick={(e) => e.stopPropagation()}>
+        <div className="modal-container" style={{ width:'850px', padding: 0, display: 'flex', flexDirection: 'column', maxHeight: '90vh' }} onClick={(e) => e.stopPropagation()}>
           
           <div className="modal-header" style={{ backgroundColor: 'var(--bg-app)', borderBottom: '1px solid var(--border-color)' }}>
             <h3 style={{ margin: 0, color: 'var(--text-main)' }}>CAPOBIZ</h3>
@@ -251,7 +251,7 @@ function SalesRebateList() {
             id="rebate-receipt-content"
           >
             <div style={{ textAlign: 'left', marginBottom: '16px' }}>
-              <h4 style={{ textAlign: 'center', margin: '4px 0', color: '#333', textDecoration: 'underline' }}>SALES REBATE RECEIPT</h4>
+              <h4 style={{ textAlign: 'center', margin: '4px 0',fontSize:'16px'}}>SALES REBATE RECEIPT</h4>
               <p style={{ margin: '4px 0', color: '#333' }}>Rebate #: <strong>{viewRebate.rebateNumber || 'N/A'}</strong></p>
               <p style={{ margin: '4px 0', color: '#333' }}>Invoice #: <strong>{viewRebate.invoiceNumber || viewRebate.sale?.saleNumber || '—'}</strong></p>
               <p style={{ margin: '4px 0', color: '#333' }}>Date: <strong>{formatDate(viewRebate.rebateDate || viewRebate.createdAt)}</strong></p>
@@ -279,10 +279,10 @@ function SalesRebateList() {
               <table style={{ width: '100%', tableLayout: 'fixed', borderCollapse: 'collapse', marginBottom: '12px' }}>
                 <thead>
                   <tr>
-                    <th style={{ textAlign: 'left', padding: '6px 8px', backgroundColor: '#f1f5f9', borderBottom: '2px solid #000', fontSize: '12px', fontWeight: 600, color: '#000', textTransform: 'uppercase', width: '30%' }}>Product Name</th>
-                    <th style={{ textAlign: 'left', padding: '6px 8px', backgroundColor: '#f1f5f9', borderBottom: '2px solid #000', fontSize: '12px', fontWeight: 600, color: '#000', textTransform: 'uppercase', width: '20%' }}>Qty</th>
-                    <th style={{ textAlign: 'left', padding: '6px 8px', backgroundColor: '#f1f5f9', borderBottom: '2px solid #000', fontSize: '12px', fontWeight: 600, color: '#000', textTransform: 'uppercase', width: '30%' }}>Unit Price</th>
-                    <th style={{ textAlign: 'left', padding: '6px 8px', backgroundColor: '#f1f5f9', borderBottom: '2px solid #000', fontSize: '12px', fontWeight: 600, color: '#000', textTransform: 'uppercase', width: '20%' }}>Total</th>
+                    <th style={{ textAlign: 'left', padding: '6px 8px', backgroundColor: 'var(--header)', fontSize: '12px', fontWeight: 600, color: '#fbfbfb', textTransform: 'uppercase', width: '30%' }}>Product Name</th>
+                    <th style={{ textAlign: 'left', padding: '6px 8px', backgroundColor: 'var(--header)', fontSize: '12px', fontWeight: 600, color: '#fbfbfb', textTransform: 'uppercase', width: '20%' }}>Qty</th>
+                    <th style={{ textAlign: 'left', padding: '6px 8px', backgroundColor: 'var(--header)', fontSize: '12px', fontWeight: 600, color: '#fbfbfb', textTransform: 'uppercase', width: '30%' }}>Unit Price</th>
+                    <th style={{ textAlign: 'left', padding: '6px 8px', backgroundColor: 'var(--header)', fontSize: '12px', fontWeight: 600, color: '#fbfbfb', textTransform: 'uppercase', width: '20%' }}>Total</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -291,7 +291,7 @@ function SalesRebateList() {
                   ) : (
                     (viewDetails || []).map((d, idx) => (
                       <tr key={idx}>
-                        <td style={{ padding: '6px 8px', borderBottom: '1px solid #ccc', fontSize: '13px', color: '#000', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.product?.name || 'Unknown Product'}</td>
+                        <td style={{ padding: '6px 8px',textAlign:'left', borderBottom: '1px solid #ccc', fontSize: '13px', color: '#000', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.product?.name || 'Unknown Product'}</td>
                         <td style={{ padding: '6px 8px', borderBottom: '1px solid #ccc', fontSize: '13px', color: '#000', textAlign: 'left' }}>{d.quantity}</td>
                         <td style={{ padding: '6px 8px', borderBottom: '1px solid #ccc', fontSize: '13px', color: '#000', textAlign: 'left' }}>{d.unitPrice?.toFixed(2)}</td>
                         <td style={{ padding: '6px 8px', borderBottom: '1px solid #ccc', fontSize: '13px', color: '#000', fontWeight: 600, textAlign: 'left' }}>{d.totalPrice?.toFixed(2)}</td>

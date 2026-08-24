@@ -423,9 +423,9 @@ const StockAdjustment = () => {
 
           <div className="modal-body" style={{ padding: paperConfig.bodyPadding, overflowY: 'auto' }} id="receipt-content">
             <div style={{ textAlign: 'center', marginBottom: '20px' }}>
-              <h4 style={{ margin: '0 0 8px 0', fontSize: '18px', textDecoration: 'underline' }}>STOCK ADJUSTMENT</h4>
-              <p style={{ margin: '4px 0', fontSize: '14px' }}>Invoice #: <strong>{viewModalData.invoiceNumber || 'N/A'}</strong></p>
-              <p style={{ margin: '4px 0', fontSize: '14px' }}>Date: <strong>{formatDate(viewModalData.createdAt)}</strong></p>
+              <h4 style={{ margin: '0 0 8px 0', fontSize: '18px' }}>STOCK ADJUSTMENT</h4>
+              <p style={{ margin: '4px 0', fontSize: '14px',textAlign:'left' }}>Invoice #: <strong>{viewModalData.invoiceNumber || 'N/A'}</strong></p>
+              <p style={{ margin: '4px 0', fontSize: '14px' ,textAlign:'left' }}>Date: <strong>{formatDate(viewModalData.createdAt)}</strong></p>
             </div>
             
             <div style={{ borderTop: '2px dashed var(--border-color)', margin: '16px 0' }}></div>
@@ -460,9 +460,9 @@ const StockAdjustment = () => {
                 <tbody>
                   {invoiceItems.map((item, idx) => (
                     <tr key={idx}>
-                      <td style={{ padding: '10px', borderBottom: '1px solid var(--border-color)', fontSize: '14px' }}>{item.product?.name || item.productName || 'Unknown Product'}</td>
-                      <td style={{ padding: '10px', borderBottom: '1px solid var(--border-color)', fontSize: '14px' }}>{item.reason}</td>
-                      <td style={{ padding: '10px', borderBottom: '1px solid var(--border-color)', fontSize: '14px', fontWeight: 'bold', color: item.adjustmentType === 'Increase' ? 'var(--success)' : 'var(--danger)' }}>
+                      <td style={{ padding: '10px', borderBottom: '1px solid var(--border-color)', fontSize: '14px',textAlign:'left'  }}>{item.product?.name || item.productName || 'Unknown Product'}</td>
+                      <td style={{ padding: '10px', borderBottom: '1px solid var(--border-color)', fontSize: '14px',textAlign:'left'  }}>{item.reason}</td>
+                      <td style={{ padding: '10px', borderBottom: '1px solid var(--border-color)', fontSize: '14px',textAlign:'left' , fontWeight: 'bold', color: item.adjustmentType === 'Increase' ? 'var(--success)' : 'var(--danger)' }}>
                         {item.adjustmentType === 'Increase' ? '+' : '-'}{item.quantity}
                       </td>
                       <td style={{ padding: '10px', textAlign: 'center',borderBottom: '1px solid var(--border-color)', fontSize: '14px' }}>
@@ -885,7 +885,7 @@ const StockAdjustment = () => {
                   </thead>
                   <tbody>
                     {pendingItems.map(item => (
-                      <tr key={item.tempId} style={{ borderBottom: '1px solid var(--border-color)', transition: 'background-color 0.2s' }} onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--bg-app)'} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}>
+                      <tr key={item.tempId} style={{ borderBottom: '1px solid var(--border-color)', transition: 'background-color 0.2s',textAlign:'left' }} onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--bg-app)'} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}>
                         <td style={tableStyles.td}>{item.productName}</td>
                         <td style={tableStyles.td}>
                           <span style={{ color: item.adjustmentType === 'Increase' ? 'var(--success)' : 'var(--danger)', fontWeight: 'bold' }}>
@@ -929,7 +929,8 @@ const tableStyles = {
     padding: '8px 16px',
     borderBottom: '1px solid var(--border-color)',
     color: 'var(--text-main)',
-    fontSize: '13px'
+    fontSize: '13px',
+    textAlign:'left'
   },
   emptyCell: {
     padding: '40px',
@@ -950,9 +951,9 @@ const styles = {
     display: 'flex',
     alignItems: 'center'
   },
-  thermalItemRow: { borderBottom: '1px dashed #000', padding: '6px 0' },
-  thermalItemLine1: { display: 'flex', justifyContent: 'space-between', fontWeight: 700, fontSize: '1em', color: '#000' },
-  thermalItemLine2: { display: 'flex', justifyContent: 'space-between', fontSize: '0.85em', color: '#000', marginTop: '2px' }
+  thermalItemRow: { borderBottom: '1px dashed #000', padding: '6px 0',textAlign:'left'  },
+  thermalItemLine1: { display: 'flex', justifyContent: 'space-between', fontWeight: 700, fontSize: '1em', color: '#000',textAlign:'left'  },
+  thermalItemLine2: { display: 'flex', justifyContent: 'space-between', fontSize: '0.85em', color: '#000', marginTop: '2px',textAlign:'left'  }
 };
 
 export default StockAdjustment;
