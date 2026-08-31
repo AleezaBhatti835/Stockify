@@ -287,10 +287,10 @@ function RegisterReport() {
                 <th style={{ ...tableStyles.th, width: '10%', textAlign: 'center' }}>Status</th>
                 <th style={{ ...tableStyles.th, width: '5%', textAlign: 'left' }}>Opening</th>
                 <th style={{ ...tableStyles.th, width: '5%', textAlign: 'left' }}>Sales</th>
-                <th style={{ ...tableStyles.th, width: '10%', textAlign: 'left' }}>Sale Returns</th>
+                <th style={{ ...tableStyles.th, width: '12%', textAlign: 'left' }}>Sale Returns</th>
                 <th style={{ ...tableStyles.th, width: '10%', textAlign: 'left' }}>Purchases</th>
-                <th style={{ ...tableStyles.th, width: '10%', textAlign: 'left' }}>Pur-Returns</th>
-                <th style={{ ...tableStyles.th, width: '8%', textAlign: 'left' }}>Closing</th>
+                <th style={{ ...tableStyles.th, width: '12%', textAlign: 'left' }}>Pur-Returns</th>
+                <th style={{ ...tableStyles.th, width: '5%', textAlign: 'left' }}>Closing</th>
               </tr>
             </thead>
             <tbody>

@@ -1,17 +1,18 @@
 import { useState, useEffect } from 'react';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import {  faEye, faEyeSlash } from '@fortawesome/free-solid-svg-icons';
 
 const API_BASE_URL = 'http://localhost:5000';
 
-// Message Popup Component
 function MessagePopup({ message, onClose }) {
   if (!message.text) return null;
   const isError = message.type === 'error';
 
   return (
     <div className="modal-overlay" onClick={onClose} style={{ zIndex: 999999 }}>
-      <div 
-        className="card" 
-        onClick={(e) => e.stopPropagation()} 
+      <div
+        className="card"
+        onClick={(e) => e.stopPropagation()}
         style={{
           minWidth: '320px', maxWidth: '90%', padding: 'var(--space-md)',
           borderLeft: `4px solid ${isError ? 'var(--danger)' : 'var(--success)'}`,
@@ -37,22 +38,25 @@ function MessagePopup({ message, onClose }) {
 function Users() {
   const [users, setUsers] = useState([]);
   const [roles, setRoles] = useState([]);
+  const [employees, setEmployees] = useState([]);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  // Pagination states
+  const [showEditPassword, setShowEditPassword] = useState(false);
+  const [showEditConfirmPassword, setShowEditConfirmPassword] = useState(false);
+  const [creationMode, setCreationMode] = useState('new');
+
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(5);
 
-  // Custom message state
   const [message, setMessage] = useState({ text: '', type: '' });
 
-  // New state for custom delete confirmation modal
   const [userToDelete, setUserToDelete] = useState(null);
 
-  // Initial state with default contact +92
   const initialState = {
     name: '', emailPrefix: '', password: '', confirmPassword: '', cnic: '',
-    contact: '+92', address: '', status: 'Active', role: '', pic: ''
+    contact: '+92', address: '', status: 'Active', role: '', pic: '', employeeId: ''
   };
 
   const [newUser, setNewUser] = useState(initialState);
@@ -60,7 +64,6 @@ function Users() {
   const [editUser, setEditUser] = useState(initialState);
   const [viewUser, setViewUser] = useState(null);
 
-  // Helper functions for formatting CNIC and Contact
   const formatCNIC = (value) => {
     const numbers = value.replace(/\D/g, '').slice(0, 13);
     if (numbers.length <= 5) {
@@ -89,6 +92,7 @@ function Users() {
           e.preventDefault();
           setIsAddModalOpen(false);
           setNewUser(initialState);
+          setCreationMode('new');
           clearMessage();
         }
         if (editUserId) {
@@ -127,16 +131,15 @@ function Users() {
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [isAddModalOpen, editUserId, viewUser, userToDelete, newUser, editUser]);
 
-  // Get filtered users (STRICTLY EXCLUDE ADMINS)
   const filteredUsers = users.filter(u => {
     const emailStr = (u.email || '').toLowerCase();
     const nameStr = (u.name || '').toLowerCase();
-    
+
     if (emailStr === 'admin@gmail.com' || emailStr.includes('admin')) return false;
     if (nameStr === 'admin') return false;
 
-    if (!u.role) return true; 
-    
+    if (!u.role) return true;
+
     let roleName = '';
     if (typeof u.role === 'object' && u.role.role) {
       roleName = u.role.role;
@@ -144,7 +147,7 @@ function Users() {
       const matchedRole = roles.find(r => r._id === u.role);
       roleName = matchedRole ? matchedRole.role : String(u.role);
     }
-    
+
     return roleName.toLowerCase() !== 'admin';
   });
 
@@ -168,6 +171,7 @@ function Users() {
   useEffect(() => {
     fetchUsers();
     fetchRoles();
+    fetchEmployees();
   }, []);
 
   const showMessage = (text, type) => {
@@ -181,26 +185,19 @@ function Users() {
     setMessage({ text: '', type: '' });
   };
 
-  // ================= FETCH USERS (WITH TOKEN) =================
+  // ================= FETCH USERS =================
   const fetchUsers = async () => {
     try {
       const token = localStorage.getItem('token');
       const res = await fetch(`${API_BASE_URL}/api/users`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+        headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {
         const data = await res.json();
-        if (Array.isArray(data)) {
-          setUsers(data);
-        } else if (data && data.data && Array.isArray(data.data)) {
-          setUsers(data.data);
-        } else if (data && data.users && Array.isArray(data.users)) {
-          setUsers(data.users);
-        } else {
-          setUsers([]);
-        }
+        if (Array.isArray(data)) setUsers(data);
+        else if (data?.data && Array.isArray(data.data)) setUsers(data.data);
+        else if (data?.users && Array.isArray(data.users)) setUsers(data.users);
+        else setUsers([]);
       } else {
         setUsers([]);
       }
@@ -210,35 +207,98 @@ function Users() {
     }
   };
 
-  // ================= FETCH ROLES (WITH TOKEN) =================
+  // ================= FETCH ROLES =================
   const fetchRoles = async () => {
     try {
       const token = localStorage.getItem('token');
       const res = await fetch(`${API_BASE_URL}/api/roles`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+        headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {
         const data = await res.json();
-        if (Array.isArray(data)) {
-          setRoles(data);
-        } else if (typeof data === 'object' && data !== null) {
+        if (Array.isArray(data)) setRoles(data);
+        else if (typeof data === 'object' && data !== null) {
           const extractedArray = data.roles || data.data || Object.values(data).find(val => Array.isArray(val)) || [];
           setRoles(extractedArray);
-        } else {
-          setRoles([]);
-        }
-      } else {
-        setRoles([]);
-      }
+        } else setRoles([]);
+      } else setRoles([]);
     } catch (error) {
       console.error('Error fetching roles:', error);
       setRoles([]);
     }
   };
 
-  // ================= HANDLE IMAGE UPLOAD (WITH TOKEN) =================
+  // ================= FETCH EMPLOYEES =================
+  const fetchEmployees = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${API_BASE_URL}/api/employees`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setEmployees(Array.isArray(data) ? data : []);
+      }
+    } catch (error) {
+      console.error('Error fetching employees:', error);
+    }
+  };
+
+  const handleEmployeeSelect = (empId) => {
+    const emp = employees.find(e => e._id === empId);
+    if (emp) {
+      let emailPre = '';
+      if (emp.email) {
+        emailPre = emp.email.replace(/@.*/, '');
+      }
+
+      let matchedRoleId = '';
+
+      const empRole = emp.role?._id || emp.role;
+      const empDesig = emp.designation?._id || emp.designationId || emp.designation;
+
+      if (empRole) {
+        const found = roles.find(r => r._id === empRole || r._id === empRole.toString());
+        if (found) matchedRoleId = found._id;
+      }
+
+      if (!matchedRoleId && empDesig) {
+        const foundById = roles.find(r => r._id === empDesig || r._id === empDesig.toString());
+        if (foundById) {
+          matchedRoleId = foundById._id;
+        } else {
+          const desigName = typeof emp.designation === 'object' ? emp.designation.designation : empDesig;
+          const foundByName = roles.find(r => r.role && r.role.toLowerCase() === String(desigName).toLowerCase());
+          if (foundByName) {
+            matchedRoleId = foundByName._id;
+          }
+        }
+      }
+
+      setNewUser({
+        ...newUser,
+        employeeId: emp._id,
+        name: emp.name || '',
+        emailPrefix: emailPre,
+        role: matchedRoleId,
+        contact: emp.contact ? formatContact(emp.contact) : '+92',
+        cnic: emp.cnic ? formatCNIC(emp.cnic) : '',
+        address: emp.address || ''
+      });
+    } else {
+      setNewUser({
+        ...newUser,
+        employeeId: '',
+        name: '',
+        emailPrefix: '',
+        role: '',
+        contact: '+92',
+        cnic: '',
+        address: ''
+      });
+    }
+  };
+  // ================= HANDLE IMAGE UPLOAD =================
   const handleImageUpload = async (e, isEditing) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -250,19 +310,14 @@ function Users() {
       const token = localStorage.getItem('token');
       const res = await fetch(`${API_BASE_URL}/api/upload`, {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        },
+        headers: { 'Authorization': `Bearer ${token}` },
         body: formData
       });
 
       if (res.ok) {
         const data = await res.json();
-        if (isEditing) {
-          setEditUser({ ...editUser, pic: data.imageUrl });
-        } else {
-          setNewUser({ ...newUser, pic: data.imageUrl });
-        }
+        if (isEditing) setEditUser({ ...editUser, pic: data.imageUrl });
+        else setNewUser({ ...newUser, pic: data.imageUrl });
         showMessage('Image uploaded successfully!', 'success');
       } else {
         showMessage('Failed to upload image to server.', 'error');
@@ -290,8 +345,13 @@ function Users() {
     return null;
   };
 
-  // ================= HANDLE ADD USER (WITH TOKEN) =================
+  // ================= HANDLE ADD USER =================
   const handleAddUser = async () => {
+    if (creationMode === 'employee' && !newUser.employeeId) {
+      showMessage('Please select an employee to link!', 'error');
+      return;
+    }
+
     if (!newUser.name || !newUser.emailPrefix || !newUser.password || !newUser.role) {
       showMessage('Name, Email prefix, Password and Role are required!', 'error');
       return;
@@ -319,6 +379,8 @@ function Users() {
       const token = localStorage.getItem('token');
       const { confirmPassword, emailPrefix, ...payload } = payloadObj;
 
+      if (!payload.employeeId) delete payload.employeeId;
+
       const res = await fetch(`${API_BASE_URL}/api/users`, {
         method: 'POST',
         headers: {
@@ -327,12 +389,13 @@ function Users() {
         },
         body: JSON.stringify(payload)
       });
-      
+
       const responseData = await res.json().catch(() => null);
 
       if (res.ok) {
         showMessage('User added successfully!', 'success');
         setNewUser(initialState);
+        setCreationMode('new');
         setIsAddModalOpen(false);
         fetchUsers();
       } else {
@@ -343,7 +406,7 @@ function Users() {
     }
   };
 
-  // ================= HANDLE UPDATE USER (WITH TOKEN) =================
+  // ================= HANDLE UPDATE USER =================
   const handleUpdateUser = async () => {
     if (!editUserId) return;
 
@@ -368,7 +431,8 @@ function Users() {
       const { confirmPassword, ...payload } = editUser;
 
       if (!payload.password) delete payload.password;
-      if (!payload.role) delete payload.role; 
+      if (!payload.role) delete payload.role;
+      if (!payload.employeeId) payload.employeeId = null;
 
       const res = await fetch(`${API_BASE_URL}/api/users/${editUserId}`, {
         method: 'PUT',
@@ -394,16 +458,14 @@ function Users() {
     }
   };
 
-  // ================= EXECUTE DELETE (WITH TOKEN) =================
+  // ================= EXECUTE DELETE =================
   const executeDelete = async () => {
     if (!userToDelete) return;
     try {
       const token = localStorage.getItem('token');
       await fetch(`${API_BASE_URL}/api/users/${userToDelete}`, {
         method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+        headers: { 'Authorization': `Bearer ${token}` }
       });
       showMessage('User deleted successfully!', 'success');
       fetchUsers();
@@ -432,6 +494,7 @@ function Users() {
       contact: user.contact || '+92',
       address: user.address || '',
       role: typeof user.role === 'object' ? (user.role?._id || '') : (user.role || ''),
+      employeeId: typeof user.employeeId === 'object' ? (user.employeeId?._id || '') : (user.employeeId || ''),
       status: user.status || 'Active',
       pic: user.pic || '',
       password: '',
@@ -448,11 +511,11 @@ function Users() {
 
   return (
     <div className="dashboard-wrapper">
-      
+
       {/* HEADER */}
       <div className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h4 style={{ margin: 0, color: 'var(--primary)', fontSize: '22px', fontWeight: 600 }}>Manage System Users</h4>
-        <button 
+        <button
           className="btn btn-primary"
           onClick={() => { clearMessage(); setIsAddModalOpen(true); }}
         >
@@ -462,8 +525,6 @@ function Users() {
 
       {/* TABLE SECTION */}
       <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-        
-        {/* RESULTS COUNT */}
         <div style={{ padding: 'var(--space-sm) var(--space-md)', textAlign: 'right', fontSize: '13px', color: 'var(--text-muted)', borderBottom: '1px solid var(--border-color)' }}>
           <span>Showing {currentItems.length} of {filteredUsers.length} users</span>
         </div>
@@ -483,7 +544,7 @@ function Users() {
               {currentItems.length > 0 ? (
                 currentItems.map((u, index) => {
                   const serialNumber = (currentPage - 1) * itemsPerPage + index + 1;
-                  
+
                   let displayRoleName = <span style={{ color: 'var(--danger)' }}>No Role</span>;
                   if (u.role) {
                     if (typeof u.role === 'object' && u.role.role) {
@@ -495,7 +556,7 @@ function Users() {
                   }
 
                   return (
-                    <tr 
+                    <tr
                       key={u._id}
                       style={{ borderBottom: '1px solid var(--border-color)', transition: 'background-color 0.2s' }}
                       onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--bg-app)'}
@@ -513,15 +574,13 @@ function Users() {
                       </td>
                       <td style={{ ...tableStyles.td, textAlign: 'center' }}>
                         <div style={styles.actionGroup}>
-                          {/* View Button */}
-                          <button  style={{ backgroundColor: 'var(--view)', color: 'var(--success)', border: 'none', padding: '6px', borderRadius: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center' }} onClick={() => openView(u)} title="View">
+                          <button style={{ backgroundColor: 'var(--view)', color: 'var(--success)', border: 'none', padding: '6px', borderRadius: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center' }} onClick={() => openView(u)} title="View">
                             <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
                               <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
                               <circle cx="12" cy="12" r="3"></circle>
                             </svg>
                           </button>
 
-                          {/* Edit Button */}
                           <button style={actionStyles.iconBtnEdit} onClick={() => startEdit(u)} title="Edit">
                             <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
                               <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
@@ -529,12 +588,7 @@ function Users() {
                             </svg>
                           </button>
 
-                          {/* Delete Button */}
-                          <button
-                            style={actionStyles.iconBtnDelete}
-                            onClick={() => setUserToDelete(u._id)}
-                            title="Delete"
-                          >
+                          <button style={actionStyles.iconBtnDelete} onClick={() => setUserToDelete(u._id)} title="Delete">
                             <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
                               <polyline points="3 6 5 6 21 6"></polyline>
                               <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
@@ -590,7 +644,6 @@ function Users() {
           <div className="modal-container" style={{ maxWidth: '380px', textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
             <div className="modal-body">
               <MessagePopup message={message} onClose={clearMessage} />
-              
               <div style={{
                 width: '52px', height: '52px', borderRadius: '50%', backgroundColor: 'var(--danger-bg)',
                 color: 'var(--danger)', display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -603,7 +656,6 @@ function Users() {
                 Are you sure you want to delete this user? This action cannot be undone.
               </p>
             </div>
-
             <div className="modal-footer" style={{ justifyContent: 'center' }}>
               <button className="btn btn-secondary" onClick={() => { setUserToDelete(null); clearMessage(); }}>Cancel</button>
               <button className="btn btn-danger" onClick={executeDelete}>Yes, Delete</button>
@@ -656,12 +708,11 @@ function Users() {
                 </p>
               </div>
 
-              {/* View Role Permissions Section */}
               <div style={{ gridColumn: 'span 2' }}>
                 <label style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 600, display: 'block', marginBottom: '4px' }}>Assigned Capabilities</label>
-                <div style={{ 
-                  display: 'flex', flexWrap: 'wrap', gap: '6px', 
-                  backgroundColor: 'var(--bg-app)', padding: '10px', 
+                <div style={{
+                  display: 'flex', flexWrap: 'wrap', gap: '6px',
+                  backgroundColor: 'var(--bg-app)', padding: '10px',
                   borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)'
                 }}>
                   {(() => {
@@ -671,11 +722,11 @@ function Users() {
                     } else {
                       userRoleObj = roles.find(r => r._id === viewUser.role);
                     }
-                    
+
                     if (userRoleObj && userRoleObj.permissions && userRoleObj.permissions.length > 0) {
                       return userRoleObj.permissions.map(p => (
-                        <span key={p} style={{ 
-                          fontSize: '11px', backgroundColor: 'var(--success-bg)', 
+                        <span key={p} style={{
+                          fontSize: '11px', backgroundColor: 'var(--success-bg)',
                           color: 'var(--success)', padding: '2px 8px', borderRadius: '12px',
                           border: '1px solid var(--success)', fontWeight: 600
                         }}>
@@ -703,42 +754,60 @@ function Users() {
         </div>
       )}
 
-      {/* ADD NEW USER MODAL */}
       {isAddModalOpen && (
         <div className="modal-overlay" onClick={() => setIsAddModalOpen(false)}>
           <div className="modal-container modal-container-wide" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3 className="modal-title">Add New User</h3>
-              <button className="modal-close" onClick={() => { setIsAddModalOpen(false); setNewUser(initialState); clearMessage(); }}>&times;</button>
+              <button className="modal-close" onClick={() => { setIsAddModalOpen(false); setNewUser(initialState); setCreationMode('new'); clearMessage(); }}>&times;</button>
             </div>
 
             <div className="modal-body" style={{ maxHeight: '75vh', overflowY: 'auto' }}>
               <MessagePopup message={message} onClose={clearMessage} />
 
+              {/*  SLEEK SEGMENTED CONTROL FOR MODE */}
+              <div style={{ backgroundColor: 'var(--bg-app)', width: '55%', marginLeft: '22%', padding: '6px', borderRadius: '2px', display: 'flex', gap: '4px', marginBottom: '24px', border: '1px solid var(--btn-border)' }}>
+                <button
+                  type="button"
+                  onClick={() => { setCreationMode('new'); setNewUser(initialState); clearMessage(); }}
+                  style={{ flex: 1, padding: '10px', border: 'none', borderRadius: '2px', backgroundColor: creationMode === 'new' ? 'var(--header)' : 'transparent', color: creationMode === 'new' ? '#fff' : 'var(--text-muted)', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s', boxShadow: creationMode === 'new' ? '0 2px 4px rgba(0,0,0,0.05)' : 'none' }}
+                >
+                  Create Fresh User
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setCreationMode('employee'); setNewUser(initialState); clearMessage(); }}
+                  style={{ flex: 1, padding: '10px', border: 'none', borderRadius: '2px', backgroundColor: creationMode === 'employee' ? 'var(--header)' : 'transparent', color: creationMode === 'employee' ? '#fff' : 'var(--text-muted)', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s', boxShadow: creationMode === 'employee' ? '0 2px 4px rgba(0,0,0,0.05)' : 'none' }}
+                >
+                  Link Existing Employee
+                </button>
+              </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-md)' }}>
-                <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label className="form-label">Full Name *</label>
-                  <input 
-                    className="form-input"
-                    placeholder="e.g. John Doe" 
-                    autoComplete="off" 
-                    value={newUser.name} 
-                    onChange={(e) => setNewUser({ ...newUser, name: e.target.value })}
-                    onKeyDown={(e) => handleInputKeyDown(e, handleAddUser)}
-                    autoFocus
-                  />
-                </div>
+
+                {creationMode === 'employee' && (
+                  <div style={{ gridColumn: 'span 2' }}>
+                    <select
+                      className="form-input"
+                      value={newUser.employeeId || ''}
+                      onChange={(e) => handleEmployeeSelect(e.target.value)}
+                      style={{ marginTop: '6px', border: '1px solid var(--btn-border) ', width: '100%' }}
+                    >
+                      <option value="">-- Choose an Employee --</option>
+                      {employees.map(emp => <option key={emp._id} value={emp._id}>{emp.name} ({emp.designation?.designation || 'Staff'})</option>)}
+                    </select>
+                  </div>
+                )}
 
                 {/* Email with right-side @gmail.com suffix */}
                 <div className="form-group" style={{ marginBottom: 0 }}>
                   <label className="form-label">Email Address *</label>
                   <div style={{ position: 'relative', width: '100%', display: 'flex', alignItems: 'center' }}>
-                    <input 
+                    <input
                       className="form-input"
-                      placeholder="e.g. username" 
-                      autoComplete="off" 
-                      value={newUser.emailPrefix} 
-                      onChange={(e) => setNewUser({ ...newUser, emailPrefix: e.target.value.replace(/@.*/, '') })}                    
+                      placeholder="e.g. username"
+                      autoComplete="off"
+                      value={newUser.emailPrefix}
+                      onChange={(e) => setNewUser({ ...newUser, emailPrefix: e.target.value.replace(/@.*/, '') })}
                       onKeyDown={(e) => handleInputKeyDown(e, handleAddUser)}
                       style={{ paddingRight: '85px' }}
                     />
@@ -749,39 +818,76 @@ function Users() {
                 </div>
 
                 <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label className="form-label">Password * (Min 8 chars)</label>
-                  <input 
-                    type="password" 
+                  <label className="form-label">User Role *</label>
+                  <select
                     className="form-input"
-                    autoComplete="new-password" 
-                    value={newUser.password} 
-                    onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
-                    onKeyDown={(e) => handleInputKeyDown(e, handleAddUser)}
-                  />
+                    value={newUser.role}
+                    onChange={(e) => setNewUser({ ...newUser, role: e.target.value })}
+                  >
+                    <option value="">-- Select Role * --</option>
+                    {Array.isArray(roles) && roles.map(r => <option key={r._id} value={r._id}>{r.role}</option>)}
+                  </select>
                 </div>
 
+                {/* Password Field */}
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label">Password *</label>
+                  <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      className="form-input"
+                      placeholder="Min 8 characters"
+                      autoComplete="new-password"
+                      value={newUser.password}
+                      onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
+                      onKeyDown={(e) => handleInputKeyDown(e, handleAddUser)}
+                      style={{ paddingRight: '40px' }}
+                    />
+                    <span
+                      onClick={() => setShowPassword(!showPassword)}
+                      style={{ position: 'absolute', right: '12px', cursor: 'pointer', color: 'var(--text-muted)', fontSize: '14px' }}
+                    >
+                     <FontAwesomeIcon icon={showPassword ? faEyeSlash : faEye} />      
+
+                    </span>
+                  </div>
+                </div>
+
+                {/* Confirm Password Field */}
                 <div className="form-group" style={{ marginBottom: 0 }}>
                   <label className="form-label">Confirm Password *</label>
-                  <input 
-                    type="password" 
-                    className="form-input"
-                    autoComplete="new-password" 
-                    value={newUser.confirmPassword} 
-                    onChange={(e) => setNewUser({ ...newUser, confirmPassword: e.target.value })}
-                    onKeyDown={(e) => handleInputKeyDown(e, handleAddUser)}
-                  />
+                  <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                    <input
+                      type={showConfirmPassword ? 'text' : 'password'}
+                      className="form-input"
+                      placeholder="Min 8 characters"
+                      autoComplete="new-password"
+                      value={newUser.confirmPassword}
+                      onChange={(e) => setNewUser({ ...newUser, confirmPassword: e.target.value })}
+                      onKeyDown={(e) => handleInputKeyDown(e, handleAddUser)}
+                      style={{ paddingRight: '40px' }}
+                    />
+                    <span
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      style={{ position: 'absolute', right: '12px', cursor: 'pointer', color: 'var(--text-muted)', fontSize: '14px' }}
+                    >
+<FontAwesomeIcon icon={showPassword ? faEyeSlash : faEye} />                    </span>
+                  </div>
                 </div>
 
-                {/* CNIC Automatic Formatting */}
+                {/* --- PERSONAL DETAILS SECTION --- */}
+                <div style={{ gridColumn: 'span 2', marginTop: '16px' }}>
+                  <h4 style={{ margin: '0 0 12px 0', fontSize: '15px', color: 'var(--primary)', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>Personal Details</h4>
+                </div>
+
                 <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label className="form-label">CNIC</label>
-                  <input 
+                  <label className="form-label">Full Name *</label>
+                  <input
                     className="form-input"
-                    placeholder="64822-1648208-2" 
-                    autoComplete="off" 
-                    maxLength={15}
-                    value={newUser.cnic} 
-                    onChange={(e) => setNewUser({ ...newUser, cnic: formatCNIC(e.target.value) })}
+                    placeholder="e.g. John Doe"
+                    autoComplete="off"
+                    value={newUser.name}
+                    onChange={(e) => setNewUser({ ...newUser, name: e.target.value })}
                     onKeyDown={(e) => handleInputKeyDown(e, handleAddUser)}
                   />
                 </div>
@@ -789,14 +895,35 @@ function Users() {
                 {/* Contact Number with default +92 */}
                 <div className="form-group" style={{ marginBottom: 0 }}>
                   <label className="form-label">Contact Number</label>
-                  <input 
+                  <input
                     className="form-input"
-                    placeholder="+923001234567" 
-                    autoComplete="off" 
-                    value={newUser.contact} 
+                    placeholder="+923001234567"
+                    autoComplete="off"
+                    value={newUser.contact}
                     onChange={(e) => setNewUser({ ...newUser, contact: formatContact(e.target.value) })}
                     onKeyDown={(e) => handleInputKeyDown(e, handleAddUser)}
                   />
+                </div>
+
+                {/* CNIC Automatic Formatting */}
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label">CNIC</label>
+                  <input
+                    className="form-input"
+                    placeholder="64822-1648208-2"
+                    autoComplete="off"
+                    maxLength={15}
+                    value={newUser.cnic}
+                    onChange={(e) => setNewUser({ ...newUser, cnic: formatCNIC(e.target.value) })}
+                    onKeyDown={(e) => handleInputKeyDown(e, handleAddUser)}
+                  />
+                </div>
+
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label">Upload Profile Image</label>
+                  <div style={{ border: '1px dashed var(--border-color)', borderRadius: 'var(--radius-sm)', padding: '6px 12px', backgroundColor: 'var(--bg-app)' }}>
+                    <input type="file" accept="image/*" onChange={(e) => handleImageUpload(e, false)} style={{ fontSize: '13px', width: '100%' }} />
+                  </div>
                 </div>
 
                 <div className="form-group" style={{ gridColumn: 'span 2', marginBottom: 0 }}>
@@ -805,7 +932,7 @@ function Users() {
                     className="form-input"
                     placeholder="e.g. Block A, City"
                     autoComplete="off"
-                    rows={3}
+                    rows={2}
                     value={newUser.address}
                     onChange={(e) => setNewUser({ ...newUser, address: e.target.value })}
                     onKeyDown={(e) => {
@@ -818,34 +945,17 @@ function Users() {
                   />
                 </div>
 
-                <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label className="form-label">User Role *</label>
-                  <select 
-                    className="form-input"
-                    value={newUser.role} 
-                    onChange={(e) => setNewUser({ ...newUser, role: e.target.value })}
-                  >
-                    <option value="">-- Select Role * --</option>
-                    {Array.isArray(roles) && roles.map(r => <option key={r._id} value={r._id}>{r.role}</option>)}
-                  </select>
-                </div>
-
-                <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label className="form-label">Upload Profile Image</label>
-                  <input type="file" accept="image/*" onChange={(e) => handleImageUpload(e, false)} style={{ fontSize: '13px' }} />
-                </div>
               </div>
             </div>
 
-            <div className="modal-footer">
-              <button className="btn btn-secondary" onClick={() => { setIsAddModalOpen(false); setNewUser(initialState); clearMessage(); }}>Cancel</button>
+            <div className="modal-footer" style={{ borderTop: '1px solid var(--border-color)', paddingTop: '16px', marginTop: '16px' }}>
+              <button className="btn btn-secondary" onClick={() => { setIsAddModalOpen(false); setNewUser(initialState); setCreationMode('new'); clearMessage(); }}>Cancel</button>
               <button className="btn btn-primary" onClick={handleAddUser}>Save User</button>
             </div>
           </div>
         </div>
       )}
 
-      {/* EDIT USER MODAL */}
       {editUserId && (
         <div className="modal-overlay" onClick={() => setEditUserId(null)}>
           <div className="modal-container modal-container-wide" onClick={(e) => e.stopPropagation()}>
@@ -858,70 +968,124 @@ function Users() {
               <MessagePopup message={message} onClose={clearMessage} />
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-md)' }}>
-                <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label className="form-label">Full Name *</label>
-                  <input 
-                    className="form-input"
-                    placeholder="e.g. John Doe" 
-                    value={editUser.name} 
-                    onChange={(e) => setEditUser({ ...editUser, name: e.target.value })}
-                    onKeyDown={(e) => handleInputKeyDown(e, handleUpdateUser)}
-                    autoFocus
-                  />
+
+                {/* --- ACCOUNT SECURITY SECTION --- */}
+                <div style={{ gridColumn: 'span 2' }}>
+                  <h4 style={{ margin: '0 0 12px 0', fontSize: '15px', color: 'var(--primary)', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>Account & Security</h4>
                 </div>
 
-                {/* Email (Readonly during edit) */}
                 <div className="form-group" style={{ marginBottom: 0 }}>
                   <label className="form-label">Email <span style={{ fontSize: '11px', color: 'var(--text-light)' }}>(view only)</span></label>
                   <input type="email" readOnly disabled className="form-input" value={editUser.email} style={{ backgroundColor: 'var(--bg-app)', cursor: 'not-allowed' }} />
                 </div>
 
                 <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label className="form-label">New Password</label>
-                  <input 
-                    type="password" 
+                  <label className="form-label">User Role *</label>
+                  <select
                     className="form-input"
-                    placeholder="Min 8 characters" 
-                    autoComplete="new-password" 
-                    value={editUser.password} 
-                    onChange={(e) => setEditUser({ ...editUser, password: e.target.value })}
+                    value={editUser.role}
+                    onChange={(e) => setEditUser({ ...editUser, role: e.target.value })}
+                  >
+                    <option value="">-- Select Role * --</option>
+                    {Array.isArray(roles) && roles.map(r => <option key={r._id} value={r._id}>{r.role}</option>)}
+                  </select>
+                </div>
+
+                {/* Password Field */}
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label">New Password *</label>
+                  <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      className="form-input"
+                      placeholder="Min 8 characters"
+                      autoComplete="new-password"
+                      value={newUser.password}
+                      onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
+                      onKeyDown={(e) => handleInputKeyDown(e, handleAddUser)}
+                      style={{ paddingRight: '40px' }}
+                    />
+                    <span
+                      onClick={() => setShowPassword(!showPassword)}
+                      style={{ position: 'absolute', right: '12px', cursor: 'pointer', color: 'var(--text-muted)', fontSize: '14px' }}
+                    >
+                      <FontAwesomeIcon icon={showPassword ? faEyeSlash : faEye} />                    </span>
+                  </div>
+                </div>
+
+                {/* Confirm Password Field */}
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label">Confirm new Password *</label>
+                  <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                    <input
+                      type={showConfirmPassword ? 'text' : 'password'}
+                      className="form-input"
+                      placeholder="Min 8 characters"
+                      autoComplete="new-password"
+                      value={newUser.confirmPassword}
+                      onChange={(e) => setNewUser({ ...newUser, confirmPassword: e.target.value })}
+                      onKeyDown={(e) => handleInputKeyDown(e, handleAddUser)}
+                      style={{ paddingRight: '40px' }}
+                    />
+                    <span
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      style={{ position: 'absolute', right: '12px', cursor: 'pointer', color: 'var(--text-muted)', fontSize: '14px' }}
+                    >
+                     <FontAwesomeIcon icon={showPassword ? faEyeSlash : faEye} />      
+                    </span>
+                  </div>
+                </div>
+
+                {/* --- PERSONAL DETAILS SECTION --- */}
+                <div style={{ gridColumn: 'span 2', marginTop: '16px' }}>
+                  <h4 style={{ margin: '0 0 12px 0', fontSize: '15px', color: 'var(--primary)', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>Personal Details</h4>
+                </div>
+
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label">Full Name *</label>
+                  <input
+                    className="form-input"
+                    placeholder="e.g. John Doe"
+                    value={editUser.name}
+                    onChange={(e) => setEditUser({ ...editUser, name: e.target.value })}
                     onKeyDown={(e) => handleInputKeyDown(e, handleUpdateUser)}
+                    autoFocus
                   />
                 </div>
 
                 <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label className="form-label">Confirm New Password</label>
-                  <input 
-                    type="password" 
+                  <label className="form-label">Contact Number</label>
+                  <input
                     className="form-input"
-                    autoComplete="new-password" 
-                    value={editUser.confirmPassword} 
-                    onChange={(e) => setEditUser({ ...editUser, confirmPassword: e.target.value })}
+                    placeholder="+923001234567"
+                    value={editUser.contact}
+                    onChange={(e) => setEditUser({ ...editUser, contact: formatContact(e.target.value) })}
                     onKeyDown={(e) => handleInputKeyDown(e, handleUpdateUser)}
                   />
                 </div>
 
                 <div className="form-group" style={{ marginBottom: 0 }}>
                   <label className="form-label">CNIC</label>
-                  <input 
+                  <input
                     className="form-input"
-                    placeholder="64822-1648208-2" 
+                    placeholder="64822-1648208-2"
                     maxLength={15}
-                    value={editUser.cnic} 
+                    value={editUser.cnic}
                     onChange={(e) => setEditUser({ ...editUser, cnic: formatCNIC(e.target.value) })}
                     onKeyDown={(e) => handleInputKeyDown(e, handleUpdateUser)}
                   />
                 </div>
 
                 <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label className="form-label">Contact Number</label>
-                  <input 
+                  <label className="form-label">Linked Employee</label>
+                  <select
                     className="form-input"
-                    placeholder="+923001234567" 
-                    value={editUser.contact} 
-                    onChange={(e) => setEditUser({ ...editUser, contact: formatContact(e.target.value) })}
-                    onKeyDown={(e) => handleInputKeyDown(e, handleUpdateUser)}
-                  />
+                    value={editUser.employeeId}
+                    onChange={(e) => setEditUser({ ...editUser, employeeId: e.target.value })}
+                  >
+                    <option value="">-- Unlinked --</option>
+                    {employees.map(emp => <option key={emp._id} value={emp._id}>{emp.name}</option>)}
+                  </select>
                 </div>
 
                 <div className="form-group" style={{ gridColumn: 'span 2', marginBottom: 0 }}>
@@ -941,26 +1105,16 @@ function Users() {
                   />
                 </div>
 
-                <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label className="form-label">User Role *</label>
-                  <select 
-                    className="form-input"
-                    value={editUser.role} 
-                    onChange={(e) => setEditUser({ ...editUser, role: e.target.value })}
-                  >
-                    <option value="">-- Select Role * --</option>
-                    {Array.isArray(roles) && roles.map(r => <option key={r._id} value={r._id}>{r.role}</option>)}
-                  </select>
-                </div>
-
-                <div className="form-group" style={{ marginBottom: 0 }}>
+                <div className="form-group" style={{ marginBottom: 0, gridColumn: 'span 2' }}>
                   <label className="form-label">Update Profile Image</label>
-                  <input type="file" accept="image/*" onChange={(e) => handleImageUpload(e, true)} style={{ fontSize: '13px' }} />
+                  <div style={{ border: '1px dashed var(--border-color)', borderRadius: 'var(--radius-sm)', padding: '6px 12px', backgroundColor: 'var(--bg-app)' }}>
+                    <input type="file" accept="image/*" onChange={(e) => handleImageUpload(e, true)} style={{ fontSize: '13px', width: '100%' }} />
+                  </div>
                 </div>
               </div>
             </div>
 
-            <div className="modal-footer">
+            <div className="modal-footer" style={{ borderTop: '1px solid var(--border-color)', paddingTop: '16px', marginTop: '16px' }}>
               <button className="btn btn-secondary" onClick={() => { setEditUserId(null); clearMessage(); }}>Cancel</button>
               <button className="btn btn-primary" onClick={handleUpdateUser}>Save Changes</button>
             </div>
@@ -971,7 +1125,6 @@ function Users() {
   );
 }
 
-// Strict Table Styles Rule
 const tableStyles = {
   th: {
     padding: '12px 16px',
@@ -995,7 +1148,6 @@ const tableStyles = {
   }
 };
 
-// Strict Actions Rule Enforced
 const actionStyles = {
   iconBtnView: {
     backgroundColor: 'var(--success-bg)',

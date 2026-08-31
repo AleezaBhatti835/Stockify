@@ -8,7 +8,7 @@ import Designations from './Designation.jsx';
 import Employees from './Employee.jsx';
 import UOM from './catalogue/UOM.jsx';
 import Category from './catalogue/Category.jsx';
-import GenerateSalary from './payroll/GenerateSalary.jsx';
+import SalaryCycle from './payroll/SalaryCycle.jsx';
 import YearlyCalendar from './payroll/YearlyCalendar.jsx';
 import Product from './catalogue/Product.jsx';
 import SalaryPayments from './payroll/SalaryPayments.jsx';
@@ -24,6 +24,7 @@ import POS from './sales/POS.jsx';
 import ConfigureSalary from './payroll/ConfigureSalary.jsx';
 import EmployeeLoanRecovery from './payroll/EmployeeLoanRecovery.jsx';
 import InvoiceList from './sales/InvoiceList.jsx';
+import SalaryReport from './reports/SalaryReport.jsx';
 import PrintSettingsPage from './Printsettingspage';
 import ClientDetails from './ClientDetails.jsx';
 import PeopleReport from './reports/PeopleReports.jsx';
@@ -48,6 +49,10 @@ import SupplierAccount from './accounts/SupplierAccount.jsx';
 import EmployeeAccount from './accounts/EmployeeAccount.jsx';
 import ExpenseCategory from './expenses/ExpenseCategory.jsx';
 import Expense from './expenses/Expense.jsx';
+import EmployeeDashboard from './employee-based/EmployeeDashboard.jsx';
+import MyLedger from './employee-based/MyLedger.jsx';
+import MyAttendance from './employee-based/MyAttendance.jsx';
+import MySalary from './employee-based/MySalary.jsx';
 import StockBreakage from './catalogue/StockBreakage.jsx';
 import AddPurchaseRebate from './purchase/AddPurchaseRebate.jsx';
 import PurchaseRebateList from './purchase/PurchaseRebateList.jsx';
@@ -65,11 +70,13 @@ import {
   faBank, faBoxOpen, faCartPlus, faChartBar, faCirclePause, faCoins, faCubes,
   faDashboard, faGear, faHandHoldingDollar, faMoneyCheckDollar, faReceipt,
   faScrewdriver, faUser, faUserGroup, faUsers, faTruckMoving, faUserTie, faBoxesStacked, faCashRegister, faMoneyBillWave
+,faWallet, faCalendarCheck, faFileInvoiceDollar
 } from '@fortawesome/free-solid-svg-icons';
 import {
   BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, AreaChart, Area, PieChart, Pie, Cell
 } from 'recharts';
 import AttendanceSummaryReport from './reports/AttendanceReport.jsx';
+import ProductSupplierReport from './reports/ProductSupplierReport.jsx';
 
 const API_BASE_URL = 'http://localhost:5000';
 
@@ -86,6 +93,16 @@ const getRoleLabel = (role) => {
 };
 
 function Dashboard({ user, onLogout }) {
+  // 💡 Prop na ho toh localStorage se direct uthayein
+  const currentUser = user || (() => {
+    try {
+      const local = localStorage.getItem('user');
+      return local ? JSON.parse(local) : {};
+    } catch (e) {
+      return {};
+    }
+  })();
+
   const [activeTab, setActiveTab] = useState(() => localStorage.getItem('activeTab') || 'overview');
   const [openDropdown, setOpenDropdown] = useState(null);
   const [openNestedDropdown, setOpenNestedDropdown] = useState(null);
@@ -104,26 +121,28 @@ function Dashboard({ user, onLogout }) {
   const [isSaving, setIsSaving] = useState(false);
 
   const [userInfo, setUserInfo] = useState({
-    _id: user?._id || '',
-    name: user?.name || 'User',
-    email: user?.email || '',
-    contact: user?.contact || 'Not provided',
-    cnic: user?.cnic || 'Not provided',
-    address: user?.address || 'Not provided',
-    role: getRoleLabel(user?.role),
-    pic: user?.pic || ''
+    _id: currentUser?._id || currentUser?.id || '',
+    name: currentUser?.name || 'User',
+    email: currentUser?.email || '',
+    contact: currentUser?.contact || 'Not provided',
+    cnic: currentUser?.cnic || 'Not provided',
+    address: currentUser?.address || 'Not provided',
+    role: getRoleLabel(currentUser?.role),
+    pic: currentUser?.pic || '',
+    employeeId: currentUser?.employeeId || null
   });
 
   const [isAdmin, setIsAdmin] = useState(() => {
-    if (typeof user?.role === 'string') return user.role.trim().toLowerCase() === 'admin';
-    if (user?.role && typeof user?.role === 'object') {
-      const rName = user.role.role || user.role.name || '';
-      return rName.trim().toLowerCase() === 'admin';
-    }
-    return false;
+    const email = String(currentUser?.email || '').trim().toLowerCase();
+    const adminEmail = String(import.meta.env.VITE_ADMIN_EMAIL || '').toLowerCase();
+    const roleName = String(currentUser?.role?.role || currentUser?.role || '').trim().toLowerCase();
+    return email === 'admin@gmail.com' || email === adminEmail || roleName === 'admin';
   });
 
-  const [userPermissions, setUserPermissions] = useState(() => user?.role?.permissions || user?.permissions || []);
+  const [userPermissions, setUserPermissions] = useState(() => 
+    currentUser?.role?.permissions || currentUser?.permissions || []
+  );
+
   const [editForm, setEditForm] = useState({ ...userInfo });
   const [passwordForm, setPasswordForm] = useState({ current: '', new: '', confirm: '' });
 
@@ -133,12 +152,15 @@ function Dashboard({ user, onLogout }) {
     sales: 0, purchases: 0, expenses: 0, profit: 0, lowStock: 0
   });
   const [chartData, setChartData] = useState([]);
-  const checkAccess = (permissionKeys) => {
-    if (userInfo?.email === 'admin@gmail.com' || userInfo?.email?.includes('admin')) return true;
-    if (String(userInfo?.role || '').toLowerCase().includes('admin')) return true;
 
-    // 2. Agar permissions array mein 'dashboard_view' ya requested key mojud hai
-    if (permissionKeys === 'dashboard_view') return true;
+  const checkAccess = (permissionKeys) => {
+    const userEmail = String(userInfo?.email || '').trim().toLowerCase();
+    const adminEmail = String(import.meta.env.VITE_ADMIN_EMAIL || '').toLowerCase();
+    
+    if (isAdmin || userEmail === adminEmail || userEmail === 'admin@gmail.com') {
+      return true;
+    }
+
     if (!permissionKeys) return true;
 
     const keysArray = Array.isArray(permissionKeys) ? permissionKeys : [permissionKeys];
@@ -146,7 +168,13 @@ function Dashboard({ user, onLogout }) {
 
     return keysArray.some(key => userPermissions.includes(key));
   };
-
+  useEffect(() => {
+    if (userInfo._id && !isDashLoading) {
+      if (!checkAccess(['dashboard_view']) && activeTab === 'overview') {
+        handleTabChange('my-ledger');
+      }
+    }
+  }, [userInfo._id, userPermissions, isAdmin, activeTab, isDashLoading]);
   useEffect(() => {
     const fetchDashboardSummary = async () => {
       setIsDashLoading(true);
@@ -186,7 +214,9 @@ function Dashboard({ user, onLogout }) {
         setIsDashLoading(false);
       }
     };
-    if (activeTab === 'overview') fetchDashboardSummary();
+    if (activeTab === 'overview' && checkAccess(['dashboard_view'])) {
+      fetchDashboardSummary();
+    }
   }, [activeTab]);
 
   useEffect(() => {
@@ -220,7 +250,7 @@ function Dashboard({ user, onLogout }) {
     };
     document.addEventListener('mousedown', handleClickOutside);
 
-    const fetchFreshProfile = async () => {
+const fetchFreshProfile = async () => {
       if (!user?._id) return;
       try {
         const token = localStorage.getItem('token');
@@ -232,14 +262,20 @@ function Dashboard({ user, onLogout }) {
             const updatedInfo = {
               name: freshUser.name || userInfo.name, contact: freshUser.contact || userInfo.contact,
               cnic: freshUser.cnic || userInfo.cnic, address: freshUser.address || userInfo.address,
-              pic: freshUser.pic || userInfo.pic, role: getRoleLabel(freshUser.role || userInfo.role)
+              pic: freshUser.pic || userInfo.pic, role: getRoleLabel(freshUser.role || userInfo.role),
+              employeeId: freshUser.employeeId || userInfo.employeeId
             };
             setUserInfo(prev => ({ ...prev, ...updatedInfo }));
             setEditForm(prev => ({ ...prev, ...updatedInfo }));
 
-            const rName = typeof freshUser.role === 'string' ? freshUser.role : (freshUser.role?.role || freshUser.role?.name || '');
-            setIsAdmin(rName.trim().toLowerCase() === 'admin');
-            setUserPermissions(freshUser.role?.permissions || freshUser.permissions || []);
+            const fetchedEmail = String(freshUser.email || '').trim().toLowerCase();
+            const adminEmail = String(import.meta.env.VITE_ADMIN_EMAIL || '').toLowerCase();
+
+            setIsAdmin(fetchedEmail === adminEmail);
+            
+            // 💡 YAHAN PERMISSIONS UPDATE HONA LAZMI HAI:
+            const newPerms = freshUser.role?.permissions || freshUser.permissions || [];
+            setUserPermissions(newPerms);
           }
         }
       } catch (err) { }
@@ -369,7 +405,7 @@ function Dashboard({ user, onLogout }) {
     const titles = {
       'overview': 'Dashboard Analytics', 'customers': 'Customers', 'suppliers': 'Suppliers', 'employees': 'Employees',
       'uom': 'Units of Measure', 'category': 'Categories', 'product': 'Products', 'current-stock': 'Current Stock',
-      'expiry-products': 'Expiry Products', 'reorder-levels': 'Reorder Levels', 'add-purchase': 'Add Purchase',
+      'expiry-products': 'Expiry Products', 'salary-cycle': 'Salary Cycle', 'reorder-levels': 'Reorder Levels', 'add-purchase': 'Add Purchase',
       'purchased-list': 'Purchased List', 'purchase-return': 'Purchase Return', 'return-list': 'Purchase Return List',
       'users': 'Manage Users', 'roles': 'Manage Roles', 'designations': 'Designations', 'opening-stocks': 'Opening Stocks',
       'stock-adjustment': 'Stock Adjustment', 'invoice-list': 'Sales Invoice List', 'settings': 'Settings',
@@ -383,9 +419,10 @@ function Dashboard({ user, onLogout }) {
       'add-sales-rebate': 'Add Sales Rebate', 'sales-rebate-list': 'Sales Rebate List', 'Sales-Rate-Difference': 'Sales Rate Difference',
       'Sales-Rate-Difference-List': 'Sales Rate Difference List', 'purchase-report': 'Purchase Report', 'sales-report': 'SalesReport',
       'register-report': 'Register Report', 'salary-config': 'Salary Configuration', 'loan-recovery': 'Loan Recovery', 'people-report': 'People Report', 'ProfitLossReport': 'Profit & Loss Report',
-      'StockMovementReport': 'Stock Movement Report','salary-payment':'Salary Payment', 'generate-salary': 'Generate Salary', 'payablereceivable': 'Payable & Receivable Report',
+      'StockMovementReport': 'Stock Movement Report', 'salary-payment': 'Salary Payment', 'payablereceivable': 'Payable & Receivable Report',
       'BusinessCapitalReport': 'Business Capital Report', 'batch-manage': 'Batch Management', 'access-control': 'Access Control',
-      'employee-attendance': 'Employee Attendance', 'calendar': 'Calendar', 'employee-loan': 'Employee Loan'
+      'employee-attendance': 'Employee Attendance', 'salary-report': 'Salary Report', 'product-supp': 'Product-Supplier Report', 'calendar': 'Calendar', 'employee-loan': 'Employee Loan',
+      'my-ledger': 'My Dashboard'
     };
     return titles[activeTab] || 'Dashboard';
   };
@@ -406,275 +443,278 @@ function Dashboard({ user, onLogout }) {
 
       <aside className={`sidebar ${isSidebarOpen ? 'open' : 'closed'}`}>
         <div className="sidebar-header">
-          <img src="/logo.png" alt="Stockify Logo" style={{ width: '160px', height: 'auto' }} />
           <button className="hamburger-btn" onClick={toggleSidebar} style={{ color: 'white' }}>
             <span className="hamburger-line"></span>
             <span className="hamburger-line"></span>
             <span className="hamburger-line"></span>
           </button>
+          <img src="/logo.png" alt="Stockify Logo" style={{ width: '140px', marginRight: '30px', marginTop: '4px' }} />
         </div>
 
         <div className="sidebar-nav-wrapper">
           <ul className="sidebar-nav" style={{ margin: 0, padding: '10px 10px' }}>
-            {checkAccess(['dashboard_view']) && (
-              <li className={activeTab === 'overview' ? 'active' : ''} onClick={() => { handleTabChange('overview'); if (isMobile) setIsSidebarOpen(false); }} style={{ cursor: 'pointer', textAlign: 'left', padding: '10px 10px' }}>
-                <span className="nav-icon"><FontAwesomeIcon icon={faChartBar} /></span> Dashboard
-              </li>
-            )}
 
-            {checkAccess(['customers_view', 'suppliers_view', 'employees_view']) && (
+            {/* 💡 --- PERSONAL WORKSPACE SECTION --- 💡 */}
+            {userInfo.employeeId && (
               <>
-                <li className="parent-menu-item" onClick={() => toggleDropdown('people')} style={{ cursor: 'pointer', display: 'flex', justifyContent: 'space-between', textAlign: 'left', padding: '10px 10px', backgroundColor: openDropdown === 'people' ? 'rgba(255,255,255,0.15)' : 'transparent' }}>
-                  <span><span className="nav-icon"><FontAwesomeIcon icon={faUserGroup} /></span> People</span>
-                  <span className='drop'>{openDropdown === 'people' ? '<' : '>'}</span>
+
+                <li className={activeTab === 'employee-dashboard' ? 'active' : ''} onClick={() => { handleTabChange('employee-dashboard'); if (isMobile) setIsSidebarOpen(false); }} style={{ cursor: 'pointer', textAlign: 'left', padding: '10px 10px', borderRadius: '6px', marginBottom: '4px' }}>
+                  <span className="nav-icon"><FontAwesomeIcon icon={faChartBar} /></span> Dashboard
                 </li>
-                {openDropdown === 'people' && (
-                  <ul className="submenu" style={{ paddingLeft: '20px', listStyleType: 'none', margin: 0 }}>
-                    {checkAccess(['customers_view']) && <li className={activeTab === 'customers' ? 'active' : ''} onClick={() => { handleTabChange('customers'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Customers</li>}
-                    {checkAccess(['suppliers_view']) && <li className={activeTab === 'suppliers' ? 'active' : ''} onClick={() => { handleTabChange('suppliers'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Suppliers</li>}
-                    {checkAccess(['employees_view']) && <li className={activeTab === 'employees' ? 'active' : ''} onClick={() => { handleTabChange('employees'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Employees</li>}
-                  </ul>
-                )}
+                <li className={activeTab === 'my-attendance' ? 'active' : ''} onClick={() => { handleTabChange('my-attendance'); if (isMobile) setIsSidebarOpen(false); }} style={{ cursor: 'pointer', textAlign: 'left', padding: '10px 10px', borderRadius: '6px', marginBottom: '4px' }}>
+                  <span className="nav-icon"><FontAwesomeIcon icon={faCalendarCheck} /></span> Attendance
+                </li>
+                <li className={activeTab === 'my-salary' ? 'active' : ''} onClick={() => { handleTabChange('my-salary'); if (isMobile) setIsSidebarOpen(false); }} style={{ cursor: 'pointer', textAlign: 'left', padding: '10px 10px', borderRadius: '6px', marginBottom: '4px' }}>
+                  <span className="nav-icon"><FontAwesomeIcon icon={faFileInvoiceDollar} /></span> Salary Slips
+                </li>
+                <li className={activeTab === 'my-ledger' ? 'active' : ''} onClick={() => { handleTabChange('my-ledger'); if (isMobile) setIsSidebarOpen(false); }} style={{ cursor: 'pointer', textAlign: 'left', padding: '10px 10px', borderRadius: '6px', marginBottom: '10px' }}>
+                  <span className="nav-icon"><FontAwesomeIcon icon={faWallet} /></span> My Account
+                </li>
               </>
             )}
 
-            {/* ==================== ATTENDANCE MODULE ==================== */}
-            {checkAccess(['employees_view']) && (
+            {/* 💡 --- COMPANY PORTAL SECTION --- 💡 */}
+            {(isAdmin || userPermissions.length > 0) && (
               <>
-                <li
-                  className="parent-menu-item"
-                  onClick={() => toggleDropdown('attendance')}
-                  style={{
-                    cursor: 'pointer',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    textAlign: 'left',
-                    padding: '10px 10px',
-                    backgroundColor: openDropdown === 'attendance' ? 'rgba(255,255,255,0.15)' : 'transparent'
-                  }}
-                >
-                  <span>
-                    <span className="nav-icon">
-                      <FontAwesomeIcon icon={faUserTie} />
-                    </span>
-                    Attendance
-                  </span>
-                  <span className='drop'>{openDropdown === 'attendance' ? '<' : '>'}</span>
-                </li>
-                {openDropdown === 'attendance' && (
-                  <ul className="submenu" style={{ paddingLeft: '20px', listStyleType: 'none', margin: 0 }}>
-                    {/* Employee Attendance Submodule */}
-                    {checkAccess(['employees_view']) && (
-                      <li
-                        className={activeTab === 'employee-attendance' ? 'active' : ''}
-                        onClick={() => { handleTabChange('employee-attendance'); if (isMobile) setIsSidebarOpen(false); }}
-                      >
-                        <div style={{ marginRight: '10px' }}>⋄</div>Employee Attendance
-                      </li>
+                {checkAccess(['dashboard_view']) && (
+                  <li className={activeTab === 'overview' ? 'active' : ''} onClick={() => { handleTabChange('overview'); if (isMobile) setIsSidebarOpen(false); }} style={{ cursor: 'pointer', textAlign: 'left', padding: '10px 10px' }}>
+                    <span className="nav-icon"><FontAwesomeIcon icon={faChartBar} /></span> Dashboard
+                  </li>
+                )}
+
+                {checkAccess(['customers_view', 'suppliers_view', 'employees_view']) && (
+                  <>
+                    <li className="parent-menu-item" onClick={() => toggleDropdown('people')} style={{ cursor: 'pointer', display: 'flex', justifyContent: 'space-between', textAlign: 'left', padding: '10px 10px', backgroundColor: openDropdown === 'people' ? 'rgba(255,255,255,0.15)' : 'transparent' }}>
+                      <span><span className="nav-icon"><FontAwesomeIcon icon={faUserGroup} /></span> People</span>
+                      <span className='drop'>{openDropdown === 'people' ? '<' : '>'}</span>
+                    </li>
+                    {openDropdown === 'people' && (
+                      <ul className="submenu" style={{ paddingLeft: '20px', listStyleType: 'none', margin: 0 }}>
+                        {checkAccess(['customers_view']) && <li className={activeTab === 'customers' ? 'active' : ''} onClick={() => { handleTabChange('customers'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Customers</li>}
+                        {checkAccess(['suppliers_view']) && <li className={activeTab === 'suppliers' ? 'active' : ''} onClick={() => { handleTabChange('suppliers'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Suppliers</li>}
+                        {checkAccess(['employees_view']) && <li className={activeTab === 'employees' ? 'active' : ''} onClick={() => { handleTabChange('employees'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Employees</li>}
+                      </ul>
                     )}
+                  </>
+                )}
 
-                    {/* Attendance Rules Submodule */}
-                    {checkAccess(['settings_view']) && (
-                      <li
-                        className={activeTab === 'attendance-rules' ? 'active' : ''}
-                        onClick={() => { handleTabChange('attendance-rules'); if (isMobile) setIsSidebarOpen(false); }}
-                      >
-                        <div style={{ marginRight: '10px' }}>⋄</div>Attendance Rules
-                      </li>
+                {checkAccess(['employees_view']) && (
+                  <>
+                    <li
+                      className="parent-menu-item"
+                      onClick={() => toggleDropdown('attendance')}
+                      style={{ cursor: 'pointer', display: 'flex', justifyContent: 'space-between', textAlign: 'left', padding: '10px 10px', backgroundColor: openDropdown === 'attendance' ? 'rgba(255,255,255,0.15)' : 'transparent' }}
+                    >
+                      <span><span className="nav-icon"><FontAwesomeIcon icon={faUserTie} /></span> Attendance</span>
+                      <span className='drop'>{openDropdown === 'attendance' ? '<' : '>'}</span>
+                    </li>
+                    {openDropdown === 'attendance' && (
+                      <ul className="submenu" style={{ paddingLeft: '20px', listStyleType: 'none', margin: 0 }}>
+                        {checkAccess(['employees_view']) && (
+                          <li className={activeTab === 'employee-attendance' ? 'active' : ''} onClick={() => { handleTabChange('employee-attendance'); if (isMobile) setIsSidebarOpen(false); }}>
+                            <div style={{ marginRight: '10px' }}>⋄</div>Employee Attendance
+                          </li>
+                        )}
+                        {checkAccess(['settings_view']) && (
+                          <li className={activeTab === 'attendance-rules' ? 'active' : ''} onClick={() => { handleTabChange('attendance-rules'); if (isMobile) setIsSidebarOpen(false); }}>
+                            <div style={{ marginRight: '10px' }}>⋄</div>Attendance Rules
+                          </li>
+                        )}
+                      </ul>
                     )}
-                  </ul>
+                  </>
                 )}
-              </>
-            )}
 
-            {checkAccess(['uom_view', 'categories_view', 'products_view']) && (
-              <>
-                <li className="parent-menu-item" onClick={() => toggleDropdown('products')} style={{ cursor: 'pointer', display: 'flex', justifyContent: 'space-between', textAlign: 'left', padding: '10px 10px', backgroundColor: openDropdown === 'products' ? 'rgba(255,255,255,0.15)' : 'transparent' }}>
-                  <span><span className="nav-icon"><FontAwesomeIcon icon={faBoxOpen} /></span> Products</span>
-                  <span className='drop'>{openDropdown === 'products' ? '<' : '>'}</span>
-                </li>
-                {openDropdown === 'products' && (
-                  <ul className="submenu" style={{ paddingLeft: '20px', listStyleType: 'none', margin: 0 }}>
-                    {checkAccess(['uom_view']) && <li className={activeTab === 'uom' ? 'active' : ''} onClick={() => { handleTabChange('uom'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Units of Measure</li>}
-                    {checkAccess(['categories_view']) && <li className={activeTab === 'category' ? 'active' : ''} onClick={() => { handleTabChange('category'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Categories</li>}
-                    {checkAccess(['products_view']) && <li className={activeTab === 'product' ? 'active' : ''} onClick={() => { handleTabChange('product'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Products</li>}
-                  </ul>
+                {checkAccess(['uom_view', 'categories_view', 'products_view']) && (
+                  <>
+                    <li className="parent-menu-item" onClick={() => toggleDropdown('products')} style={{ cursor: 'pointer', display: 'flex', justifyContent: 'space-between', textAlign: 'left', padding: '10px 10px', backgroundColor: openDropdown === 'products' ? 'rgba(255,255,255,0.15)' : 'transparent' }}>
+                      <span><span className="nav-icon"><FontAwesomeIcon icon={faBoxOpen} /></span> Products</span>
+                      <span className='drop'>{openDropdown === 'products' ? '<' : '>'}</span>
+                    </li>
+                    {openDropdown === 'products' && (
+                      <ul className="submenu" style={{ paddingLeft: '20px', listStyleType: 'none', margin: 0 }}>
+                        {checkAccess(['uom_view']) && <li className={activeTab === 'uom' ? 'active' : ''} onClick={() => { handleTabChange('uom'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Units of Measure</li>}
+                        {checkAccess(['categories_view']) && <li className={activeTab === 'category' ? 'active' : ''} onClick={() => { handleTabChange('category'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Categories</li>}
+                        {checkAccess(['products_view']) && <li className={activeTab === 'product' ? 'active' : ''} onClick={() => { handleTabChange('product'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Products</li>}
+                      </ul>
+                    )}
+                  </>
                 )}
-              </>
-            )}
 
-            {checkAccess(['current_stock_view', 'expiry_products_view', 'reorder_levels_view', 'opening_stocks_view', 'stock_adjustment_view', 'stock_breakage_view']) && (
-              <>
-                <li className="parent-menu-item" onClick={() => toggleDropdown('stock')} style={{ cursor: 'pointer', display: 'flex', justifyContent: 'space-between', textAlign: 'left', padding: '10px 10px', backgroundColor: openDropdown === 'stock' ? 'rgba(255,255,255,0.15)' : 'transparent' }}>
-                  <span><span className="nav-icon"><FontAwesomeIcon icon={faCubes} /></span> Stock</span>
-                  <span className='drop'>{openDropdown === 'stock' ? '<' : '>'}</span>
-                </li>
-                {openDropdown === 'stock' && (
-                  <ul className="submenu" style={{ paddingLeft: '20px', listStyleType: 'none', margin: 0 }}>
-                    {checkAccess(['current_stock_view']) && <li className={activeTab === 'current-stock' ? 'active' : ''} onClick={() => { handleTabChange('current-stock'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Current Stock</li>}
-                    {checkAccess(['expiry_products_view']) && <li className={activeTab === 'expiry-products' ? 'active' : ''} onClick={() => { handleTabChange('expiry-products'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Expiry Products</li>}
-                    {checkAccess(['reorder_levels_view']) && <li className={activeTab === 'reorder-levels' ? 'active' : ''} onClick={() => { handleTabChange('reorder-levels'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Reorder Levels</li>}
-                    {checkAccess(['opening_stocks_view']) && <li className={activeTab === 'opening-stocks' ? 'active' : ''} onClick={() => { handleTabChange('opening-stocks'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Opening Stock</li>}
-                    {checkAccess(['stock_adjustment_view']) && <li className={activeTab === 'stock-adjustment' ? 'active' : ''} onClick={() => { handleTabChange('stock-adjustment'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Stock Adjustment</li>}
-                    {checkAccess(['stock_breakage_view']) && <li className={activeTab === 'stock-breakage' ? 'active' : ''} onClick={() => { handleTabChange('stock-breakage'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Stock Breakage</li>}
-                  </ul>
+                {checkAccess(['current_stock_view', 'expiry_products_view', 'reorder_levels_view', 'opening_stocks_view', 'stock_adjustment_view', 'stock_breakage_view']) && (
+                  <>
+                    <li className="parent-menu-item" onClick={() => toggleDropdown('stock')} style={{ cursor: 'pointer', display: 'flex', justifyContent: 'space-between', textAlign: 'left', padding: '10px 10px', backgroundColor: openDropdown === 'stock' ? 'rgba(255,255,255,0.15)' : 'transparent' }}>
+                      <span><span className="nav-icon"><FontAwesomeIcon icon={faCubes} /></span> Stock</span>
+                      <span className='drop'>{openDropdown === 'stock' ? '<' : '>'}</span>
+                    </li>
+                    {openDropdown === 'stock' && (
+                      <ul className="submenu" style={{ paddingLeft: '20px', listStyleType: 'none', margin: 0 }}>
+                        {checkAccess(['current_stock_view']) && <li className={activeTab === 'current-stock' ? 'active' : ''} onClick={() => { handleTabChange('current-stock'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Current Stock</li>}
+                        {checkAccess(['expiry_products_view']) && <li className={activeTab === 'expiry-products' ? 'active' : ''} onClick={() => { handleTabChange('expiry-products'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Expiry Products</li>}
+                        {checkAccess(['reorder_levels_view']) && <li className={activeTab === 'reorder-levels' ? 'active' : ''} onClick={() => { handleTabChange('reorder-levels'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Reorder Levels</li>}
+                        {checkAccess(['opening_stocks_view']) && <li className={activeTab === 'opening-stocks' ? 'active' : ''} onClick={() => { handleTabChange('opening-stocks'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Opening Stock</li>}
+                        {checkAccess(['stock_adjustment_view']) && <li className={activeTab === 'stock-adjustment' ? 'active' : ''} onClick={() => { handleTabChange('stock-adjustment'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Stock Adjustment</li>}
+                        {checkAccess(['stock_breakage_view']) && <li className={activeTab === 'stock-breakage' ? 'active' : ''} onClick={() => { handleTabChange('stock-breakage'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Stock Breakage</li>}
+                      </ul>
+                    )}
+                  </>
                 )}
-              </>
-            )}
 
-            {checkAccess(['add_purchase_view', 'purchase_list_view', 'add_purchase_return_view', 'purchase_return_list_view', 'add_purchase_rebate_view', 'purchase_rebate_list_view', 'add_purchase_rate_diff_view', 'purchase_rate_diff_list_view']) && (
-              <>
-                <li className="parent-menu-item" onClick={() => toggleDropdown('purchase')} style={{ cursor: 'pointer', display: 'flex', justifyContent: 'space-between', textAlign: 'left', padding: '10px 10px', backgroundColor: openDropdown === 'purchase' ? 'rgba(255,255,255,0.15)' : 'transparent' }}>
-                  <span><span className="nav-icon"><FontAwesomeIcon icon={faCartPlus} /></span> Purchase</span>
-                  <span className='drop'>{openDropdown === 'purchase' ? '<' : '>'}</span>
-                </li>
-                {openDropdown === 'purchase' && (
-                  <ul className="submenu" style={{ paddingLeft: '10px', listStyleType: 'none', margin: 0 }}>
-                    {checkAccess(['add_purchase_view']) && <li className={activeTab === 'add-purchase' ? 'active' : ''} onClick={() => { handleTabChange('add-purchase'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Purchase Invoice</li>}
-                    {checkAccess(['purchase_list_view']) && <li className={activeTab === 'purchased-list' ? 'active' : ''} onClick={() => { handleTabChange('purchased-list'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Purchase Invoice List</li>}
-                    {checkAccess(['add_purchase_return_view']) && <li className={activeTab === 'purchase-return' ? 'active' : ''} onClick={() => { handleTabChange('purchase-return'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Purchase Return</li>}
-                    {checkAccess(['purchase_return_list_view']) && <li className={activeTab === 'return-list' ? 'active' : ''} onClick={() => { handleTabChange('return-list'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Purchase Return List</li>}
-                    {checkAccess(['add_purchase_rebate_view']) && <li className={activeTab === 'add-purchase-rebate' ? 'active' : ''} onClick={() => { handleTabChange('add-purchase-rebate'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Purchase Rebate</li>}
-                    {checkAccess(['purchase_rebate_list_view']) && <li className={activeTab === 'purchase-rebate-list' ? 'active' : ''} onClick={() => { handleTabChange('purchase-rebate-list'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Purchase Rebate List</li>}
-                    {checkAccess(['add_purchase_rate_diff_view']) && <li className={activeTab === 'rate-difference' ? 'active' : ''} onClick={() => { handleTabChange('rate-difference'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Rate Difference</li>}
-                    {checkAccess(['purchase_rate_diff_list_view']) && <li className={activeTab === 'rate-difference-list' ? 'active' : ''} onClick={() => { handleTabChange('rate-difference-list'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Rate Difference List</li>}
-                  </ul>
+                {checkAccess(['add_purchase_view', 'purchase_list_view', 'add_purchase_return_view', 'purchase_return_list_view', 'add_purchase_rebate_view', 'purchase_rebate_list_view', 'add_purchase_rate_diff_view', 'purchase_rate_diff_list_view']) && (
+                  <>
+                    <li className="parent-menu-item" onClick={() => toggleDropdown('purchase')} style={{ cursor: 'pointer', display: 'flex', justifyContent: 'space-between', textAlign: 'left', padding: '10px 10px', backgroundColor: openDropdown === 'purchase' ? 'rgba(255,255,255,0.15)' : 'transparent' }}>
+                      <span><span className="nav-icon"><FontAwesomeIcon icon={faCartPlus} /></span> Purchase</span>
+                      <span className='drop'>{openDropdown === 'purchase' ? '<' : '>'}</span>
+                    </li>
+                    {openDropdown === 'purchase' && (
+                      <ul className="submenu" style={{ paddingLeft: '10px', listStyleType: 'none', margin: 0 }}>
+                        {checkAccess(['add_purchase_view']) && <li className={activeTab === 'add-purchase' ? 'active' : ''} onClick={() => { handleTabChange('add-purchase'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Purchase Invoice</li>}
+                        {checkAccess(['purchase_list_view']) && <li className={activeTab === 'purchased-list' ? 'active' : ''} onClick={() => { handleTabChange('purchased-list'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Purchase Invoice List</li>}
+                        {checkAccess(['add_purchase_return_view']) && <li className={activeTab === 'purchase-return' ? 'active' : ''} onClick={() => { handleTabChange('purchase-return'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Purchase Return</li>}
+                        {checkAccess(['purchase_return_list_view']) && <li className={activeTab === 'return-list' ? 'active' : ''} onClick={() => { handleTabChange('return-list'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Purchase Return List</li>}
+                        {checkAccess(['add_purchase_rebate_view']) && <li className={activeTab === 'add-purchase-rebate' ? 'active' : ''} onClick={() => { handleTabChange('add-purchase-rebate'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Purchase Rebate</li>}
+                        {checkAccess(['purchase_rebate_list_view']) && <li className={activeTab === 'purchase-rebate-list' ? 'active' : ''} onClick={() => { handleTabChange('purchase-rebate-list'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Purchase Rebate List</li>}
+                        {checkAccess(['add_purchase_rate_diff_view']) && <li className={activeTab === 'rate-difference' ? 'active' : ''} onClick={() => { handleTabChange('rate-difference'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Rate Difference</li>}
+                        {checkAccess(['purchase_rate_diff_list_view']) && <li className={activeTab === 'rate-difference-list' ? 'active' : ''} onClick={() => { handleTabChange('rate-difference-list'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Rate Difference List</li>}
+                      </ul>
+                    )}
+                  </>
                 )}
-              </>
-            )}
 
-            {checkAccess(['pos_access_view', 'invoice_list_view', 'cash_register_view', 'add_sales_return_view', 'sales_return_list_view', 'add_sales_rebate_view', 'sales_rebate_list_view', 'add_sales_rate_diff_view', 'sales_rate_diff_list_view']) && (
-              <>
-                <li className="parent-menu-item" onClick={() => toggleDropdown('sales')} style={{ cursor: 'pointer', display: 'flex', justifyContent: 'space-between', textAlign: 'left', padding: '10px 10px', backgroundColor: openDropdown === 'sales' ? 'rgba(255,255,255,0.15)' : 'transparent' }}>
-                  <span><span className="nav-icon"><FontAwesomeIcon icon={faCoins} /></span> Sales</span>
-                  <span className='drop'>{openDropdown === 'sales' ? '<' : '>'}</span>
-                </li>
-                {openDropdown === 'sales' && (
-                  <ul className="submenu" style={{ paddingLeft: '20px', listStyleType: 'none', margin: 0 }}>
-                    {checkAccess(['pos_access_view']) && <li onClick={() => { handleTabChange('pos'); if (isMobile) setIsSidebarOpen(false); }} > <div style={{ marginRight: '10px' }}>⋄</div>POS</li>}
-                    {checkAccess(['invoice_list_view']) && <li className={activeTab === 'invoice-list' ? 'active' : ''} onClick={() => { handleTabChange('invoice-list'); if (isMobile) setIsSidebarOpen(false); }} > <div style={{ marginRight: '10px' }}>⋄</div>Invoice List</li>}
-                    {checkAccess(['cash_register_view']) && <li className={activeTab === 'cash-register' ? 'active' : ''} onClick={() => { handleTabChange('cash-register'); if (isMobile) setIsSidebarOpen(false); }}><div style={{ marginRight: '10px' }}>⋄</div>Cash Register</li>}
-                    {checkAccess(['add_sales_return_view']) && <li className={activeTab === 'sales-return' ? 'active' : ''} onClick={() => { handleTabChange('sales-return'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Sales Return</li>}
-                    {checkAccess(['sales_return_list_view']) && <li className={activeTab === 'sale-return-list' ? 'active' : ''} onClick={() => { handleTabChange('sale-return-list'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Sale Return List</li>}
-                    {checkAccess(['add_sales_rebate_view']) && <li className={activeTab === 'add-sales-rebate' ? 'active' : ''} onClick={() => { handleTabChange('add-sales-rebate'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Sales Rebate</li>}
-                    {checkAccess(['sales_rebate_list_view']) && <li className={activeTab === 'sales-rebate-list' ? 'active' : ''} onClick={() => { handleTabChange('sales-rebate-list'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Sales Rebate List</li>}
-                    {checkAccess(['add_sales_rate_diff_view']) && <li className={activeTab === 'Sales-Rate-Difference' ? 'active' : ''} onClick={() => { handleTabChange('Sales-Rate-Difference'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Sales Rate Difference</li>}
-                    {checkAccess(['sales_rate_diff_list_view']) && <li className={activeTab === 'Sales-Rate-Difference-List' ? 'active' : ''} onClick={() => { handleTabChange('Sales-Rate-Difference-List'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Sales Rate Difference List</li>}
-                  </ul>
+                {checkAccess(['pos_access_view', 'invoice_list_view', 'cash_register_view', 'add_sales_return_view', 'sales_return_list_view', 'add_sales_rebate_view', 'sales_rebate_list_view', 'add_sales_rate_diff_view', 'sales_rate_diff_list_view']) && (
+                  <>
+                    <li className="parent-menu-item" onClick={() => toggleDropdown('sales')} style={{ cursor: 'pointer', display: 'flex', justifyContent: 'space-between', textAlign: 'left', padding: '10px 10px', backgroundColor: openDropdown === 'sales' ? 'rgba(255,255,255,0.15)' : 'transparent' }}>
+                      <span><span className="nav-icon"><FontAwesomeIcon icon={faCoins} /></span> Sales</span>
+                      <span className='drop'>{openDropdown === 'sales' ? '<' : '>'}</span>
+                    </li>
+                    {openDropdown === 'sales' && (
+                      <ul className="submenu" style={{ paddingLeft: '20px', listStyleType: 'none', margin: 0 }}>
+                        {checkAccess(['pos_access_view']) && <li onClick={() => { handleTabChange('pos'); if (isMobile) setIsSidebarOpen(false); }} > <div style={{ marginRight: '10px' }}>⋄</div>POS</li>}
+                        {checkAccess(['invoice_list_view']) && <li className={activeTab === 'invoice-list' ? 'active' : ''} onClick={() => { handleTabChange('invoice-list'); if (isMobile) setIsSidebarOpen(false); }} > <div style={{ marginRight: '10px' }}>⋄</div>Invoice List</li>}
+                        {checkAccess(['cash_register_view']) && <li className={activeTab === 'cash-register' ? 'active' : ''} onClick={() => { handleTabChange('cash-register'); if (isMobile) setIsSidebarOpen(false); }}><div style={{ marginRight: '10px' }}>⋄</div>Cash Register</li>}
+                        {checkAccess(['add_sales_return_view']) && <li className={activeTab === 'sales-return' ? 'active' : ''} onClick={() => { handleTabChange('sales-return'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Sales Return</li>}
+                        {checkAccess(['sales_return_list_view']) && <li className={activeTab === 'sale-return-list' ? 'active' : ''} onClick={() => { handleTabChange('sale-return-list'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Sale Return List</li>}
+                        {checkAccess(['add_sales_rebate_view']) && <li className={activeTab === 'add-sales-rebate' ? 'active' : ''} onClick={() => { handleTabChange('add-sales-rebate'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Sales Rebate</li>}
+                        {checkAccess(['sales_rebate_list_view']) && <li className={activeTab === 'sales-rebate-list' ? 'active' : ''} onClick={() => { handleTabChange('sales-rebate-list'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Sales Rebate List</li>}
+                        {checkAccess(['add_sales_rate_diff_view']) && <li className={activeTab === 'Sales-Rate-Difference' ? 'active' : ''} onClick={() => { handleTabChange('Sales-Rate-Difference'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Sales Rate Difference</li>}
+                        {checkAccess(['sales_rate_diff_list_view']) && <li className={activeTab === 'Sales-Rate-Difference-List' ? 'active' : ''} onClick={() => { handleTabChange('Sales-Rate-Difference-List'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Sales Rate Difference List</li>}
+                      </ul>
+                    )}
+                  </>
                 )}
-              </>
-            )}
 
-            {checkAccess(['employee-loan']) && (
-              <>
-                <li className="parent-menu-item" onClick={() => toggleDropdown('payroll')} style={{ cursor: 'pointer', display: 'flex', justifyContent: 'space-between', textAlign: 'left', padding: '10px 10px', backgroundColor: openDropdown === 'accounts' ? 'rgba(255,255,255,0.15)' : 'transparent' }}>
-                  <span><span className="nav-icon"><FontAwesomeIcon icon={faMoneyCheckDollar} /></span> PayRoll</span>
-                  <span className='drop'>{openDropdown === 'payroll' ? '<' : '>'}</span>
-                </li>
-                {openDropdown === 'payroll' && (
-                  <ul className="submenu" style={{ paddingLeft: '20px', listStyleType: 'none', margin: 0 }}>
-                    {checkAccess(['salary-config']) && <li className={activeTab === 'salary-config' ? 'active' : ''} onClick={() => { handleTabChange('salary-config'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Salary Configuration</li>}
-                    {checkAccess(['calendar']) && <li className={activeTab === 'calendar' ? 'active' : ''} onClick={() => { handleTabChange('calendar'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Yearly Calendar</li>}
-                    {checkAccess(['generate-salary']) && <li className={activeTab === 'generate-salary' ? 'active' : ''} onClick={() => { handleTabChange('generate-salary'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Generate Salary</li>}
-                    {checkAccess(['employee-loan']) && <li className={activeTab === 'employee-loan' ? 'active' : ''} onClick={() => { handleTabChange('employee-loan'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Employee Loan</li>}
-                    {checkAccess(['loan-recovery']) && <li className={activeTab === 'loan-recovery' ? 'active' : ''} onClick={() => { handleTabChange('loan-recovery'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Loan Recovery</li>}
-                    {checkAccess(['salary-payment']) && <li className={activeTab === 'salary-payment' ? 'active' : ''} onClick={() => { handleTabChange('salary-payment'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Salary Payment</li>}
+                {checkAccess(['employee-loan', 'salary-config', 'calendar', 'salary-cycle', 'salary-payment', 'loan-recovery']) && (
+                  <>
+                    <li className="parent-menu-item" onClick={() => toggleDropdown('payroll')} style={{ cursor: 'pointer', display: 'flex', justifyContent: 'space-between', textAlign: 'left', padding: '10px 10px', backgroundColor: openDropdown === 'accounts' ? 'rgba(255,255,255,0.15)' : 'transparent' }}>
+                      <span><span className="nav-icon"><FontAwesomeIcon icon={faMoneyCheckDollar} /></span> PayRoll</span>
+                      <span className='drop'>{openDropdown === 'payroll' ? '<' : '>'}</span>
+                    </li>
+                    {openDropdown === 'payroll' && (
+                      <ul className="submenu" style={{ paddingLeft: '20px', listStyleType: 'none', margin: 0 }}>
+                        {checkAccess(['salary-config']) && <li className={activeTab === 'salary-config' ? 'active' : ''} onClick={() => { handleTabChange('salary-config'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Salary Configuration</li>}
+                        {checkAccess(['calendar']) && <li className={activeTab === 'calendar' ? 'active' : ''} onClick={() => { handleTabChange('calendar'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Yearly Calendar</li>}
+                        {checkAccess(['salary-cycle']) && <li className={activeTab === 'salary-cycle' ? 'active' : ''} onClick={() => { handleTabChange('salary-cycle'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Salary Cycle</li>}
+                        {checkAccess(['salary-payment']) && <li className={activeTab === 'salary-payment' ? 'active' : ''} onClick={() => { handleTabChange('salary-payment'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Salary Payment</li>}
+                        {checkAccess(['employee-loan']) && <li className={activeTab === 'employee-loan' ? 'active' : ''} onClick={() => { handleTabChange('employee-loan'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Employee Loan</li>}
+                        {checkAccess(['loan-recovery']) && <li className={activeTab === 'loan-recovery' ? 'active' : ''} onClick={() => { handleTabChange('loan-recovery'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Loan Recovery</li>}
 
-                  </ul>
+                      </ul>
+                    )}
+                  </>
                 )}
-              </>
-            )}
 
-
-            {checkAccess(['customer_account_view', 'supplier_account_view', 'employee_account_view']) && (
-              <>
-                <li className="parent-menu-item" onClick={() => toggleDropdown('accounts')} style={{ cursor: 'pointer', display: 'flex', justifyContent: 'space-between', textAlign: 'left', padding: '10px 10px', backgroundColor: openDropdown === 'accounts' ? 'rgba(255,255,255,0.15)' : 'transparent' }}>
-                  <span><span className="nav-icon"><FontAwesomeIcon icon={faMoneyCheckDollar} /></span> Accounts</span>
-                  <span className='drop'>{openDropdown === 'accounts' ? '<' : '>'}</span>
-                </li>
-                {openDropdown === 'accounts' && (
-                  <ul className="submenu" style={{ paddingLeft: '20px', listStyleType: 'none', margin: 0 }}>
-                    {checkAccess(['customer_account_view']) && <li className={activeTab === 'customer-account' ? 'active' : ''} onClick={() => { handleTabChange('customer-account'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Customer Account</li>}
-                    {checkAccess(['supplier_account_view']) && <li className={activeTab === 'supplier-account' ? 'active' : ''} onClick={() => { handleTabChange('supplier-account'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Supplier Account</li>}
-                    {checkAccess(['employee_account_view']) && <li className={activeTab === 'employee-account' ? 'active' : ''} onClick={() => { handleTabChange('employee-account'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Employee Account</li>}
-                  </ul>
+                {checkAccess(['customer_account_view', 'supplier_account_view', 'employee_account_view']) && (
+                  <>
+                    <li className="parent-menu-item" onClick={() => toggleDropdown('accounts')} style={{ cursor: 'pointer', display: 'flex', justifyContent: 'space-between', textAlign: 'left', padding: '10px 10px', backgroundColor: openDropdown === 'accounts' ? 'rgba(255,255,255,0.15)' : 'transparent' }}>
+                      <span><span className="nav-icon"><FontAwesomeIcon icon={faMoneyCheckDollar} /></span> Accounts</span>
+                      <span className='drop'>{openDropdown === 'accounts' ? '<' : '>'}</span>
+                    </li>
+                    {openDropdown === 'accounts' && (
+                      <ul className="submenu" style={{ paddingLeft: '20px', listStyleType: 'none', margin: 0 }}>
+                        {checkAccess(['customer_account_view']) && <li className={activeTab === 'customer-account' ? 'active' : ''} onClick={() => { handleTabChange('customer-account'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Customer Account</li>}
+                        {checkAccess(['supplier_account_view']) && <li className={activeTab === 'supplier-account' ? 'active' : ''} onClick={() => { handleTabChange('supplier-account'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Supplier Account</li>}
+                        {checkAccess(['employee_account_view']) && <li className={activeTab === 'employee-account' ? 'active' : ''} onClick={() => { handleTabChange('employee-account'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Employee Account</li>}
+                      </ul>
+                    )}
+                  </>
                 )}
-              </>
-            )}
 
-            {checkAccess(['expenses_view', 'expense_category_view', 'expense_manage_view']) && (
-              <>
-                <li className="parent-menu-item" onClick={() => toggleDropdown('expenses')} style={{ cursor: 'pointer', display: 'flex', justifyContent: 'space-between', textAlign: 'left', padding: '10px 10px', backgroundColor: openDropdown === 'expenses' ? 'rgba(255,255,255,0.15)' : 'transparent' }}>
-                  <span><span className="nav-icon"><FontAwesomeIcon icon={faHandHoldingDollar} /></span> Expenses</span>
-                  <span className='drop'>{openDropdown === 'expenses' ? '<' : '>'}</span>
-                </li>
-                {openDropdown === 'expenses' && (
-                  <ul className="submenu" style={{ paddingLeft: '20px', listStyleType: 'none', margin: 0 }}>
-                    {checkAccess(['expense_category_view']) && <li className={activeTab === 'expense-category' ? 'active' : ''} onClick={() => { handleTabChange('expense-category'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Expense Category</li>}
-                    {checkAccess(['expenses_view', 'expense_manage_view']) && <li className={activeTab === 'expense' ? 'active' : ''} onClick={() => { handleTabChange('expense'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Expense</li>}
-                  </ul>
+                {checkAccess(['expenses_view', 'expense_category_view', 'expense_manage_view']) && (
+                  <>
+                    <li className="parent-menu-item" onClick={() => toggleDropdown('expenses')} style={{ cursor: 'pointer', display: 'flex', justifyContent: 'space-between', textAlign: 'left', padding: '10px 10px', backgroundColor: openDropdown === 'expenses' ? 'rgba(255,255,255,0.15)' : 'transparent' }}>
+                      <span><span className="nav-icon"><FontAwesomeIcon icon={faHandHoldingDollar} /></span> Expenses</span>
+                      <span className='drop'>{openDropdown === 'expenses' ? '<' : '>'}</span>
+                    </li>
+                    {openDropdown === 'expenses' && (
+                      <ul className="submenu" style={{ paddingLeft: '20px', listStyleType: 'none', margin: 0 }}>
+                        {checkAccess(['expense_category_view']) && <li className={activeTab === 'expense-category' ? 'active' : ''} onClick={() => { handleTabChange('expense-category'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Expense Category</li>}
+                        {checkAccess(['expenses_view', 'expense_manage_view']) && <li className={activeTab === 'expense' ? 'active' : ''} onClick={() => { handleTabChange('expense'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Expense</li>}
+                      </ul>
+                    )}
+                  </>
                 )}
-              </>
-            )}
 
-            {checkAccess(['report_people_view', 'report_catalogue_view', 'report_stock_view', 'report_purchase_view', 'report_sales_view', 'report_register_view', 'report_stock_movement_view', 'report_accounts_view', 'report_payable_receivable_view', 'report_profit_loss_view', 'report_business_capital_view']) && (
-              <>
-                <li className="parent-menu-item" onClick={() => toggleDropdown('reports')} style={{ cursor: 'pointer', display: 'flex', justifyContent: 'space-between', textAlign: 'left', padding: '10px 10px', backgroundColor: openDropdown === 'reports' ? 'rgba(255,255,255,0.15)' : 'transparent' }}>
-                  <span><span className="nav-icon"><FontAwesomeIcon icon={faReceipt} /></span> Reports</span>
-                  <span className='drop'>{openDropdown === 'reports' ? '<' : '>'}</span>
-                </li>
-                {openDropdown === 'reports' && (
-                  <ul className="submenu">
-                    {checkAccess(['report_people_view']) && <li className={activeTab === 'people-report' ? 'active' : ''} onClick={() => { handleTabChange('people-report'); if (isMobile) setIsSidebarOpen(false); }} style={{ cursor: 'pointer', padding: '4px 0', textAlign: 'left' }}><div style={{ marginRight: '10px', marginLeft: '10px' }}>⋄</div>People Report</li>}
-                    {checkAccess(['report_catalogue_view']) && <li className={activeTab === 'catalogue-report' ? 'active' : ''} onClick={() => { handleTabChange('catalogue-report'); if (isMobile) setIsSidebarOpen(false); }} style={{ cursor: 'pointer', padding: '4px 0', textAlign: 'left' }}><div style={{ marginRight: '10px', marginLeft: '10px' }}>⋄</div>Catalogue Report</li>}
-                    {checkAccess(['report_stock_view']) && <li className={activeTab === 'stock-report' ? 'active' : ''} onClick={() => { handleTabChange('stock-report'); if (isMobile) setIsSidebarOpen(false); }} style={{ cursor: 'pointer', padding: '4px 0', textAlign: 'left' }}><div style={{ marginRight: '10px', marginLeft: '10px' }}>⋄</div>Stock Report</li>}
-                    {checkAccess(['report_purchase_view']) && <li className={activeTab === 'purchase-report' ? 'active' : ''} onClick={() => { handleTabChange('purchase-report'); if (isMobile) setIsSidebarOpen(false); }} style={{ cursor: 'pointer', padding: '4px 0', textAlign: 'left' }}><div style={{ marginRight: '10px', marginLeft: '10px' }}>⋄</div>Purchase Report</li>}
-                    {checkAccess(['report_sales_view']) && <li className={activeTab === 'sales-report' ? 'active' : ''} onClick={() => { handleTabChange('sales-report'); if (isMobile) setIsSidebarOpen(false); }} style={{ cursor: 'pointer', padding: '4px 0', textAlign: 'left' }}><div style={{ marginRight: '10px', marginLeft: '10px' }}>⋄</div>Sales Report</li>}
-                    {checkAccess(['report_register_view']) && <li className={activeTab === 'register-report' ? 'active' : ''} onClick={() => { handleTabChange('register-report'); if (isMobile) setIsSidebarOpen(false); }} style={{ cursor: 'pointer', padding: '4px 0', textAlign: 'left' }}><div style={{ marginRight: '10px', marginLeft: '10px' }}>⋄</div>Register Report</li>}
-                    {checkAccess(['report_stock_movement_view']) && <li className={activeTab === 'StockMovementReport' ? 'active' : ''} onClick={() => { handleTabChange('StockMovementReport'); if (isMobile) setIsSidebarOpen(false); }} style={{ cursor: 'pointer', padding: '4px 0', textAlign: 'left' }}><div style={{ marginRight: '10px', marginLeft: '10px' }}>⋄</div>Stock Movement Report</li>}
-                    {checkAccess(['report_accounts_view']) && <li className={activeTab === 'accountsreport' ? 'active' : ''} onClick={() => { handleTabChange('accountsreport'); if (isMobile) setIsSidebarOpen(false); }} style={{ cursor: 'pointer', padding: '4px 0', textAlign: 'left' }}><div style={{ marginRight: '10px', marginLeft: '10px' }}>⋄</div>Accounts Report</li>}
-                    {checkAccess(['report_payable_receivable_view']) && <li className={activeTab === 'payablereceivable' ? 'active' : ''} onClick={() => { handleTabChange('payablereceivable'); if (isMobile) setIsSidebarOpen(false); }} style={{ cursor: 'pointer', padding: '4px 0', textAlign: 'left' }}><div style={{ marginRight: '10px', marginLeft: '10px' }}>⋄</div>Payable and Receivable </li>}
-                    {checkAccess(['report_profit_loss_view']) && <li className={activeTab === 'ProfitLossReport' ? 'active' : ''} onClick={() => { handleTabChange('ProfitLossReport'); if (isMobile) setIsSidebarOpen(false); }} style={{ cursor: 'pointer', padding: '4px 0', textAlign: 'left' }}><div style={{ marginRight: '10px', marginLeft: '10px' }}>⋄</div>Profit & Loss Report</li>}
-                    {checkAccess(['report_business_capital_view']) && <li className={activeTab === 'BusinessCapitalReport' ? 'active' : ''} onClick={() => { handleTabChange('BusinessCapitalReport'); if (isMobile) setIsSidebarOpen(false); }} style={{ cursor: 'pointer', padding: '4px 0', textAlign: 'left' }}><div style={{ marginRight: '10px', marginLeft: '10px' }}>⋄</div>Business Capital Report</li>}
-                    {checkAccess(['attendance-report']) && <li className={activeTab === 'attendance-report' ? 'active' : ''} onClick={() => { handleTabChange('attendance-report'); if (isMobile) setIsSidebarOpen(false); }} style={{ cursor: 'pointer', padding: '4px 0', textAlign: 'left' }}><div style={{ marginRight: '10px', marginLeft: '10px' }}>⋄</div>Attendance Report</li>}
-                    {checkAccess(['expiry-product']) && <li className={activeTab === 'expiry-product' ? 'active' : ''} onClick={() => { handleTabChange('expiry-product'); if (isMobile) setIsSidebarOpen(false); }} style={{ cursor: 'pointer', padding: '4px 0', textAlign: 'left' }}><div style={{ marginRight: '10px', marginLeft: '10px' }}>⋄</div>Expiry Products Report</li>}
-
-                  </ul>
+                {checkAccess(['report_people_view', 'report_catalogue_view', 'report_stock_view', 'report_purchase_view', 'report_sales_view', 'report_register_view', 'report_stock_movement_view', 'report_accounts_view', 'report_payable_receivable_view', 'report_profit_loss_view', 'report_business_capital_view']) && (
+                  <>
+                    <li className="parent-menu-item" onClick={() => toggleDropdown('reports')} style={{ cursor: 'pointer', display: 'flex', justifyContent: 'space-between', textAlign: 'left', padding: '10px 10px', backgroundColor: openDropdown === 'reports' ? 'rgba(255,255,255,0.15)' : 'transparent' }}>
+                      <span><span className="nav-icon"><FontAwesomeIcon icon={faReceipt} /></span> Reports</span>
+                      <span className='drop'>{openDropdown === 'reports' ? '<' : '>'}</span>
+                    </li>
+                    {openDropdown === 'reports' && (
+                      <ul className="submenu">
+                        {checkAccess(['report_people_view']) && <li className={activeTab === 'people-report' ? 'active' : ''} onClick={() => { handleTabChange('people-report'); if (isMobile) setIsSidebarOpen(false); }} style={{ cursor: 'pointer', padding: '4px 0', textAlign: 'left' }}><div style={{ marginRight: '10px', marginLeft: '10px' }}>⋄</div>People Report</li>}
+                        {checkAccess(['report_catalogue_view']) && <li className={activeTab === 'catalogue-report' ? 'active' : ''} onClick={() => { handleTabChange('catalogue-report'); if (isMobile) setIsSidebarOpen(false); }} style={{ cursor: 'pointer', padding: '4px 0', textAlign: 'left' }}><div style={{ marginRight: '10px', marginLeft: '10px' }}>⋄</div>Catalogue Report</li>}
+                        {checkAccess(['report_stock_view']) && <li className={activeTab === 'stock-report' ? 'active' : ''} onClick={() => { handleTabChange('stock-report'); if (isMobile) setIsSidebarOpen(false); }} style={{ cursor: 'pointer', padding: '4px 0', textAlign: 'left' }}><div style={{ marginRight: '10px', marginLeft: '10px' }}>⋄</div>Stock Report</li>}
+                        {checkAccess(['report_purchase_view']) && <li className={activeTab === 'purchase-report' ? 'active' : ''} onClick={() => { handleTabChange('purchase-report'); if (isMobile) setIsSidebarOpen(false); }} style={{ cursor: 'pointer', padding: '4px 0', textAlign: 'left' }}><div style={{ marginRight: '10px', marginLeft: '10px' }}>⋄</div>Purchase Report</li>}
+                        {checkAccess(['report_sales_view']) && <li className={activeTab === 'sales-report' ? 'active' : ''} onClick={() => { handleTabChange('sales-report'); if (isMobile) setIsSidebarOpen(false); }} style={{ cursor: 'pointer', padding: '4px 0', textAlign: 'left' }}><div style={{ marginRight: '10px', marginLeft: '10px' }}>⋄</div>Sales Report</li>}
+                        {checkAccess(['report_register_view']) && <li className={activeTab === 'register-report' ? 'active' : ''} onClick={() => { handleTabChange('register-report'); if (isMobile) setIsSidebarOpen(false); }} style={{ cursor: 'pointer', padding: '4px 0', textAlign: 'left' }}><div style={{ marginRight: '10px', marginLeft: '10px' }}>⋄</div>Register Report</li>}
+                        {checkAccess(['report_stock_movement_view']) && <li className={activeTab === 'StockMovementReport' ? 'active' : ''} onClick={() => { handleTabChange('StockMovementReport'); if (isMobile) setIsSidebarOpen(false); }} style={{ cursor: 'pointer', padding: '4px 0', textAlign: 'left' }}><div style={{ marginRight: '10px', marginLeft: '10px' }}>⋄</div>Stock Movement Report</li>}
+                        {checkAccess(['report_accounts_view']) && <li className={activeTab === 'accountsreport' ? 'active' : ''} onClick={() => { handleTabChange('accountsreport'); if (isMobile) setIsSidebarOpen(false); }} style={{ cursor: 'pointer', padding: '4px 0', textAlign: 'left' }}><div style={{ marginRight: '10px', marginLeft: '10px' }}>⋄</div>Accounts Report</li>}
+                        {checkAccess(['report_payable_receivable_view']) && <li className={activeTab === 'payablereceivable' ? 'active' : ''} onClick={() => { handleTabChange('payablereceivable'); if (isMobile) setIsSidebarOpen(false); }} style={{ cursor: 'pointer', padding: '4px 0', textAlign: 'left' }}><div style={{ marginRight: '10px', marginLeft: '10px' }}>⋄</div>Payable and Receivable </li>}
+                        {checkAccess(['report_profit_loss_view']) && <li className={activeTab === 'ProfitLossReport' ? 'active' : ''} onClick={() => { handleTabChange('ProfitLossReport'); if (isMobile) setIsSidebarOpen(false); }} style={{ cursor: 'pointer', padding: '4px 0', textAlign: 'left' }}><div style={{ marginRight: '10px', marginLeft: '10px' }}>⋄</div>Profit & Loss Report</li>}
+                        {checkAccess(['report_business_capital_view']) && <li className={activeTab === 'BusinessCapitalReport' ? 'active' : ''} onClick={() => { handleTabChange('BusinessCapitalReport'); if (isMobile) setIsSidebarOpen(false); }} style={{ cursor: 'pointer', padding: '4px 0', textAlign: 'left' }}><div style={{ marginRight: '10px', marginLeft: '10px' }}>⋄</div>Business Capital Report</li>}
+                        {checkAccess(['attendance-report']) && <li className={activeTab === 'attendance-report' ? 'active' : ''} onClick={() => { handleTabChange('attendance-report'); if (isMobile) setIsSidebarOpen(false); }} style={{ cursor: 'pointer', padding: '4px 0', textAlign: 'left' }}><div style={{ marginRight: '10px', marginLeft: '10px' }}>⋄</div>Attendance Report</li>}
+                        {checkAccess(['expiry-product']) && <li className={activeTab === 'expiry-product' ? 'active' : ''} onClick={() => { handleTabChange('expiry-product'); if (isMobile) setIsSidebarOpen(false); }} style={{ cursor: 'pointer', padding: '4px 0', textAlign: 'left' }}><div style={{ marginRight: '10px', marginLeft: '10px' }}>⋄</div>Expiry Products Report</li>}
+                        {checkAccess(['product-supp']) && <li className={activeTab === 'product-supp' ? 'active' : ''} onClick={() => { handleTabChange('product-supp'); if (isMobile) setIsSidebarOpen(false); }} style={{ cursor: 'pointer', padding: '4px 0', textAlign: 'left' }}><div style={{ marginRight: '10px', marginLeft: '10px' }}>⋄</div>Product Supplier Report</li>}
+                        {checkAccess(['salary-report']) && <li className={activeTab === 'salary-report' ? 'active' : ''} onClick={() => { handleTabChange('salary-report'); if (isMobile) setIsSidebarOpen(false); }} style={{ cursor: 'pointer', padding: '4px 0', textAlign: 'left' }}><div style={{ marginRight: '10px', marginLeft: '10px' }}>⋄</div>Salary Report</li>}
+                      </ul>
+                    )}
+                  </>
                 )}
-              </>
-            )}
 
-            {checkAccess(['users_view', 'roles_view']) && (
-              <>
-                <li className="parent-menu-item" onClick={() => toggleDropdown('systemUsers')} style={{ cursor: 'pointer', display: 'flex', justifyContent: 'space-between', textAlign: 'left', padding: '10px 10px', backgroundColor: openDropdown === 'systemUsers' ? 'rgba(255,255,255,0.15)' : 'transparent' }}>
-                  <span><span className="nav-icon"><FontAwesomeIcon icon={faUser} /></span> System Users</span>
-                  <span className='drop'>{openDropdown === 'systemUsers' ? '<' : '>'}</span>
-                </li>
-                {openDropdown === 'systemUsers' && (
-                  <ul className="submenu" style={{ paddingLeft: '20px', listStyleType: 'none', margin: 0 }}>
-                    {checkAccess(['users_view']) && <li className={activeTab === 'users' ? 'active' : ''} onClick={() => { handleTabChange('users'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Manage Users</li>}
-                    {checkAccess(['roles_view']) && <li className={activeTab === 'roles' ? 'active' : ''} onClick={() => { handleTabChange('roles'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Manage Roles</li>}
-                  </ul>
+                {checkAccess(['users_view', 'roles_view']) && (
+                  <>
+                    <li className="parent-menu-item" onClick={() => toggleDropdown('systemUsers')} style={{ cursor: 'pointer', display: 'flex', justifyContent: 'space-between', textAlign: 'left', padding: '10px 10px', backgroundColor: openDropdown === 'systemUsers' ? 'rgba(255,255,255,0.15)' : 'transparent' }}>
+                      <span><span className="nav-icon"><FontAwesomeIcon icon={faUser} /></span> System Users</span>
+                      <span className='drop'>{openDropdown === 'systemUsers' ? '<' : '>'}</span>
+                    </li>
+                    {openDropdown === 'systemUsers' && (
+                      <ul className="submenu" style={{ paddingLeft: '20px', listStyleType: 'none', margin: 0 }}>
+                        {checkAccess(['users_view']) && <li className={activeTab === 'users' ? 'active' : ''} onClick={() => { handleTabChange('users'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Manage Users</li>}
+                        {checkAccess(['roles_view']) && <li className={activeTab === 'roles' ? 'active' : ''} onClick={() => { handleTabChange('roles'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Manage Roles</li>}
+                      </ul>
+                    )}
+                  </>
                 )}
-              </>
-            )}
 
-            {checkAccess(['designations_view', 'print_settings_view', 'client_details_view', 'customer_types_view', 'access_control_view']) && (
-              <>
-                <li className="parent-menu-item" onClick={() => toggleDropdown('settings')} style={{ cursor: 'pointer', display: 'flex', justifyContent: 'space-between', textAlign: 'left', padding: '10px 10px', backgroundColor: openDropdown === 'settings' ? 'rgba(255,255,255,0.15)' : 'transparent' }}>
-                  <span><span className="nav-icon"><FontAwesomeIcon icon={faGear} /></span> Settings</span>
-                  <span className='drop'>{openDropdown === 'settings' ? '<' : '>'}</span>
-                </li>
-                {openDropdown === 'settings' && (
-                  <ul className="submenu" style={{ paddingLeft: '20px', listStyleType: 'none', margin: 0 }}>
-                    {checkAccess(['designations_view']) && <li className={activeTab === 'designations' ? 'active' : ''} onClick={() => { handleTabChange('designations'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Designations</li>}
-                    {checkAccess(['print_settings_view']) && <li className={activeTab === 'print-settings' ? 'active' : ''} onClick={() => { handleTabChange('print-settings'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Sale Invoice</li>}
-                    {checkAccess(['client_details_view']) && <li className={activeTab === 'client-details' ? 'active' : ''} onClick={() => { handleTabChange('client-details'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Client Details</li>}
-                    {checkAccess(['customer_types_view']) && <li className={activeTab === 'customer-types' ? 'active' : ''} onClick={() => { handleTabChange('customer-types'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Customer Types</li>}
-                    {checkAccess(['access_control_view']) && <li className={activeTab === 'access-control' ? 'active' : ''} onClick={() => { handleTabChange('access-control'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Access Control</li>}
-                    {checkAccess(['batch-manage']) && <li className={activeTab === 'batch-manage' ? 'active' : ''} onClick={() => { handleTabChange('batch-manage'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Batch Management</li>}
+                {checkAccess(['designations_view', 'print_settings_view', 'client_details_view', 'customer_types_view', 'access_control_view']) && (
+                  <>
+                    <li className="parent-menu-item" onClick={() => toggleDropdown('settings')} style={{ cursor: 'pointer', display: 'flex', justifyContent: 'space-between', textAlign: 'left', padding: '10px 10px', backgroundColor: openDropdown === 'settings' ? 'rgba(255,255,255,0.15)' : 'transparent' }}>
+                      <span><span className="nav-icon"><FontAwesomeIcon icon={faGear} /></span> Settings</span>
+                      <span className='drop'>{openDropdown === 'settings' ? '<' : '>'}</span>
+                    </li>
+                    {openDropdown === 'settings' && (
+                      <ul className="submenu" style={{ paddingLeft: '20px', listStyleType: 'none', margin: 0 }}>
+                        {checkAccess(['designations_view']) && <li className={activeTab === 'designations' ? 'active' : ''} onClick={() => { handleTabChange('designations'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Designations</li>}
+                        {checkAccess(['print_settings_view']) && <li className={activeTab === 'print-settings' ? 'active' : ''} onClick={() => { handleTabChange('print-settings'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Print Settings</li>}
+                        {checkAccess(['client_details_view']) && <li className={activeTab === 'client-details' ? 'active' : ''} onClick={() => { handleTabChange('client-details'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Client Details</li>}
+                        {checkAccess(['customer_types_view']) && <li className={activeTab === 'customer-types' ? 'active' : ''} onClick={() => { handleTabChange('customer-types'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Customer Types</li>}
+                        {checkAccess(['access_control_view']) && <li className={activeTab === 'access-control' ? 'active' : ''} onClick={() => { handleTabChange('access-control'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Access Control</li>}
+                        {checkAccess(['batch-manage']) && <li className={activeTab === 'batch-manage' ? 'active' : ''} onClick={() => { handleTabChange('batch-manage'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Batch Management</li>}
 
-                  </ul>
+                      </ul>
+                    )}
+                  </>
                 )}
               </>
             )}
@@ -1056,6 +1096,7 @@ function Dashboard({ user, onLogout }) {
             {activeTab === 'access-control' && <AccessControl />}
             {activeTab === 'employee-attendance' && <EmployeeAttendance />}
             {activeTab === 'attendance-rules' && <AttendanceRules />}
+            {activeTab === 'product-supp' && <ProductSupplierReport />}
             {activeTab === 'attendance-report' && <AttendanceSummaryReport />}
             {activeTab === 'expiry-product' && <ExpiryReport />}
             {activeTab === 'batch-manage' && <BatchManagement />}
@@ -1063,8 +1104,13 @@ function Dashboard({ user, onLogout }) {
             {activeTab === 'loan-recovery' && <EmployeeLoanRecovery />}
             {activeTab === 'salary-config' && <ConfigureSalary />}
             {activeTab === 'calendar' && <YearlyCalendar />}
-            {activeTab === 'generate-salary' && <GenerateSalary />}
+            {activeTab === 'salary-cycle' && <SalaryCycle />}
             {activeTab === 'salary-payment' && <SalaryPayments />}
+            {activeTab === 'salary-report' && <SalaryReport />}
+            {activeTab === 'employee-dashboard' && <EmployeeDashboard />}
+            {activeTab === 'my-ledger' && <MyLedger />}
+            {activeTab === 'my-attendance' && <MyAttendance />}
+            {activeTab === 'my-salary' && <MySalary />}
           </PrintSettingsProvider>
         </div>
       </main>

@@ -5,8 +5,7 @@ const employeeSchema = new mongoose.Schema({
   name: { type: String, required: true },
   email: { type: String, required: true },
   phone: { type: String },
-  // This links the employee to a specific Designation in the DB
-  designation: { 
+joiningDate: { type: Date, default: Date.now },  designation: { 
     type: mongoose.Schema.Types.ObjectId, 
     ref: 'Designation', 
     required: true 
@@ -14,7 +13,7 @@ const employeeSchema = new mongoose.Schema({
     address: { type: String },
   cnic: { type: String },
 
-  status: { type: String, default: 'active' }, // For soft deletion
+  status: { type: String, default: 'active' }, 
 pic: { type: String, default: '' }
 });
 

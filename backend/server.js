@@ -7,7 +7,8 @@ import multer from 'multer';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
-
+import nodemailer from 'nodemailer';
+import crypto from 'crypto';
 export const authorize = (requiredPermission) => {
   return async (req, res, next) => {
     try {
@@ -33,36 +34,21 @@ export const authorize = (requiredPermission) => {
         return res.status(401).json({ success: false, message: 'Unauthorized: Invalid or expired token' });
       }
 
-      const user = await User.findById(decoded.userId);
+      // STRICT POPULATION
+      const user = await User.findById(decoded.userId).populate('role');
       if (!user || user.status === 'Inactive') {
         return res.status(401).json({ success: false, message: 'Unauthorized: User not found or inactive' });
       }
 
-      let roleName = '';
-      if (typeof user.role === 'string') {
-        roleName = user.role;
-      } else if (user.role && mongoose.Types.ObjectId.isValid(user.role)) {
-        const foundRole = await Role.findById(user.role);
-        roleName = foundRole ? foundRole.role : '';
-      }
+      let roleName = user.role?.role || user.role?.name || '';
 
+      // 1. STRICT ADMIN CHECK (Exact match, no includes)
       if (user.email === 'admin@gmail.com' || roleName.trim().toLowerCase() === 'admin') {
         req.user = user;
         return next();
       }
 
-      // 2. SAFE POPULATION FOR OTHER USERS (Managers etc.)
-      if (user.role && mongoose.Types.ObjectId.isValid(user.role)) {
-        await user.populate('role');
-      }
-
-      // 3. DASHBOARD BYPASS
-      if (requiredPermission === 'dashboard_view' || !requiredPermission) {
-        req.user = user;
-        return next();
-      }
-
-      // 4. GRANULAR PERMISSION CHECK
+      // 2. STRICT PERMISSION CHECK
       const userPermissions = user.role?.permissions || [];
       if (requiredPermission && !userPermissions.includes(requiredPermission)) {
         return res.status(403).json({
@@ -112,6 +98,7 @@ import PurchaseRebateDetail from './models/PurchaseRebateDetail.js';
 import PurchaseRateDifference from './models/PurchaseRateDifference.js'
 import SalesRebate from './models/SalesRebate.js';
 import SalesRebateDetail from './models/SalesRebateDetail.js';
+import SalaryCalendar from './models/Calendar.js';
 import SaleRateDifference from './models/SaleRateDifference.js';
 import Attendance from './models/Attendance.js';
 import EmployeeLoanRecovery from './models/EmployeeLoanRecovery.js';
@@ -147,7 +134,13 @@ mongoose.connect(process.env.MONGO_URI)
 
 const VALID_SIZES = ['A4', 'A5', 'Thermal58'];
 
-
+const transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: process.env.EMAIL_USER, 
+    pass: process.env.EMAIL_PASS  
+  }
+});
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     cb(null, uploadDir);
@@ -167,33 +160,40 @@ app.post('/api/upload', authorize('settings_edit'), upload.single('image'), (req
 
 // ==================== LOGIN ====================
 app.post('/api/login', async (req, res) => {
-  const { email, password } = req.body;
+  const { email, password, rememberMe } = req.body; 
   try {
     const user = await User.findOne({ email }).populate('role');
 
     if (user && user.password === password) {
-      const { password: _pw, ...userData } = user.toObject();
       
-      // Generate JWT token here. Ensure process.env.JWT_SECRET exists.
+      if (user.resetAttempts > 0 || user.resetPasswordToken) {
+        user.resetAttempts = 0;
+        user.resetPasswordToken = undefined;
+        user.resetPasswordExpires = undefined;
+        await user.save();
+      }
+
+      const { password: _pw, ...userData } = user.toObject();
+            const expiresIn = rememberMe ? '30d' : '1d';
+
       const token = jwt.sign(
         { userId: user._id, role: user.role }, 
         process.env.JWT_SECRET || 'secret_key', 
-        { expiresIn: '1d' }
+        { expiresIn: expiresIn }
       );
 
-      // Return both user data and the generated token
       return res.json({ success: true, user: userData, token });
     } else {
       return res.status(401).json({ success: false, message: 'Invalid credentials' });
     }
   } catch (error) {
+    console.error('Login error:', error);
     return res.status(500).json({ success: false, message: 'Server error' });
   }
 });
 
 // ==================== GET LAST INVOICE NUMBER ====================
 app.get('/api/purchases/last-invoice', authorize('purchases_view'), async (req, res) => {  try {
-    // Find the last purchase and sort by createdAt descending
     const lastPurchase = await Purchase.findOne()
       .sort({ createdAt: 1 })
       .select('invoiceNumber');
@@ -245,7 +245,6 @@ app.put('/api/roles/:id', authorize('roles_edit'), async (req, res) => {  if (!r
   }
 });
 
-// Endpoint to fetch users assigned to a specific role 
 app.get('/api/roles/:id/users', authorize('roles_view'), async (req, res) => {  try {
     const users = await User.find({ role: req.params.id, status: { $ne: 'Inactive' } }).select('name email');
     return res.json({ success: true, users });
@@ -346,7 +345,6 @@ app.put('/api/users/:id/reset-password', authorize('users_edit'), async (req, re
       return res.status(404).json({ success: false, message: 'User not found.' });
     }
 
-    // Same plain-text comparison style used in /api/login
     if (user.password !== currentPassword) {
       return res.status(401).json({ success: false, message: 'Current password is incorrect.' });
     }
@@ -507,16 +505,30 @@ app.get('/api/employees', authorize('employees_view'), async (req, res) => {  tr
     return res.status(500).json({ success: false, message: 'Server error' });
   }
 });
+app.put('/api/employees/:id', authorize('employees_edit'), async (req, res) => {
+  try {
+    const { status, joiningDate, ...rest } = req.body;
+    const existingEmp = await User.findById ? await mongoose.model('Employee').findById(req.params.id) : null;
 
-app.put('/api/employees/:id', authorize('employees_edit'), async (req, res) => {  try {
-    const updatedEmployee = await Employee.findByIdAndUpdate(
+    let updateData = { ...rest, status };
+    
+    // Agar employee pehle inactive tha aur ab dobara 'Active' kiya gaya hai,
+    // aur admin ne nayi joining date nahi di, toh system auto aaj ki date set kar dega.
+    if (existingEmp && existingEmp.status === 'inactive' && status === 'Active') {
+        updateData.joiningDate = joiningDate || new Date();
+    } else if (joiningDate) {
+        updateData.joiningDate = joiningDate;
+    }
+
+    const updatedEmployee = await mongoose.model('Employee').findByIdAndUpdate(
       req.params.id,
-      req.body,
+      updateData,
       { returnDocument: 'after' }
     ).populate('designation');
+    
     return res.json(updatedEmployee);
   } catch (error) {
-    return res.status(500).json({ message: 'Error updating employee', error });
+    return res.status(500).json({ message: 'Error updating employee', error: error.message });
   }
 });
 
@@ -537,50 +549,102 @@ app.delete('/api/employees/:id', authorize('employees_delete'), async (req, res)
 });
 
 // ==================== EMPLOYEE PAYMENTS/ENTRIES (Add Entry) ====================
-app.post('/api/employee-payments', authorize('employee_account_add'), async (req, res) => {  const { employeeId, amount, type, transactionType, date, notes } = req.body;
+app.post('/api/employee-payments', authorize('employee_account_add'), async (req, res) => {
+  const { employeeId, amount, type, transactionType, date, notes } = req.body;
+  const session = await mongoose.startSession();
 
   try {
-    if (!employeeId) {
-      return res.status(400).json({ success: false, message: 'Employee is required.' });
-    }
+    session.startTransaction();
+
+    if (!employeeId) throw new Error('Employee is required.');
     const amt = Number(amount);
-    if (!amt || amt <= 0) {
-      return res.status(400).json({ success: false, message: 'Amount must be greater than zero.' });
-    }
-    if (!['Debit', 'Credit'].includes(type)) {
-      return res.status(400).json({ success: false, message: 'Type must be Debit or Credit.' });
+    if (!amt || amt <= 0) throw new Error('Amount must be greater than zero.');
+    if (!['Debit', 'Credit'].includes(type)) throw new Error('Type must be Debit or Credit.');
+
+    const employee = await Employee.findById(employeeId).session(session);
+    if (!employee) throw new Error('Employee not found.');
+
+    let finalTxnType = transactionType || (type === 'Debit' ? 'Salary' : 'Payment');
+
+    if (finalTxnType === 'Loan Return') {
+      finalTxnType = 'Loan Recovery';
     }
 
-    const employee = await Employee.findById(employeeId);
-    if (!employee) {
-      return res.status(404).json({ success: false, message: 'Employee not found.' });
+    // --- STRICT LOAN VALIDATION ---
+    const empLedger = await EmployeeAccount.find({ employee: employeeId }).session(session);
+    
+    let totalLoanGiven = 0;
+    let totalLoanReturned = 0;
+    
+    empLedger.forEach(e => {
+      if (e.transactionType === 'Loan' || e.transactionType === 'Advance') {
+        totalLoanGiven += (e.credit || 0);
+      }
+      if (e.transactionType === 'Loan Return' || e.transactionType === 'Loan Recovery') {
+        totalLoanReturned += (e.debit || 0);
+      }
+    });
+    
+    const outstandingLoan = totalLoanGiven - totalLoanReturned;
+
+    if (finalTxnType === 'Loan Recovery') {
+      if (outstandingLoan <= 0) {
+        throw new Error('This employee has no outstanding loan or advance.');
+      }
+      if (amt > outstandingLoan) {
+        throw new Error(`Cannot return more than the outstanding loan (PKR ${outstandingLoan.toFixed(2)}).`);
+      }
     }
+
+    // --- AUTO-GENERATE SMART INVOICE NUMBER ---
+    let prefix = 'EMP-';
+    if (finalTxnType === 'Loan Recovery') prefix = 'LN-REC-';
+    else if (finalTxnType === 'Payment') prefix = 'PAY-';
+    else if (finalTxnType === 'Loan' || finalTxnType === 'Advance') prefix = 'LN-';
 
     const counter = await Counter.findOneAndUpdate(
-      { name: 'employeeEntryNumber' },
+      { name: `empEntry_${prefix}` },
       { $inc: { seq: 1 } },
-      { returnDocument: 'after', upsert: true, returnDocument: 'after' }
+      { returnDocument: 'after', upsert: true, session }
     );
-    const invoiceNumber = `EMP-${counter.seq}`;
+    const invoiceNumber = `${prefix}${counter.seq}`;
 
-    const entry = await EmployeeAccount.create({
+    // --- SAVE ENTRY ---
+    const entry = await EmployeeAccount.create([{
       employee: employeeId,
       invoiceNumber,
-      transactionType: transactionType || (type === 'Debit' ? 'Salary' : 'Payment'),
+      transactionType: finalTxnType,
       debit: type === 'Debit' ? amt : 0,
       credit: type === 'Credit' ? amt : 0,
       date: date || new Date(),
       notes
-    });
+    }], { session });
 
-    return res.status(201).json({ success: true, message: 'Entry recorded successfully', entry });
+    // --- CASH REGISTER UPDATE ---
+    const activeRegister = await CashRegister.findOne({ closingDate: null }).session(session);
+    if (activeRegister) {
+      if (finalTxnType === 'Loan Recovery') {
+         // Cash in
+         activeRegister.salesAmount = (activeRegister.salesAmount || 0) + amt;
+      } else if (finalTxnType === 'Payment' || finalTxnType === 'Loan' || finalTxnType === 'Advance') {
+         // Cash out
+         activeRegister.purchaseAmount = (activeRegister.purchaseAmount || 0) + amt;
+      }
+      await activeRegister.save({ session });
+    }
+
+    await session.commitTransaction();
+    return res.status(201).json({ success: true, message: 'Entry recorded successfully', entry: entry[0] });
+
   } catch (error) {
+    await session.abortTransaction();
     console.error('Error recording employee entry:', error);
     return res.status(400).json({ success: false, message: error.message });
+  } finally {
+    session.endSession();
   }
 });
-
-// ==================== EMPLOYEE LEDGER (Strict Creation Sequence) ====================
+// ==================== EMPLOYEE LEDGER ====================
 app.get('/api/employee-ledger', authorize('employee_account_view'), async (req, res) => {
   try {
     const { employeeId, fromDate, toDate } = req.query;
@@ -589,8 +653,9 @@ app.get('/api/employee-ledger', authorize('employee_account_view'), async (req, 
     if (employeeId) filter.employee = employeeId;
 
     const allEntries = await EmployeeAccount.find(filter)
-      .populate('employee', 'name')
-.sort({ date: 1, createdAt: 1 });
+      .populate('employee', 'name designation')
+      .sort({ date: 1, createdAt: 1 });
+
     let runningBalance = 0;
     const rows = [];
     let srNo = 0;
@@ -607,6 +672,54 @@ app.get('/api/employee-ledger', authorize('employee_account_view'), async (req, 
 
       if (inRange) {
         srNo += 1;
+        
+        let attendanceStats = { absent: 0, leave: 0, halfDay: 0, deductionAmount: 0 };
+        
+        // 💡 THE ULTIMATE FIX: Sirf Salary entries ke liye exact month ki attendance fetch karna
+        if (entry.transactionType === 'Salary' && entry.employee) {
+          let yearMonthPrefix = "";
+          
+          // 1. Notes mein se exact Month aur Year nikalna (e.g. "Salary for August 2026")
+          const noteMatch = entry.notes ? entry.notes.match(/Salary for ([A-Za-z]+) (\d{4})/i) : null;
+          
+          if (noteMatch) {
+            const monthName = noteMatch[1];
+            const yearNum = noteMatch[2];
+            const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+            const mIndex = monthNames.findIndex(m => m.toLowerCase() === monthName.toLowerCase()) + 1;
+            yearMonthPrefix = `${yearNum}-${String(mIndex).padStart(2, '0')}`;
+          } else {
+            // Backup fallback (agar note format alag ho)
+            const eDate = new Date(entry.date);
+            const year = eDate.getFullYear();
+            const monthNum = eDate.getMonth() + 1;
+            yearMonthPrefix = `${year}-${String(monthNum).padStart(2, '0')}`;
+          }
+
+          // 2. Safe Employee ID Extraction
+          const empIdToSearch = entry.employee._id ? entry.employee._id.toString() : entry.employee.toString();
+
+          // 3. Exact ussi maheene ki attendance fetch karna
+          const attendances = await mongoose.model('Attendance').find({
+            employeeId: empIdToSearch,
+            date: { $regex: new RegExp(`^${yearMonthPrefix}`) }
+          });
+
+          attendances.forEach(att => {
+            if (att.status === 'Absent') attendanceStats.absent++;
+            else if (att.status === 'Leave') attendanceStats.leave++;
+            else if (att.status === 'Half-day') attendanceStats.halfDay++;
+          });
+
+          // 4. Notes mein se deduction penalty nikalna
+          if (entry.notes) {
+            const deductionMatch = entry.notes.match(/Deducted Rs\.\s*(\d+)/i);
+            if (deductionMatch) {
+               attendanceStats.deductionAmount = Number(deductionMatch[1]);
+            }
+          }
+        }
+
         rows.push({
           srNo,
           _id: entry._id,
@@ -618,7 +731,9 @@ app.get('/api/employee-ledger', authorize('employee_account_view'), async (req, 
           credit: entry.credit || 0,
           balance,
           previousBalance,
-          net: runningBalance
+          net: runningBalance,
+          notes: entry.notes,
+          attendanceStats // 💡 Real Stats successfully injected
         });
       }
     }
@@ -802,7 +917,6 @@ app.get('/api/products', authorize('products_view'), async (req, res) => {
 app.post('/api/products', authorize('products_add'), async (req, res) => {  try {
     const product = new Product(req.body);
 
-    // If quantity is provided at creation, opening stock is locked
     if (product.quantity > 0) {
       product.openingStockLocked = true;
     }
@@ -856,7 +970,6 @@ app.delete('/api/products/:id', authorize('products_delete'), async (req, res) =
 
 // ==================== DELETED PRODUCTS APIS ====================
 
-// 1. Get all inactive (deleted) products
 app.get('/api/products/deleted', authorize('products_view'), async (req, res) => {  try {
     const products = await Product.find({ status: 'inactive' })
       .populate('categoryId', 'name')
@@ -908,7 +1021,7 @@ app.post('/api/products/:id/opening-stocks', authorize('products_edit'), async (
 
     product.quantity += quantity;
     product.openingStockQuantity = quantity;
-    product.openingStockLocked = true; // Lock for future
+    product.openingStockLocked = true; 
 
     await product.save();
 
@@ -926,20 +1039,16 @@ app.post('/api/purchases', authorize('purchases_add'), async (req, res) => {  co
   try {
     session.startTransaction();
 
-    // Generate a sequence for the internal purchaseNumber
     const counter = await Counter.findOneAndUpdate(
       { name: 'purchaseNumber' },
       { $inc: { seq: 1 } },
       { returnDocument: 'after', upsert: true, session }
     );
 
-    // Format the internal purchase number to PO- (Purchase Order) instead of PU-
     const autoPurchaseNumber = `PO-${counter.seq}`;
-    // Save the purchase
     const newPurchase = new Purchase({
-
       purchaseNumber: autoPurchaseNumber,
-      invoiceNumber: invoiceNumber, // This strictly uses the PU- format from frontend
+      invoiceNumber: invoiceNumber, 
       supplier: supplierId,
       purchaseDate,
       totalAmount,
@@ -954,8 +1063,16 @@ app.post('/api/purchases', authorize('purchases_add'), async (req, res) => {  co
         throw new Error(`Product not found: ${item.product}`);
       }
 
+      const isApproved = product.approvedSuppliers?.some(
+        s => (s.supplier?._id || s.supplier).toString() === supplierId.toString()
+      );
+
+      if (!isApproved) {
+        throw new Error(`Product "${product.name}" is not approved for the selected supplier.`);
+      }
+
       product.quantity += item.quantity;
-      product.costPrice = item.unitPrice; // Last purchase price
+      product.costPrice = item.unitPrice;
       product.openingStockLocked = true;
       await product.save({ session });
 
@@ -967,7 +1084,7 @@ app.post('/api/purchases', authorize('purchases_add'), async (req, res) => {  co
         purchasePrice: item.unitPrice,
         quantity: item.quantity,
         originalQuantity: item.quantity,
-        expiryDate: item.expiryDate || new Date(new Date().setFullYear(new Date().getFullYear() + 1)), // default 1 year expiry if null
+        expiryDate: item.expiryDate || new Date(new Date().setFullYear(new Date().getFullYear() + 1)),
         purchaseId: savedPurchase._id
       }], { session });
 
@@ -979,11 +1096,11 @@ app.post('/api/purchases', authorize('purchases_add'), async (req, res) => {  co
         referenceId: savedPurchase._id
       }], { session });
     }
+
     const paid = Number(paidAmount) || 0;
     if (paid < 0) throw new Error('Paid amount cannot be negative.');
     if (paid > totalAmount) throw new Error('Paid amount cannot exceed the total purchase amount.');
 
-    // Update the ledger entry
     const singleEntry = new SupplierAccount({
       supplier: supplierId,
       invoiceNumber: invoiceNumber,
@@ -1039,7 +1156,6 @@ app.get('/api/purchases/search', authorize('purchases_view'), async (req, res) =
   }
 
   try {
-    // Search the database using the invoiceNumber instead of purchaseNumber
     const purchase = await Purchase.findOne({
       invoiceNumber: { $regex: new RegExp(`^${invoiceNumber.trim()}$`, 'i') }
     })
@@ -1050,7 +1166,6 @@ app.get('/api/purchases/search', authorize('purchases_view'), async (req, res) =
       return res.status(404).json({ success: false, message: 'No purchase found with that invoice number.' });
     }
 
-    // Calculate already returned quantities
     const existingReturns = await PurchaseReturn.find({
       purchase: purchase._id,
       status: { $ne: 'Cancelled' }
@@ -1094,7 +1209,6 @@ app.get('/api/purchases/search', authorize('purchases_view'), async (req, res) =
 
 // ==================== PURCHASE RETURNS ====================
 
-// Get a purchase's items with remaining returnable quantity
 app.get('/api/purchases/:id/returnable-items', authorize('purchase_returns_view'), async (req, res) => {  try {
     const purchase = await Purchase.findById(req.params.id).populate('items.product').populate('supplier');
     if (!purchase) {
@@ -1514,7 +1628,7 @@ app.post('/api/purchase-returns/blind-return', authorize('purchase_returns_add')
       totalAmount,
       status: 'Completed',
       approvedAt: new Date(),
-      isBlindReturn: true // You may want to add this field to your schema
+      isBlindReturn: true 
     }], { session });
     const savedReturn = created[0];
 
@@ -2491,8 +2605,8 @@ app.put('/api/sales/:id/cancel', authorize('pos_delete'), async (req, res) => { 
 });
 
 
-
-app.get('/api/print-settings', authorize('dashboard_view'), async (req, res) => {  try {
+app.get('/api/print-settings', authorize(), async (req, res) => { 
+  try {
     let settings = await PrintSettings.findOne();
     if (!settings) {
       settings = await PrintSettings.create({});
@@ -3545,8 +3659,8 @@ app.post('/api/purchase-rate-difference/complete', authorize('purchase_rate_diff
         supplier: supplierId,
         invoiceNumber: `DIFF-${invoiceNumber}`,
         transactionType: 'Purchase Rate Difference', 
-        debit: debitAmount, // Theek kiya gaya
-        credit: creditAmount, // Theek kiya gaya
+        debit: debitAmount, 
+        credit: creditAmount, 
         referenceId: savedRateDiff._id,
         referenceModel: 'PurchaseRateDifference', 
         date: new Date()
@@ -3847,7 +3961,7 @@ app.get('/api/sales-rebates/:id', authorize('sales_rebates_view'), async (req, r
 
 
 
-// 3. GET ALL SALE RATE DIFFERENCES (List ke liye)
+// 3. GET ALL SALE RATE DIFFERENCES
 app.get('/api/sale-rate-difference', authorize('sale_rate_difference_view'), async (req, res) => {  try {
     const records = await SaleRateDifference.find()
       .populate('customerId', 'name customerName')
@@ -3862,7 +3976,7 @@ app.get('/api/sale-rate-difference', authorize('sale_rate_difference_view'), asy
   }
 });
 
-// 4. GET SINGLE SALE RATE DIFFERENCE (Modal/View ke liye)
+// 4. GET SINGLE SALE RATE DIFFERENCE
 app.get('/api/sale-rate-difference/:id', authorize('sale_rate_difference_view'), async (req, res) => {  try {
     const record = await SaleRateDifference.findById(req.params.id)
       .populate('customerId', 'name customerName')
@@ -3959,13 +4073,10 @@ app.post('/api/sale-rate-difference/complete', authorize('sale_rate_difference_a
   }
 });
 
-// Remove the strict authorize('users_view') string so we can handle it inside
 app.get('/api/users/:id', authorize(), async (req, res) => {
   try {
-    // Determine if the user is requesting their own profile
     const isRequestingSelf = req.user._id.toString() === req.params.id;
     
-    // Safely get role name whether it's a string or a populated object
     let roleName = '';
     if (typeof req.user.role === 'string') {
       roleName = req.user.role;
@@ -3976,7 +4087,6 @@ app.get('/api/users/:id', authorize(), async (req, res) => {
     const isAdmin = roleName.trim().toLowerCase() === 'admin' || req.user.email === 'admin@gmail.com';
     const hasViewPermission = req.user.role?.permissions?.includes('users_view') || isAdmin;
 
-    // Block access if they are snooping on someone else's profile without permission
     if (!isRequestingSelf && !hasViewPermission) {
        return res.status(403).json({ message: 'Forbidden: You do not have permission to view other users.' });
     }
@@ -4247,7 +4357,7 @@ app.get('/api/dashboard/summary', authorize(), async (req, res) => {
     const employees = await Employee.countDocuments({ status: { $ne: 'inactive' } }); 
     const products = await Product.countDocuments({ status: { $ne: 'inactive' } });
 
-    // 2. Get Overall Financial Totals (Top widgets ke liye)
+    // 2. Get Overall Financial Totals
     const salesAgg = await Sale.aggregate([
       { $match: { status: { $nin: ['Hold', 'Cancelled'] } } }, 
       { $group: { _id: null, total: { $sum: '$totalAmount' } } }
@@ -4264,12 +4374,10 @@ app.get('/api/dashboard/summary', authorize(), async (req, res) => {
     const purchases = purchasesAgg[0]?.total || 0;
     const expenses = expensesAgg[0]?.total || 0;
 
-    // ========================================================
-    // 3. GENERATE 6-MONTH CHART DATA (Graphs Theek Karne Ke Liye)
-    // ========================================================
+  
     const sixMonthsAgo = new Date();
     sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 5);
-    sixMonthsAgo.setDate(1); // Maheene ke start se
+    sixMonthsAgo.setDate(1);
     sixMonthsAgo.setHours(0, 0, 0, 0);
 
     // Group Sales by Month
@@ -4299,7 +4407,6 @@ app.get('/api/dashboard/summary', authorize(), async (req, res) => {
       }}
     ]);
 
-    // Loop through the last 6 months to create a proper timeline array
     const chartData = [];
     const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
@@ -4441,7 +4548,7 @@ app.get('/api/attendance-rules', authorize('settings_view'), async (req, res) =>
     }
     res.status(200).json({ success: true, rule });
   } catch (error) {
-    console.error('Error fetching rules:', error); // Yahan error terminal mein print hoga
+    console.error('Error fetching rules:', error); 
     res.status(500).json({ success: false, message: error.message });
   }
 });
@@ -4458,7 +4565,7 @@ app.put('/api/attendance-rules', authorize('settings_edit'), async (req, res) =>
     await rule.save();
     res.status(200).json({ success: true, message: 'Rules updated successfully', rule });
   } catch (error) {
-    console.error('Error updating rules:', error); // Yahan error terminal mein print hoga
+    console.error('Error updating rules:', error);
     res.status(500).json({ success: false, message: error.message });
   }
 });
@@ -4477,12 +4584,11 @@ app.get('/api/reports/attendance-summary', authorize('reports_view'), async (req
       date: { $gte: dateFrom, $lte: dateTo }
     }).populate('employeeId', 'name designation');
 
-    // 2. Group and Summarize data per employee
     const summaryMap = {};
 
     records.forEach(rec => {
       const emp = rec.employeeId;
-      if (!emp) return; // Skip if employee was deleted
+      if (!emp) return;
       
       const empId = emp._id.toString();
 
@@ -4534,7 +4640,6 @@ app.get('/api/reports/expiring-stock', authorize('report_view'), async (req, res
     .populate('product', 'name categoryId')
     .sort({ expiryDate: 1 }); 
 
-    // Status set karna (Expired ya Expiring Soon)
     const formattedBatches = expiringBatches.map(batch => {
       const isExpired = new Date(batch.expiryDate) < currentDate;
       return {
@@ -4590,7 +4695,6 @@ app.put('/api/batches/:id/expiry', authorize('products_edit'), async (req, res) 
 
 // ==================== EMPLOYEE LOAN / ADVANCE ====================
 
-// GET: List all loans
 app.get('/api/employee-loans', authorize('employee_account_view'), async (req, res) => {
   try {
     const loans = await EmployeeLoan.find({ status: { $ne: 'Inactive' } })
@@ -4631,15 +4735,15 @@ app.post('/api/employee-loans', authorize('employee_account_add'), async (req, r
       notes
     }], { session });
 
-    // 3. Update Employee Ledger (Safe format based on your existing schema)
+    // 3. Update Employee Ledger 
     await EmployeeAccount.create([{
       employee: employeeId,
       invoiceNumber: loanNumber,
-      transactionType: 'Payment', 
+      transactionType: 'Loan', // 💡 YAHAN 'Payment' KI JAGAH 'Loan' KAR DIYA HAI
       debit: 0,
       credit: loanAmount,
       date: date || new Date(),
-      notes: `Advance/Loan - ${notes || 'Issued'}`
+      notes: notes || 'Loan Issued'
     }], { session });
 
     // 4. Update Cash Register
@@ -4654,7 +4758,7 @@ app.post('/api/employee-loans', authorize('employee_account_add'), async (req, r
 
   } catch (error) {
     await session.abortTransaction();
-    console.error('Error issuing loan:', error); // Yeh terminal mein batayega ke exact masla kya hai
+    console.error('Error issuing loan:', error); 
     res.status(400).json({ success: false, message: error.message });
   } finally {
     session.endSession();
@@ -4678,12 +4782,8 @@ app.delete('/api/employee-loans/:id', authorize('employee_account_add'), async (
     res.status(500).json({ success: false, message: error.message });
   }
 });
-
-
-
 // ==================== SALARY CONFIGURATION ====================
 
-// GET: Fetch all salary configurations
 app.get('/api/salary-config', authorize('employee_account_view'), async (req, res) => {
   try {
     const configs = await SalaryConfig.find()
@@ -4697,33 +4797,31 @@ app.get('/api/salary-config', authorize('employee_account_view'), async (req, re
 
 // POST / PUT: Create or Update Salary Configuration
 app.post('/api/salary-config', authorize('employee_account_add'), async (req, res) => {
-  const { employeeId, basicSalary, allowances, deductions, notes, effectiveDate } = req.body;
+  const { employeeId, employeeType, monthlySalary, allowanceAmount, salaryWithAttendance, wefDate, notes } = req.body;
 
   try {
-    if (!employeeId) throw new Error('Employee is required.');
+    if (!employeeId) throw new Error('Employee name is required.');
     
-    const basic = Number(basicSalary) || 0;
-    const allow = Number(allowances) || 0;
-    const deduct = Number(deductions) || 0;
+    const monthly = Number(monthlySalary) || 0;
+    const allowance = Number(allowanceAmount) || 0;
     
-    if (basic <= 0) throw new Error('Basic Salary must be greater than zero.');
+    if (monthly <= 0) throw new Error('Monthly salary must be greater than zero.');
 
-    const netSalary = basic + allow - deduct;
+    const totalAmount = monthly + allowance;
 
-    // findOneAndUpdate with upsert: true will create a new record if it doesn't exist, 
-    // or update the existing one if the employee already has a configuration.
     const config = await SalaryConfig.findOneAndUpdate(
       { employee: employeeId },
       { 
-        basicSalary: basic, 
-        allowances: allow, 
-        deductions: deduct, 
-        netSalary, 
-        notes,
-        effectiveDate: effectiveDate || new Date()
+        employeeType: employeeType || 'Staff',
+        monthlySalary: monthly, 
+        allowanceAmount: allowance, 
+        totalAmount, 
+        salaryWithAttendance: salaryWithAttendance || 'Yes',
+        wefDate: wefDate || new Date(),
+        notes
       },
       { returnDocument: 'after', upsert: true, runValidators: true }
-    ).populate('employee', 'name');
+    ).populate('employee', 'name designation');
 
     res.status(200).json({ success: true, message: 'Salary Configuration saved successfully', data: config });
   } catch (error) {
@@ -4731,75 +4829,100 @@ app.post('/api/salary-config', authorize('employee_account_add'), async (req, re
   }
 });
 
+// DELETE: Remove Salary Configuration
+app.delete('/api/salary-config/:id', authorize('employee_account_add'), async (req, res) => {
+  try {
+    const deleted = await SalaryConfig.findByIdAndDelete(req.params.id);
+    if (!deleted) return res.status(404).json({ success: false, message: 'Configuration not found.' });
+    res.json({ success: true, message: 'Salary configuration deleted successfully.' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 // ==================== PAYROLL / GENERATE SALARY ====================
 
-// GET: Preview Salary (Now connected with Attendance)
 app.get('/api/payroll/preview', authorize('employee_account_view'), async (req, res) => {
   try {
-    const { month, year } = req.query; // e.g., 'August', '2026'
+    const { month, year } = req.query;
 
-    // 1. Get total days in the selected month
     const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
     const monthIndex = monthNames.indexOf(month);
     const totalDaysInMonth = new Date(year, monthIndex + 1, 0).getDate();
+    const monthStart = new Date(year, monthIndex, 1);
+    const monthEnd = new Date(year, monthIndex + 1, 0, 23, 59, 59);
     
-    // YYYY-MM prefix for filtering attendance (e.g., "2026-08")
     const monthString = String(monthIndex + 1).padStart(2, '0');
     const yearMonthPrefix = `${year}-${monthString}`;
 
-    // 2. Get active salary configs
-    const configs = await SalaryConfig.find().populate('employee', 'name');
+    const configs = await SalaryConfig.find().populate('employee');
     const previewData = [];
 
     for (const config of configs) {
-      const empId = config.employee._id;
+      if (!config.employee || config.employee.status === 'inactive') continue;
+      const emp = config.employee;
+      const empId = emp._id;
       
-      // 3. Fetch Attendance for this employee for the selected month
+      let baseSalary = config.totalAmount || config.netSalary || (config.monthlySalary + (config.allowanceAmount || 0));
+
+      // Mid-month joining proration check
+      let effectiveStart = monthStart;
+      if (emp.joiningDate) {
+        const joinD = new Date(emp.joiningDate);
+        if (joinD > monthStart && joinD <= monthEnd) {
+          effectiveStart = joinD;
+        } else if (joinD > monthEnd) {
+          continue;
+        }
+      }
+
+      const activeDaysCount = Math.round((monthEnd - effectiveStart) / (1000 * 60 * 60 * 24)) + 1;
+      let prorationMultiplier = activeDaysCount / totalDaysInMonth;
+      if (prorationMultiplier > 1) prorationMultiplier = 1;
+
+      let proratedBase = baseSalary * prorationMultiplier;
+
+      // Attendance check
       const attendances = await Attendance.find({
         employeeId: empId,
-        date: { $regex: `^${yearMonthPrefix}` } // Matches dates like "2026-08-01"
+        date: { $regex: `^${yearMonthPrefix}` } 
       });
 
-      let presentCount = 0;
       let absentCount = 0;
       let halfDayCount = 0;
-      let leaveCount = 0;
 
       attendances.forEach(att => {
-         if (att.status === 'Present' || att.status === 'Late') presentCount++;
          if (att.status === 'Absent') absentCount++;
          if (att.status === 'Half-day') halfDayCount++;
-         if (att.status === 'Leave') leaveCount++; // Assuming Leave is Paid
       });
 
-      // Calculate Deductions (1 Absent = 1 Day Deduct, 1 Half-Day = 0.5 Day Deduct)
       const totalAbsentPenaltyDays = absentCount + (halfDayCount * 0.5);
-      const perDaySalary = config.netSalary / totalDaysInMonth;
+      const perDaySalary = baseSalary / totalDaysInMonth;
       const absentDeduction = totalAbsentPenaltyDays * perDaySalary;
-      const finalCalculatedSalary = Math.max(0, Math.round(config.netSalary - absentDeduction));
+      
+      const finalCalculatedSalary = Math.max(0, Math.round(proratedBase - absentDeduction));
 
-      // 4. Check if salary already generated
       const salaryNotes = `Salary for ${month} ${year}`;
       const existingEntry = await EmployeeAccount.findOne({
         employee: empId,
         transactionType: 'Salary',
-        notes: salaryNotes
+        notes: new RegExp(`Salary for ${month} ${year}`, 'i')
       });
 
-      // 5. Get Current Ledger Balance
       const ledgerEntries = await EmployeeAccount.find({ employee: empId });
       const currentBalance = ledgerEntries.reduce((sum, entry) => sum + (entry.debit || 0) - (entry.credit || 0), 0);
 
       previewData.push({
         employeeId: empId,
-        employeeName: config.employee.name,
-        netFixedSalary: config.netSalary,
+        employeeName: emp.name,
+        netFixedSalary: baseSalary,
+        activeDaysCount,
         totalDaysInMonth,
-        presentCount,
+        presentCount: totalDaysInMonth - absentCount,
         absentCount,
         halfDayCount,
         absentDeduction: Math.round(absentDeduction),
-        finalCalculatedSalary, // Salary after attendance deduction
+        finalCalculatedSalary,
         currentBalance, 
         projectedBalance: currentBalance + finalCalculatedSalary,
         status: existingEntry ? 'Generated' : 'Pending',
@@ -4813,7 +4936,6 @@ app.get('/api/payroll/preview', authorize('employee_account_view'), async (req, 
   }
 });
 
-// POST: Process / Generate Salary (Saves Final Calculated Salary)
 app.post('/api/payroll/process', authorize('employee_account_add'), async (req, res) => {
   const { employeesToProcess } = req.body;
   const session = await mongoose.startSession();
@@ -4855,131 +4977,859 @@ app.post('/api/payroll/process', authorize('employee_account_add'), async (req, 
     session.endSession();
   }
 });
+// ==========================================
+// POST: Save Loan Recovery
+// ==========================================
 
-// ==================== EMPLOYEE LOAN RECOVERIES ====================
+app.get('/api/employee-loan-recoveries', authorize('settings_view'), async (req, res) => {
+  try {
+    const recoveries = await EmployeeAccount.find({ transactionType: 'Loan Recovery' })
+      .populate('employee', 'name designation')
+      .sort({ date: 1 });  
 
-app.get('/api/employee-loan-recoveries', authorize('employee_account_view'), async (req, res) => {
-    try {
-        const recoveries = await EmployeeLoanRecovery.find()
-            .populate('employee', 'name designation')
-            .sort({ date: -1, createdAt: -1 });
-            
-        const formattedData = recoveries.map(rec => ({
-            ...rec._doc,
-            debit: rec.amount 
-        }));
+    res.status(200).json({ 
+      success: true, 
+      data: recoveries 
+    });
+  } catch (error) {
+    console.error('Error fetching loan recoveries:', error);
+    res.status(500).json({ success: false, message: 'Server error while fetching data.' });
+  }
+});
+app.post('/api/employee-loan-recoveries', authorize('employee_account'), async (req, res) => {
+  const { employeeId, amount, recoveryDate, notes } = req.body;
+  const session = await mongoose.startSession();
 
-        res.status(200).json({ success: true, data: formattedData });
-    } catch (error) {
-        console.error('Error fetching loan recoveries:', error);
-        res.status(500).json({ success: false, message: 'Server error' });
+  try {
+    session.startTransaction();
+
+    if (!employeeId || !amount || !recoveryDate) {
+      throw new Error('Employee, Amount, aur Date dena zaroori hai.');
     }
+
+    const recDate = new Date(recoveryDate);
+
+    const empLedger = await EmployeeAccount.find({ employee: employeeId }).session(session);
+    const currentBalance = empLedger.reduce((sum, e) => sum + (e.debit || 0) - (e.credit || 0), 0);
+
+    if (currentBalance >= 0) {
+      throw new Error('Is employee par koi Loan / Advance nahi hai.');
+    }
+
+    const totalLoanOwed = Math.abs(currentBalance);
+    if (Number(amount) > totalLoanOwed) {
+      throw new Error(`Aap sirf PKR ${totalLoanOwed} tak hi recover kar sakte hain.`);
+    }
+
+const lastLoanEntry = await EmployeeAccount.findOne({
+  employee: employeeId,
+  transactionType: { $regex: /loan|advance/i }
+}).sort({ date: -1 }).session(session);
+
+if (lastLoanEntry && lastLoanEntry.date) {
+  const loanDate = new Date(lastLoanEntry.date);
+  if (!isNaN(loanDate.getTime()) && recDate < loanDate) {
+    throw new Error('Illogical Date! Recovery cannot take place before loan date .');
+  }
+}
+
+  const counter = await Counter.findOneAndUpdate(
+      { name: 'loanRecoveryNumber' },
+      { $inc: { seq: 1 } },
+      { returnDocument: 'after', upsert: true, session }
+    );
+    const invoiceNumber = `LN-REC-${counter.seq}`;
+
+    const recoveryEntry = new EmployeeAccount({
+      employee: employeeId,
+      invoiceNumber: invoiceNumber,
+      transactionType: 'Loan Recovery',
+      debit: Number(amount),
+      credit: 0,
+      date: recDate,
+      notes: notes || 'Loan Recovery'
+    });
+
+    await recoveryEntry.save({ session });
+
+    const activeRegister = await CashRegister.findOne({ closingDate: null }).session(session);
+    if (activeRegister) {
+      activeRegister.cashInHand = (activeRegister.cashInHand || 0) + Number(amount);
+      await activeRegister.save({ session });
+    }
+
+    await session.commitTransaction();
+
+    res.status(201).json({ 
+      success: true, 
+      message: 'Loan Recovery successfully saved!', 
+      data: recoveryEntry 
+    });
+
+  } catch (error) {
+    await session.abortTransaction();
+    console.error('Error saving loan recovery:', error);
+    res.status(400).json({ success: false, message: error.message });
+  } finally {
+    session.endSession();
+  }
 });
 
-// POST: Add a new loan recovery & Update Ledger
-app.post('/api/employee-loan-recoveries', authorize('employee_account_add'), async (req, res) => {
-    const session = await mongoose.startSession();
-    try {
-        session.startTransaction();
-        const { employeeId, date, amount, notes } = req.body;
+app.get('/api/reports/product-suppliers-matrix', authorize('products_view'), async (req, res) => {
+  try {
+    const products = await Product.find({ status: 'active' })
+      .populate('categoryId', 'name')
+      .populate('uomId', 'name abbreviation')
+      .populate('approvedSuppliers.supplier', 'companyName name contactPerson phone')
+      .sort({ name: 1 });
 
-        if (!employeeId || !amount || amount <= 0) {
-            return res.status(400).json({ success: false, message: 'Invalid data provided.' });
+    res.json({ success: true, data: products });
+  } catch (error) {
+    console.error('Error generating product-suppliers matrix report:', error);
+    res.status(500).json({ success: false, message: 'Server error generating report.' });
+  }
+});
+
+app.get('/api/salary-calendar', authorize('dashboard_view'), async (req, res) => {
+  try {
+    const calendars = await SalaryCalendar.find().sort({ year: -1, monthIndex: 1 });
+    res.json({ success: true, data: calendars });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+app.post('/api/salary-calendar', authorize('settings_edit'), async (req, res) => {
+  const { year } = req.body;
+  try {
+    if (!year || isNaN(year)) {
+      return res.status(400).json({ success: false, message: 'Valid Year is required.' });
+    }
+
+    const yearNum = Number(year);
+        try {
+      await SalaryCalendar.collection.dropIndexes();
+    } catch (e) {
+    }
+
+    const existingRecords = await SalaryCalendar.find({ year: yearNum });
+    const existingMonthNames = existingRecords.map(record => record.month);
+
+    const monthNames = [
+      "January", "February", "March", "April", "May", "June",
+      "July", "August", "September", "October", "November", "December"
+    ];
+
+    const monthsToAdd = monthNames.filter(m => !existingMonthNames.includes(m));
+
+    if (monthsToAdd.length === 0) {
+      return res.status(400).json({ success: false, message: `Calendar for the year ${yearNum} is already fully generated!` });
+    }
+
+    const calendarEntries = monthsToAdd.map(month => ({
+      year: yearNum,
+      month: month,
+      monthIndex: monthNames.indexOf(month) + 1,
+      status: 'In Active'
+    }));
+
+    await SalaryCalendar.insertMany(calendarEntries);
+
+    res.status(201).json({ success: true, message: `Remaining months for ${yearNum} generated successfully!` });
+  } catch (error) {
+    console.error('Error generating calendar:', error);
+    res.status(500).json({ success: false, message: 'Server error while generating calendar.' });
+  }
+});
+app.put('/api/salary-calendar/process', authorize('settings_edit'), async (req, res) => {
+  const { year, month } = req.body;
+  const session = await mongoose.startSession();
+
+  try {
+    session.startTransaction();
+
+    if (!year || !month) throw new Error('Year and Month are required');
+
+    const existingCycle = await SalaryCalendar.findOne({ year: Number(year), month: month }).session(session);
+    if (existingCycle && existingCycle.status === 'Processed') {
+      throw new Error(`Salary for ${month} ${year} is already processed!`);
+    }
+
+    const updatedCycle = await SalaryCalendar.findOneAndUpdate(
+      { year: Number(year), month: month },
+      { status: 'Processed' },
+      { new: true, upsert: true, session }
+    );
+
+    const configs = await SalaryConfig.find().populate('employee').session(session);
+
+    const counter = await Counter.findOneAndUpdate(
+      { name: 'salaryNumber' },
+      { $inc: { seq: 1 } },
+      { returnDocument: 'after', upsert: true, session }
+    );
+    const batchNumber = `SAL-${month.substring(0,3).toUpperCase()}-${year}-${counter.seq}`;
+    
+    const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+    const monthIndex = monthNames.indexOf(month);
+    const totalDaysInMonth = new Date(year, monthIndex + 1, 0).getDate();
+    const monthStart = new Date(year, monthIndex, 1);
+    const monthEnd = new Date(year, monthIndex + 1, 0, 23, 59, 59);
+    const yearMonthPrefix = `${year}-${String(monthIndex + 1).padStart(2, '0')}`;
+
+    const ledgerEntries = [];
+
+    for (const config of configs) {
+      if (!config.employee || config.employee.status === 'inactive') continue;
+
+      const emp = config.employee;
+      let baseSalary = config.totalAmount || config.netSalary || (config.monthlySalary + (config.allowanceAmount || 0));
+      
+      // 💡 PRORATION 1: MID-MONTH JOINING CHECK
+      let effectiveStart = monthStart;
+      if (emp.joiningDate) {
+        const joinD = new Date(emp.joiningDate);
+        if (joinD > monthStart && joinD <= monthEnd) {
+          effectiveStart = joinD;
+        } else if (joinD > monthEnd) {
+          continue;
         }
+      }
+      let effectiveSalary = baseSalary;
+      if (config.wefDate) {
+        const wefD = new Date(config.wefDate);
+        if (wefD > monthStart && wefD <= monthEnd) {
+           const daysBeforeWef = Math.max(0, (wefD - effectiveStart) / (1000 * 60 * 60 * 24));
+          const daysAfterWef = Math.max(0, (monthEnd - wefD) / (1000 * 60 * 60 * 24) + 1);
+          }
+      }
 
-        // ================= NEW VALIDATION LOGIC =================
-        const ledgerEntries = await EmployeeAccount.find({ employee: employeeId }).session(session);
-        const currentBalance = ledgerEntries.reduce((sum, entry) => sum + (entry.debit || 0) - (entry.credit || 0), 0);
+      // Total active days in this month for this employee
+      const activeDaysCount = Math.round((monthEnd - effectiveStart) / (1000 * 60 * 60 * 24)) + 1;
+      let prorationMultiplier = activeDaysCount / totalDaysInMonth;
+      if (prorationMultiplier > 1) prorationMultiplier = 1;
 
-        if (currentBalance >= 0) {
-            await session.abortTransaction();
-            session.endSession();
-            return res.status(400).json({ 
-                success: false, 
-                message: 'This employee has no outstanding loan/advance to recover.' 
-            });
-        }
+      let finalSalary = baseSalary * prorationMultiplier;
+      let notes = `Salary for ${month} ${year}`;
+      if (prorationMultiplier < 1) {
+        notes += ` (Prorated for ${activeDaysCount} active days)`;
+      }
 
-        const outstandingAmount = Math.abs(currentBalance);
-        if (Number(amount) > outstandingAmount) {
-            await session.abortTransaction();
-            session.endSession();
-            return res.status(400).json({ 
-                success: false, 
-                message: `Recovery amount (PKR ${amount}) cannot be greater than the outstanding loan (PKR ${outstandingAmount}).` 
-            });
-        }
-        // ========================================================
+      // 💡 ATTENDANCE BASED DEDUCTION CHECK
+      if (config.salaryWithAttendance === 'Yes') {
+        const attendances = await mongoose.model('Attendance').find({
+          employeeId: emp._id,
+          date: { $regex: `^${yearMonthPrefix}` }
+        }).session(session);
 
+        let absentCount = 0;
+        let halfDayCount = 0;
 
-        const counter = await Counter.findOneAndUpdate(
-            { name: 'loanRecoveryNumber' },
-            { $inc: { seq: 1 } },
-            { returnDocument: 'after', upsert: true, session }
-        );
-        const receiptNumber = `LR-${counter.seq}`;
-
-        const newRecovery = new EmployeeLoanRecovery({
-            employee: employeeId,
-            date,
-            amount: Number(amount),
-            invoiceNumber: receiptNumber,
-            notes: notes || 'Loan Repayment'
+        attendances.forEach(att => {
+           if (att.status === 'Absent') absentCount++;
+           if (att.status === 'Half-day') halfDayCount++;
         });
-        await newRecovery.save({ session });
 
-        const ledgerEntry = new EmployeeAccount({
-            employee: employeeId,
-            date,
-            transactionType: 'Loan Recovery',
-            invoiceNumber: receiptNumber,
-            debit: Number(amount), 
-            credit: 0,
-            notes: notes ? `[Loan Recovery] ${notes}` : '[Loan Recovery] Cash Received'
+        const totalAbsentPenaltyDays = absentCount + (halfDayCount * 0.5);
+
+        if (totalAbsentPenaltyDays > 0) {
+          const perDaySalary = baseSalary / totalDaysInMonth;
+          const deductionAmount = perDaySalary * totalAbsentPenaltyDays;
+          
+          finalSalary = Math.max(0, finalSalary - deductionAmount);
+          notes += ` [Deducted Rs. ${Math.round(deductionAmount)} for absents]`;
+        }
+      }
+
+      ledgerEntries.push({
+        employee: emp._id,
+        invoiceNumber: batchNumber,
+        transactionType: 'Salary',
+        debit: Math.round(finalSalary), 
+        credit: 0,
+        date: new Date(),
+        notes: notes
+      });
+    }
+
+    if (ledgerEntries.length > 0) {
+      await EmployeeAccount.insertMany(ledgerEntries, { session });
+    }
+
+    await session.commitTransaction();
+
+    res.json({ 
+      success: true, 
+      message: `Cycle processed successfully with Mid-Month Joining & Proration logic!`, 
+      data: updatedCycle 
+    });
+
+  } catch (error) {
+    await session.abortTransaction();
+    console.error('Error processing cycle:', error);
+    res.status(400).json({ success: false, message: error.message });
+  } finally {
+    session.endSession();
+  }
+});
+
+app.put('/api/salary-calendar/pay-all', authorize('settings_edit'), async (req, res) => {
+  const { year, month } = req.body;
+  const session = await mongoose.startSession();
+
+  try {
+    session.startTransaction();
+
+    const cycle = await SalaryCalendar.findOne({ year: Number(year), month: month }).session(session);
+    if (!cycle) throw new Error('Salary cycle not found.');
+    if (cycle.status === 'Paid') throw new Error(`Salaries for ${month} ${year} are already fully paid!`);
+    if (cycle.status !== 'Processed') throw new Error(`Please run the cycle for ${month} ${year} first.`);
+
+    const salaryEntries = await EmployeeAccount.find({
+      transactionType: 'Salary',
+      notes: `Salary for ${month} ${year}`
+    }).session(session);
+
+    const ledgerEntries = [];
+    let totalPaid = 0;
+
+    for (const entry of salaryEntries) {
+      const empLedger = await EmployeeAccount.find({ employee: entry.employee }).session(session);
+      const currentBalance = empLedger.reduce((sum, e) => sum + (e.debit || 0) - (e.credit || 0), 0);
+
+      if (currentBalance > 0) {
+        const amountToPay = Math.min(entry.debit, currentBalance);
+        
+        ledgerEntries.push({
+          employee: entry.employee,
+          invoiceNumber: `BPAY-${entry.invoiceNumber}`, 
+          transactionType: 'Payment',
+          debit: 0,
+          credit: amountToPay,
+          date: new Date(),
+          notes: `Bulk Salary Payment for ${month} ${year}`
         });
-        await ledgerEntry.save({ session });
 
-        await session.commitTransaction();
-        res.status(201).json({ success: true, message: 'Recovery recorded successfully.' });
-
-    } catch (error) {
-        await session.abortTransaction();
-        console.error('Error saving loan recovery:', error);
-        res.status(500).json({ success: false, message: 'Server error while saving recovery.' });
-    } finally {
-        session.endSession();
+        totalPaid += amountToPay;
+      }
     }
-});
-// GET: Get all holidays for a year/month or general
-app.get('/api/holidays', authorize('settings_view'), async (req, res) => {
-    try {
-        const holidays = await Holiday.find({});
-        res.status(200).json({ success: true, holidays });
-    } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
+
+    if (ledgerEntries.length > 0) {
+      await EmployeeAccount.insertMany(ledgerEntries, { session });
     }
+
+    const activeRegister = await CashRegister.findOne({ closingDate: null }).session(session);
+    if (activeRegister) {
+      activeRegister.purchaseAmount = (activeRegister.purchaseAmount || 0) + totalPaid;
+      await activeRegister.save({ session });
+    }
+
+    cycle.status = 'Paid';
+    await cycle.save({ session });
+
+    await session.commitTransaction();
+
+    res.json({ 
+      success: true, 
+      message: `Salaries for ${month} ${year} paid successfully! (Total Paid: PKR ${totalPaid})`,
+      data: cycle 
+    });
+
+  } catch (error) {
+    await session.abortTransaction();
+    console.error('Error paying cycle:', error);
+    res.status(400).json({ success: false, message: error.message });
+  } finally {
+    session.endSession();
+  }
 });
 
-// POST: Add or Remove Holiday (Toggle)
-app.post('/api/holidays', authorize('settings_edit'), async (req, res) => {
-    try {
-        const { date, title } = req.body;
-        if (!date) return res.status(400).json({ success: false, message: 'Date is required' });
 
-        const existing = await Holiday.findOne({ date });
-        if (existing) {
-            // If already a holiday, remove it (Toggle off)
-            await Holiday.deleteOne({ date });
-            return res.status(200).json({ success: true, message: 'Holiday removed successfully', isHoliday: false });
+app.post('/api/forgot-password', async (req, res) => {
+  const { email } = req.body;
+
+  try {
+    const user = await User.findOne({ email }); 
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'No account found with this email address.' });
+    }
+
+    if (user.resetAttempts >= 3) {
+      return res.status(429).json({ 
+        success: false, 
+        message: 'Maximum limit reached. You cannot request more than 3 links. Please contact Admin.' 
+      });
+    }
+
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    
+    user.resetPasswordToken = resetToken;
+    user.resetPasswordExpires = Date.now() + 60000; 
+    user.resetAttempts += 1;
+    
+    await user.save();
+
+    const resetUrl = `http://localhost:5173/reset-password/${resetToken}`;
+    console.log(`[Attempt ${user.resetAttempts}/3] Password Reset Link: `, resetUrl);
+
+    const mailOptions = {
+      from: `"Stockify ERP" <${process.env.EMAIL_USER}>`,
+      to: user.email,
+      subject: 'Password Reset Request - Stockify',
+      html: `
+        <h3>Password Reset Request</h3>
+        <p>You requested to reset your password. You have <strong>${3 - user.resetAttempts} attempt(s) remaining</strong>.</p>
+        <p>Click the link below to set a new password:</p>
+        <a href="${resetUrl}" style="padding: 10px 15px; background: #10b981; color: white; text-decoration: none; border-radius: 5px;">Reset Password</a>
+        <p style="color: red; font-weight: bold; margin-top: 15px;">⚠️ WARNING: This link will expire in exactly 1 minute!</p>
+      `
+    };
+
+    await transporter.sendMail(mailOptions);
+    res.status(200).json({ success: true, message: `Reset link sent! (${3 - user.resetAttempts} attempts left)` });
+
+  } catch (error) {
+    console.error('Forgot password error:', error);
+    res.status(500).json({ success: false, message: 'Server error, email could not be sent.' });
+  }
+});
+
+
+app.post('/api/reset-password/:token', async (req, res) => {
+  const { password } = req.body;
+  const { token } = req.params;
+
+  try {
+    const user = await User.findOne({
+      resetPasswordToken: token,
+      resetPasswordExpires: { $gt: Date.now() } 
+    });
+
+    if (!user) {
+      return res.status(400).json({ success: false, message: 'This link is invalid or has EXPIRED (1 minute limit).' });
+    }
+
+    user.password = password;
+    
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpires = undefined;
+    user.resetAttempts = 0; 
+    
+    await user.save();
+
+    res.json({ success: true, message: 'Password has been reset successfully.' });
+  } catch (error) {
+    console.error('Reset Password Error:', error);
+    res.status(500).json({ success: false, message: 'Server error. Please try again.' });
+  }
+});
+// ==================== SALARY & LOAN REPORT ====================
+app.get('/api/reports/salary', authorize('employee_account_view'), async (req, res) => {
+  try {
+    const { month } = req.query; // YYYY-MM format
+    if (!month) {
+      return res.status(400).json({ success: false, message: 'Month is required (YYYY-MM).' });
+    }
+
+    const [yearStr, monthStr] = month.split('-');
+    const year = Number(yearStr);
+    const monthNum = Number(monthStr);
+    const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+    const monthName = monthNames[monthNum - 1];
+
+    const cycle = await SalaryCalendar.findOne({ year, month: monthName });
+    const cycleStatus = cycle ? cycle.status : 'Pending';
+
+    const configs = await SalaryConfig.find().populate({
+      path: 'employee',
+      populate: { path: 'designation' }
+    });
+
+    const salaryEntries = await EmployeeAccount.find({
+      transactionType: 'Salary',
+      notes: new RegExp(`Salary for ${monthName} ${year}`, 'i')
+    });
+
+    const startDate = new Date(year, monthNum - 1, 1);
+    const endDate = new Date(year, monthNum, 0, 23, 59, 59);
+    const yearMonthPrefix = `${year}-${String(monthNum).padStart(2, '0')}`;
+
+    const allLedgerEntries = await EmployeeAccount.find().sort({ date: -1 });
+
+    const reportData = [];
+
+    for (const config of configs) {
+      if (!config.employee || config.employee.status === 'inactive') continue;
+      
+      const empId = config.employee._id.toString();
+
+      const basicSalary = config.monthlySalary || 0;
+      const allowances = config.allowanceAmount || 0;
+      const totalGrossEarnings = basicSalary + allowances;
+
+      let absentCount = 0;
+      let leaveCount = 0;
+      let halfDayCount = 0;
+      let attendanceDeduction = 0;
+
+      if (config.salaryWithAttendance === 'Yes') {
+        const attendances = await mongoose.model('Attendance').find({
+          employeeId: config.employee._id,
+          date: { $regex: `^${yearMonthPrefix}` }
+        });
+
+        attendances.forEach(att => {
+          if (att.status === 'Absent') absentCount++;
+          else if (att.status === 'Leave') leaveCount++;
+          else if (att.status === 'Half-day') halfDayCount++;
+        });
+
+        const totalPenDays = absentCount + (halfDayCount * 0.5); 
+        if (totalPenDays > 0) {
+          const totalDaysInMonth = new Date(year, monthNum, 0).getDate();
+          const perDaySalary = totalGrossEarnings / totalDaysInMonth;
+          attendanceDeduction = Math.round(perDaySalary * totalPenDays);
+        }
+      }
+
+      const empLedger = allLedgerEntries.filter(e => e.employee.toString() === empId);
+      
+      let outstanding = 0;
+      let totalLoanTakenThisMonth = 0;
+      let totalLoanReturnedThisMonth = 0;
+      const loanHistory = [];
+
+      empLedger.forEach(e => {
+        const entryDate = new Date(e.date);
+        const isThisMonth = entryDate >= startDate && entryDate <= endDate;
+
+        if (e.transactionType === 'Loan' || e.transactionType === 'Advance') {
+          outstanding += (e.credit || 0); 
+          if (isThisMonth) {
+            totalLoanTakenThisMonth += (e.credit || 0);
+          }
+          loanHistory.push({
+            date: entryDate.toISOString().split('T')[0],
+            type: 'Taken',
+            amount: e.credit || 0,
+            note: e.notes || 'Loan Issued'
+          });
+        } else if (e.transactionType === 'Loan Recovery') {
+          outstanding -= (e.debit || 0); 
+          if (isThisMonth) {
+            totalLoanReturnedThisMonth += (e.debit || 0);
+          }
+          loanHistory.push({
+            date: entryDate.toISOString().split('T')[0],
+            type: 'Returned',
+            amount: e.debit || 0,
+            note: e.notes || 'Loan Recovery'
+          });
+        }
+      });
+
+      const totalLoanOutstanding = outstanding > 0 ? outstanding : 0;
+      
+      const earnedAfterAbsences = Math.max(0, totalGrossEarnings - attendanceDeduction);
+      let loanDeduction = totalLoanOutstanding;
+      if (loanDeduction > earnedAfterAbsences) loanDeduction = earnedAfterAbsences;
+
+      const netPayable = Math.max(0, totalGrossEarnings - attendanceDeduction - loanDeduction);
+
+      // 💡 THE FIX: Real-time Live Balance from Ledger
+      const currentBalance = empLedger.reduce((sum, e) => sum + (e.debit || 0) - (e.credit || 0), 0);
+
+      const salEntry = salaryEntries.find(e => e.employee.toString() === empId);
+      let status = 'Pending';
+      
+      // Dynamic Smart Status Logic
+      if (cycleStatus === 'Paid') {
+        status = 'Paid';
+      } else if (cycleStatus === 'Processed' || salEntry) {
+        if (netPayable === 0) {
+          status = 'Settled';
+        } else if (currentBalance <= 0) {
+          status = 'Paid';
+        } else if (currentBalance > 0 && currentBalance < netPayable) {
+          status = 'Partial';
         } else {
-            // Add holiday
-            const newHoliday = new Holiday({ date, title: title || 'Public Holiday' });
-            await newHoliday.save();
-            return res.status(201).json({ success: true, message: 'Holiday marked successfully', isHoliday: true });
+          status = 'Generated';
         }
-    } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
+      }
+
+      reportData.push({
+        _id: config._id,
+        employee: {
+          _id: config.employee._id,
+          name: config.employee.name,
+          designation: config.employee.designation?.designation || 'Staff'
+        },
+        basicSalary,
+        allowances,
+        grossSalary: totalGrossEarnings,
+        attendanceStats: {
+          absent: absentCount,
+          leave: leaveCount,
+          halfDay: halfDayCount
+        },
+        attendanceDeduction, 
+        totalLoanTakenThisMonth,
+        totalLoanReturnedThisMonth,
+        loanDeduction,
+        netPayable,
+        currentBalance, // Added Live Ledger Balance
+        status,
+        loanHistory,
+        totalLoanOutstanding
+      });
     }
+
+    res.json({ success: true, data: reportData });
+  } catch (error) {
+    console.error('Error fetching salary report:', error);
+    res.status(500).json({ success: false, message: 'Server error while fetching salary report.' });
+  }
+});
+
+// ==================== EMPLOYEE SELF-SERVICE ====================
+
+// 1. My Ledger (Perfectly synced with main ledger logic)
+app.get('/api/my-ledger', authorize(), async (req, res) => {
+  try {
+    const employeeId = req.user.employeeId;
+    
+    if (!employeeId) {
+      return res.json({ success: false, notLinked: true, message: 'You are not linked to any employee profile.' });
+    }
+
+    const allEntries = await EmployeeAccount.find({ employee: employeeId }).sort({ date: 1, createdAt: 1 });
+    let runningBal = 0;
+
+    const rows = allEntries.map((row, index) => {
+      const rowDebit = Number(row.debit) || 0;
+      const rowCredit = Number(row.credit) || 0;
+      const prevBal = runningBal;
+      
+      runningBal = runningBal + rowDebit - rowCredit;
+
+      let desc = row.transactionType || 'Transaction';
+      const rawNotes = (row.notes || '').toLowerCase();
+      
+      let loanTaken = 0;
+      let loanReturned = 0;
+
+      if (rawNotes.includes('loan recovery') || rawNotes.includes('return')) {
+        desc = 'Loan Return';
+        loanReturned = rowDebit;
+      } else if (rawNotes.includes('loan') || rawNotes.includes('ln-')) {
+        desc = 'Loan Issued';
+        loanTaken = rowCredit;
+      } else if (rawNotes.includes('advance')) {
+        desc = 'Advance Given';
+        loanTaken = rowCredit;
+      } else if (row.transactionType === 'Salary') {
+        desc = 'Salary Generated';
+      } else if (row.transactionType === 'Payment') {
+        desc = 'Salary Paid';
+      }
+
+      let penalty = 0;
+      let attStats = row.attendanceStats || { absent: 0, leave: 0, halfDay: 0 }; 
+
+      if (row.transactionType === 'Salary' && row.notes) {
+        const match = row.notes.match(/Deducted Rs\.\s*(\d+)/i);
+        if (match) penalty = Number(match[1]);
+      }
+
+      const remainingLoan = runningBal < 0 ? Math.abs(runningBal) : 0;
+      
+      // Document object spread safely
+      const rowData = row.toObject ? row.toObject() : row;
+
+      return {
+        ...rowData,
+        srNo: index + 1,
+        cleanDescription: desc,
+        attendanceStats: attStats,
+        absencePenalty: penalty,
+        loanTaken: loanTaken,
+        loanReturned: loanReturned,
+        remainingLoan: remainingLoan,
+        previousBalance: prevBal,
+        net: runningBal,
+        balance: runningBal
+      };
+    });
+
+    res.json({ success: true, rows, closingBalance: runningBal });
+  } catch (error) {
+    console.error('Error fetching own ledger:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+
+
+// 3. My Loan Status
+app.get('/api/my-loan-status', authorize(), async (req, res) => {
+  try {
+    const employeeId = req.user.employeeId;
+    if (!employeeId) return res.json({ success: false, notLinked: true, message: 'No employee record linked.' });
+
+    const empLedger = await EmployeeAccount.find({ employee: employeeId });
+    const currentBalance = empLedger.reduce((sum, e) => sum + (e.debit || 0) - (e.credit || 0), 0);
+
+    res.json({ success: true, outstandingLoan: currentBalance < 0 ? Math.abs(currentBalance) : 0 });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+// ==================== EMPLOYEE SELF-SERVICE: MY SALARY SLIPS ====================
+app.get('/api/my-salary-slips', authorize(), async (req, res) => {
+  try {
+    const employeeId = req.user.employeeId;
+    if (!employeeId) {
+      return res.json({ success: false, notLinked: true, message: 'No employee record linked.' });
+    }
+
+    // Fetch ONLY this employee's salary entries
+    const salaries = await EmployeeAccount.find({
+      employee: employeeId,
+      transactionType: 'Salary'
+    }).sort({ date: -1 });
+
+    res.json({ success: true, data: salaries });
+  } catch (error) {
+    console.error('Error fetching my salaries:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+// ==================== EMPLOYEE SELF-SERVICE: CLOCK IN / OUT ====================
+
+app.get('/api/my-attendance/today', authorize(), async (req, res) => {
+  try {
+    const employeeId = req.user.employeeId;
+    if (!employeeId) return res.json({ success: false });
+
+    const now = new Date();
+    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+
+    const record = await mongoose.model('Attendance').findOne({ 
+      employeeId, 
+      date: { $regex: `^${todayStr}` } 
+    });
+    
+    res.json({ success: true, record });
+  } catch (error) {
+    res.status(500).json({ success: false });
+  }
+});
+// ==================== GET MY ATTENDANCE (Safe Fallback Logic) ====================
+app.get('/api/my-attendance', authorize(), async (req, res) => {
+  try {
+    const employeeId = req.user.employeeId;
+    if (!employeeId) return res.json({ success: false, notLinked: true });
+
+    const { month, year } = req.query;
+    let records = [];
+
+    if (month && year) {
+        const yearMonthPrefix = `${year}-${String(month).padStart(2, '0')}`;
+        records = await mongoose.model('Attendance').find({
+          employeeId: employeeId,
+          date: { $regex: `^${yearMonthPrefix}` }
+        }).sort({ date: 1 });
+    }
+
+    const employee = await mongoose.model('Employee').findById(employeeId);
+const joiningDate = employee?.joiningDate || employee?.createdAt || new Date();
+    res.json({ success: true, records, joiningDate });
+  } catch (error) {
+    console.error('Fetch attendance error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+// ==================== 2. EMPLOYEE CLOCK IN / OUT (Foolproof Auto-Status) ====================
+app.post('/api/my-attendance/clock', authorize(), async (req, res) => {
+  try {
+    const employeeId = req.user.employeeId;
+    if (!employeeId) return res.status(400).json({ success: false, message: 'No employee record linked.' });
+
+    const { action, time } = req.body; 
+    
+    const now = new Date();
+    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+
+    let record = await mongoose.model('Attendance').findOne({ 
+      employeeId, 
+      date: { $regex: `^${todayStr}` } 
+    });
+
+    const rule = await mongoose.model('AttendanceRule').findOne() || {};
+    const shiftStartTime = rule.shiftStartTime || '09:00'; 
+    const graceMins = rule.gracePeriodMinutes != null ? rule.gracePeriodMinutes : 15;    
+    const halfDayMinHours = rule.halfDayMinHours || 4; 
+    const latePenaltyEnabled = rule.latePenaltyEnabled !== false;
+
+    // Strict Time Converter
+    const toMinutes = (tStr) => {
+        if(!tStr || tStr === '--:--') return 0;
+        const cleanStr = tStr.replace(/[\u202F\u00A0]/g, ' ').toLowerCase(); 
+        let isPM = cleanStr.includes('pm');
+        let isAM = cleanStr.includes('am');
+        let [hours, minutes] = cleanStr.replace(/[a-z\s]/g, '').split(':').map(Number);
+        if (isPM && hours !== 12) hours += 12;
+        if (isAM && hours === 12) hours = 0;
+        return (hours * 60) + (minutes || 0);
+    };
+
+    const requiredMins = toMinutes(shiftStartTime) + graceMins;
+
+    if (action === 'in') {
+      if (record && record.clockIn) return res.status(400).json({ success: false, message: 'Already clocked in today.' });
+      
+      const clockInMins = toMinutes(time);
+      let calculatedStatus = 'Present';
+      
+      if (latePenaltyEnabled && clockInMins > requiredMins) {
+          calculatedStatus = 'Late';
+      }
+
+      if (!record) {
+        record = await mongoose.model('Attendance').create({ 
+          employeeId, date: todayStr, clockIn: time, status: calculatedStatus 
+        });
+      } else {
+        record.clockIn = time;
+        if (record.status !== 'Leave' && record.status !== 'Absent') {
+           record.status = calculatedStatus;
+        }
+        await record.save();
+      }
+
+    } else if (action === 'out') {
+      if (!record || !record.clockIn) return res.status(400).json({ success: false, message: 'You must clock in first.' });
+      record.clockOut = time;
+      const inMins = toMinutes(record.clockIn);
+      const outMins = toMinutes(time);
+      const workedHours = (outMins - inMins) / 60; 
+
+      let finalStatus = 'Present';
+      if (latePenaltyEnabled && inMins > requiredMins) finalStatus = 'Late';
+      if (workedHours < halfDayMinHours) finalStatus = 'Half-day';
+
+      if (record.status !== 'Leave' && record.status !== 'Absent') {
+          record.status = finalStatus;
+      }
+      await record.save();
+    }
+    res.json({ success: true, record });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
 });
 // ==================== ROOT ROUTE ====================
 app.get('/', (req, res) => {

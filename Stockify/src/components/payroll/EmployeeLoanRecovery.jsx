@@ -30,19 +30,19 @@ const EmployeeLoanRecovery = () => {
     const [recoveries, setRecoveries] = useState([]);
     const [employees, setEmployees] = useState([]);
     const [loading, setLoading] = useState(false);
-    
+
     // Filter States
     const [filterEmployee, setFilterEmployee] = useState('');
     const [filterFromDate, setFilterFromDate] = useState('');
     const [filterToDate, setFilterToDate] = useState('');
-    
+
     // Modals State
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [isViewModalOpen, setIsViewModalOpen] = useState(false);
     const [viewRecovery, setViewRecovery] = useState(null);
     const [employeeLedger, setEmployeeLedger] = useState([]);
     const [ledgerLoading, setLedgerLoading] = useState(false);
-    
+
     // Smart Dropdown States
     const [employeesWithLoans, setEmployeesWithLoans] = useState([]);
     const [isLoadingLoans, setIsLoadingLoans] = useState(false);
@@ -114,7 +114,7 @@ const EmployeeLoanRecovery = () => {
                 const data = await res.json();
                 return { ...emp, balance: data.closingBalance || 0 };
             });
-            
+
             const employeesWithBalances = await Promise.all(balancePromises);
             const debtors = employeesWithBalances.filter(emp => emp.balance < 0);
             setEmployeesWithLoans(debtors);
@@ -135,43 +135,47 @@ const EmployeeLoanRecovery = () => {
             setSelectedEmployeeBalance(null);
         }
     };
+const handleSaveRecovery = async () => {
+    if (!newRecovery.employeeId) return showMessage('Please select an employee', 'error');
+    if (!newRecovery.amount || Number(newRecovery.amount) <= 0) return showMessage('Enter a valid amount', 'error');
 
-    const handleSaveRecovery = async () => {
-        if (!newRecovery.employeeId) return showMessage('Please select an employee', 'error');
-        if (!newRecovery.amount || Number(newRecovery.amount) <= 0) return showMessage('Enter a valid amount', 'error');
-        
-        if (selectedEmployeeBalance !== null) {
-            const outstanding = Math.abs(selectedEmployeeBalance);
-            if (Number(newRecovery.amount) > outstanding) {
-                return showMessage(`Amount cannot exceed the outstanding loan of PKR ${outstanding.toFixed(2)}`, 'error');
-            }
+    if (selectedEmployeeBalance !== null) {
+        const outstanding = Math.abs(selectedEmployeeBalance);
+        if (Number(newRecovery.amount) > outstanding) {
+            return showMessage(`Amount cannot exceed the outstanding loan of PKR ${outstanding.toFixed(2)}`, 'error');
         }
+    }
 
-        setIsSubmitting(true);
-        try {
-            const res = await fetch(`${API_BASE_URL}/api/employee-loan-recoveries`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`
-                },
-                body: JSON.stringify(newRecovery)
-            });
-            const data = await res.json();
+    setIsSubmitting(true);
+    try {
+        const res = await fetch('http://localhost:5000/api/employee-loan-recoveries', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+            },
+            body: JSON.stringify({
+                employeeId: newRecovery.employeeId,
+                amount: newRecovery.amount,
+                recoveryDate: newRecovery.date,
+                notes: newRecovery.notes
+            })
+        });
+        const data = await res.json();
 
-            if (res.ok) {
-                showMessage('Loan recovery recorded successfully!', 'success');
-                setIsAddModalOpen(false);
-                fetchRecoveries();
-            } else {
-                showMessage(data.message || 'Failed to record recovery', 'error');
-            }
-        } catch (error) {
-            showMessage('Server error', 'error');
-        } finally {
-            setIsSubmitting(false);
+        if (res.ok) {
+            showMessage('Loan recovery recorded successfully!', 'success');
+            setIsAddModalOpen(false);
+            fetchRecoveries();
+        } else {
+            showMessage(data.message || 'Failed to record recovery', 'error');
         }
-    };
+    } catch (error) {
+        showMessage('Server error', 'error');
+    } finally {
+        setIsSubmitting(false);
+    }
+};
 
     const openViewModal = async (recovery) => {
         setViewRecovery(recovery);
@@ -209,7 +213,7 @@ const EmployeeLoanRecovery = () => {
     const filteredRecoveries = recoveries.filter(rec => {
         let match = true;
         if (filterEmployee && rec.employee?._id !== filterEmployee) match = false;
-        
+
         if (filterFromDate && new Date(rec.date) < new Date(filterFromDate)) match = false;
         if (filterToDate) {
             const toDate = new Date(filterToDate);
@@ -270,12 +274,12 @@ const EmployeeLoanRecovery = () => {
     const totalAdded = employeeLedger.reduce((sum, row) => sum + (row.debit || 0), 0);
     const totalDeducted = employeeLedger.reduce((sum, row) => sum + (row.credit || 0), 0);
     const currentRecoveryAmount = viewRecovery ? parseFloat(viewRecovery.debit || 0) : 0;
-    const previousAdded = Math.max(0, totalAdded - currentRecoveryAmount); 
+    const previousAdded = Math.max(0, totalAdded - currentRecoveryAmount);
     const netBalance = totalAdded - totalDeducted;
 
     return (
         <div className="dashboard-wrapper">
-            
+
             {/* TOP HEADER & FILTERS */}
             <div className="card" style={{ display: 'flex', gap: '16px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
                 <div className="form-group" style={{ marginBottom: 0, flex: '1 1 200px' }}>
@@ -318,7 +322,7 @@ const EmployeeLoanRecovery = () => {
                             {loading ? (
                                 <tr><td colSpan="6" style={{ padding: '40px', textAlign: 'center' }}>Loading records...</td></tr>
                             ) : filteredRecoveries.length === 0 ? (
-                                <tr><td colSpan="6" style={{ padding: '40px', fontSize:'14px',textAlign: 'center', color: 'var(--text-muted)' }}>
+                                <tr><td colSpan="6" style={{ padding: '40px', fontSize: '14px', textAlign: 'center', color: 'var(--text-muted)' }}>
                                     {hasActiveFilters ? 'No recoveries match your filters.' : 'No loan recoveries recorded yet.'}
                                 </td></tr>
                             ) : (
@@ -377,22 +381,22 @@ const EmployeeLoanRecovery = () => {
                                             ))}
                                         </select>
                                         {selectedEmployeeBalance !== null && (
-                                            <div style={{  marginTop:'10px',padding: '3px 12px', backgroundColor: '#fef2f2', borderRadius: '4px', fontSize: '13px', border: '1px solid #fecaca', color: 'var(--danger)' }}>
+                                            <div style={{ marginTop: '10px', padding: '3px 12px', backgroundColor: '#fef2f2', borderRadius: '4px', fontSize: '13px', border: '1px solid #fecaca', color: 'var(--danger)' }}>
                                                 <strong>Outstanding Loan: </strong>PKR {parseFloat(Math.abs(selectedEmployeeBalance)).toFixed(2)}
                                             </div>
                                         )}
                                     </div>
                                     <div className="form-group">
                                         <label className="form-label">Amount Received (PKR) *</label>
-                                        <input type="number" className="form-input" value={newRecovery.amount} onChange={e => setNewRecovery({...newRecovery, amount: e.target.value})} placeholder="0.00" />
+                                        <input type="number" className="form-input" value={newRecovery.amount} onChange={e => setNewRecovery({ ...newRecovery, amount: e.target.value })} placeholder="0.00" />
                                     </div>
                                     <div className="form-group">
                                         <label className="form-label">Date *</label>
-                                        <input type="date" className="form-input" value={newRecovery.date} onChange={e => setNewRecovery({...newRecovery, date: e.target.value})} />
+                                        <input type="date" className="form-input" value={newRecovery.date} onChange={e => setNewRecovery({ ...newRecovery, date: e.target.value })} />
                                     </div>
                                     <div className="form-group">
                                         <label className="form-label">Notes / Remarks</label>
-                                        <textarea className="form-input" value={newRecovery.notes} onChange={e => setNewRecovery({...newRecovery, notes: e.target.value})} placeholder="E.g., Cash received directly..." rows="3"></textarea>
+                                        <textarea className="form-input" value={newRecovery.notes} onChange={e => setNewRecovery({ ...newRecovery, notes: e.target.value })} placeholder="E.g., Cash received directly..." rows="3"></textarea>
                                     </div>
                                 </>
                             )}
@@ -422,7 +426,7 @@ const EmployeeLoanRecovery = () => {
                         </div>
                         <div className="modal-body" id="receipt-content" style={{ padding: getPaperConfig(printSettings?.paperSize).bodyPadding, fontSize: getPaperConfig(printSettings?.paperSize).fontSize, fontFamily: getPaperConfig(printSettings?.paperSize).mono ? "'Courier New', monospace" : 'inherit', overflowY: 'auto' }}>
                             <div style={{ textAlign: 'center', marginBottom: '16px' }}>
-                                <h4 style={{ margin: '4px 0', fontSize:'16px' }}>LOAN RECOVERY RECEIPT</h4>
+                                <h4 style={{ margin: '4px 0', fontSize: '16px' }}>LOAN RECOVERY RECEIPT</h4>
                                 <p style={{ textAlign: 'left', margin: '4px 0', color: '#333' }}>Receipt #: <strong>{viewRecovery.invoiceNumber || 'N/A'}</strong></p>
                                 <p style={{ textAlign: 'left', margin: '4px 0', color: '#333' }}>Date: <strong>{formatDate(viewRecovery.date)}</strong></p>
                                 <p style={{ textAlign: 'left', margin: '4px 0', color: '#333' }}>Employee: <strong>{viewRecovery.employee?.name || 'Unknown'}</strong></p>
@@ -450,9 +454,9 @@ const EmployeeLoanRecovery = () => {
                                     </thead>
                                     <tbody>
                                         <tr>
-                                            <td style={{textAlign: 'left',  padding: '8px', borderBottom: '1px solid #ccc', fontSize: '13px', color: '#000', fontWeight: 500 }}>Loan Repayment / Recovery</td>
-                                            <td style={{textAlign: 'left', padding: '8px', borderBottom: '1px solid #ccc', fontSize: '13px', color: '#000' }}>{viewRecovery.notes || '—'}</td>
-                                            <td style={{textAlign: 'left', padding: '8px', borderBottom: '1px solid #ccc', fontSize: '13px', color: '#000', fontWeight: 600, textAlign: 'right' }}>PKR {parseFloat(viewRecovery.debit || 0).toFixed(2)}</td>
+                                            <td style={{ textAlign: 'left', padding: '8px', borderBottom: '1px solid #ccc', fontSize: '13px', color: '#000', fontWeight: 500 }}>Loan Repayment / Recovery</td>
+                                            <td style={{ textAlign: 'left', padding: '8px', borderBottom: '1px solid #ccc', fontSize: '13px', color: '#000' }}>{viewRecovery.notes || '—'}</td>
+                                            <td style={{ textAlign: 'left', padding: '8px', borderBottom: '1px solid #ccc', fontSize: '13px', color: '#000', fontWeight: 600, textAlign: 'right' }}>PKR {parseFloat(viewRecovery.debit || 0).toFixed(2)}</td>
                                         </tr>
                                     </tbody>
                                 </table>
@@ -481,7 +485,7 @@ const EmployeeLoanRecovery = () => {
                                     </>
                                 )}
                             </div>
-                            
+
                             <div style={{ borderTop: '2px dashed #000', margin: '16px 0' }}></div>
                             <div style={{ textAlign: 'center', color: '#555', fontSize: '13px' }}><p>System Generated Receipt</p></div>
                         </div>
@@ -489,18 +493,18 @@ const EmployeeLoanRecovery = () => {
                 </div>
             )}
 
-         {/* ================= GLOBAL TOAST MESSAGE (CENTERED) ================= */}
+            {/* ================= GLOBAL TOAST MESSAGE (CENTERED) ================= */}
             {message.text && (
-                <div style={{ 
-                    position: 'fixed', 
+                <div style={{
+                    position: 'fixed',
                     top: '30px',           /* Oopar se thora fasla */
                     left: '50%',           /* Screen ke darmiyan mein lane ke liye */
                     transform: 'translateX(-50%)', /* Exact center align karne ka CSS trick */
-                    zIndex: 2147483647, 
-                    padding: '16px 24px', 
-                    borderRadius: '8px', 
-                    backgroundColor: message.type === 'error' ? '#fef2f2' : '#f0fdf4', 
-                    color: message.type === 'error' ? '#b91c1c' : '#15803d', 
+                    zIndex: 2147483647,
+                    padding: '16px 24px',
+                    borderRadius: '8px',
+                    backgroundColor: message.type === 'error' ? '#fef2f2' : '#f0fdf4',
+                    color: message.type === 'error' ? '#b91c1c' : '#15803d',
                     border: `1px solid ${message.type === 'error' ? '#fecaca' : '#bbf7d0'}`,
                     boxShadow: '0 10px 25px rgba(0,0,0,0.2)', /* Thora bara shadow taake aur wazeh ho */
                     fontWeight: 'bold',

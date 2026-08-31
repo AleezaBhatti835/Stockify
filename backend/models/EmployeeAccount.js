@@ -12,7 +12,7 @@ const employeeAccountSchema = new mongoose.Schema({
   },
   transactionType: {
     type: String,
- enum: ['Salary', 'Advance', 'Payment', 'Opening Balance', 'Loan Recovery'],
+ enum: ['Salary', 'Payment', 'Refund', 'Loan', 'Loan Recovery', 'Advance'],
     required: [true, 'Transaction type is required']
   },
   debit: {

@@ -337,7 +337,7 @@ const EmployeeLoan = () => {
                         </thead>
                         <tbody>
                             {loading ? (
-                                <tr><td colSpan="6" style={{ padding: '40px', textAlign: 'center' }}>Loading...</td></tr>
+                                <tr><td colSpan="6" style={{ padding: '40px',fontSize:'14px', textAlign: 'center' }}>Loading...</td></tr>
                             ) : filteredLoans.length === 0 ? (
                                 <tr><td colSpan="6" style={{ padding: '40px', fontSize: '14px', textAlign: 'center', color: 'var(--text-muted)' }}>
                                     {hasActiveFilters ? 'No loans match your filters.' : 'No loans issued yet.'}

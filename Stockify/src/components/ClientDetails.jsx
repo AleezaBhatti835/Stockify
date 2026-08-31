@@ -227,19 +227,19 @@ const ClientDetails = () => {
                                 </tr>
                             ) : (
                                 <tr style={{ borderBottom: '1px solid var(--border-color)', transition: 'background-color 0.2s' }} onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--bg-app)'} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}>
-                                    <td style={{ padding: '10px 16px' }}>
+                                    <td style={{ padding: '10px 16px', textAlign: 'left' }}>
                                         {client.logo ? (
                                             <img src={getImageUrl(client.logo)} alt="Logo" style={{ width: '40px', height: '40px', objectFit: 'contain', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)', backgroundColor: '#fff' }} />
                                         ) : (
                                             <span style={{ color: 'var(--text-muted)', fontSize: '12px' }}>No Logo</span>
                                         )}
                                     </td>
-                                    <td style={{ padding: '10px 16px', fontSize: '13px', color: 'var(--text-main)', fontWeight: '600' }}>
+                                    <td style={{ padding: '10px 16px', textAlign: 'left', fontSize: '13px', color: 'var(--text-main)', fontWeight: '600' }}>
                                         {client.businessName}
                                     </td>
-                                    <td style={{ padding: '10px 16px', fontSize: '13px', color: 'var(--text-main)' }}>{client.contact}</td>
-                                    <td style={{ padding: '10px 16px', fontSize: '13px', color: 'var(--text-main)' }}>{client.address}</td>
-                                    <td style={{ padding: '10px 16px', textAlign: 'center' }}>
+                                    <td style={{ padding: '10px 16px', textAlign: 'left', fontSize: '13px', color: 'var(--text-main)' }}>{client.contact}</td>
+                                    <td style={{ padding: '10px 16px', textAlign: 'left', fontSize: '13px', color: 'var(--text-main)' }}>{client.address}</td>
+                                    <td style={{ padding: '10px 16px', textAlign: 'left', textAlign: 'center' }}>
                                         <div style={{ display: 'flex', justifyContent: 'center', gap: '8px' }}>
                                             <button 
                                                 style={{ backgroundColor: 'var(--primary-light)', color: 'var(--primary)', border: 'none', padding: '6px', borderRadius: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center' }} 

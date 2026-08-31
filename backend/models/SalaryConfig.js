@@ -4,15 +4,38 @@ const salaryConfigSchema = new mongoose.Schema({
   employee: { 
     type: mongoose.Schema.Types.ObjectId, 
     ref: 'Employee', 
-    required: true, 
-    unique: true // Ek employee ki ek hi active config hogi
+    required: true 
   },
-  basicSalary: { type: Number, required: true, min: 0 },
-  allowances: { type: Number, default: 0 },
-  deductions: { type: Number, default: 0 },
-  netSalary: { type: Number, required: true },
-  effectiveDate: { type: Date, default: Date.now },
-  notes: { type: String }
+  employeeType: { 
+    type: String, 
+    default: 'Staff' 
+  },
+  monthlySalary: { 
+    type: Number, 
+    required: true, 
+    default: 0 
+  },
+  allowanceAmount: { 
+    type: Number, 
+    default: 0 
+  },
+  totalAmount: { 
+    type: Number, 
+    required: true, 
+    default: 0 
+  },
+  salaryWithAttendance: { 
+    type: String, 
+    default: 'Yes' 
+  },
+  wefDate: { 
+    type: Date 
+  },
+  notes: { 
+    type: String 
+  }
 }, { timestamps: true });
 
-export default mongoose.model('SalaryConfig', salaryConfigSchema);
+const SalaryConfig = mongoose.models.SalaryConfig || mongoose.model('SalaryConfig', salaryConfigSchema);
+
+export default SalaryConfig;

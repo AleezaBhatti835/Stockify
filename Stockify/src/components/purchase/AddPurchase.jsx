@@ -47,7 +47,7 @@ function AddPurchase() {
   const [message, setMessage] = useState({ text: '', type: '' });
   const topRef = useRef(null); 
 
- // --- Initialization ---
+  // --- Initialization ---
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -74,8 +74,8 @@ function AddPurchase() {
         const productData = await productRes.json();
         const purchaseData = await purchaseRes.json();
 
-        setSuppliers(Array.isArray(supplierData) ? supplierData : []);
-        setProducts(Array.isArray(productData) ? productData : []);
+        setSuppliers(Array.isArray(supplierData) ? supplierData : (supplierData.data || []));
+        setProducts(Array.isArray(productData) ? productData : (productData.data || []));
         
         generateNextInvoiceNumber(purchaseData.lastInvoiceNumber);
       } catch (error) {
@@ -145,6 +145,7 @@ function AddPurchase() {
     setPurchaseInfo({ ...purchaseInfo, [e.target.name]: e.target.value });
   };
 
+  // --- Two-Way Logic: Supplier Selection ---
   const handleSupplierChange = (e) => {
     const selectedId = e.target.value;
     const selectedSupplier = suppliers.find(s => s._id === selectedId);
@@ -155,10 +156,31 @@ function AddPurchase() {
       supplierPhone: selectedSupplier?.phone || '',
       supplierCity: selectedSupplier?.city || ''
     });
+
+    // Agar draft mein koi product pehle se selected tha, toh check karein ke kya wo naye supplier se linked hai?
+    if (draftItem.product) {
+      const currentProd = products.find(p => p._id === draftItem.product);
+      if (currentProd && selectedId) {
+        const link = currentProd.approvedSuppliers?.find(s => (s.supplier?._id || s.supplier) === selectedId);
+        if (link) {
+          // Rate update kar dein agar supplier ka makhsoos rate mojood hai
+          setDraftItem(prev => ({ ...prev, unitPrice: link.purchasePrice }));
+        }
+      }
+    }
   };
 
+  // --- Two-Way Logic: Available Products Filtering based on Supplier ---
+  const availableProducts = products.filter(p => {
+    // Agar supplier select hai, toh sirf wahi products dikhayein jo is supplier se linked hain
+    if (purchaseInfo.supplierId) {
+      return p.approvedSuppliers?.some(s => (s.supplier?._id || s.supplier) === purchaseInfo.supplierId);
+    }
+    return true; // Agar supplier select nahi hai toh sare products show honge
+  });
+
   // --- Main Form Search Logic ---
-  const filteredProducts = products.filter(p =>
+  const filteredProducts = availableProducts.filter(p =>
     p.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
@@ -195,17 +217,45 @@ function AddPurchase() {
     }
   };
 
-  const selectProduct = (product) => {
+const selectProduct = (product) => {
+    let price = product.costPrice || product.retailPrice || 0;
+    const approvedSupplierIds = product.approvedSuppliers?.map(s => s.supplier?._id || s.supplier) || [];
+
+    if (purchaseInfo.supplierId) {
+      const link = product.approvedSuppliers?.find(s => (s.supplier?._id || s.supplier) === purchaseInfo.supplierId);
+      if (link) {
+        price = link.purchasePrice;
+      }
+    } else if (product.approvedSuppliers && product.approvedSuppliers.length === 1) {
+      const singleLink = product.approvedSuppliers[0];
+      const supId = singleLink.supplier?._id || singleLink.supplier;
+      const matchedSup = suppliers.find(s => s._id === supId);
+      
+      if (matchedSup) {
+        setPurchaseInfo(prev => ({
+          ...prev,
+          supplierId: supId,
+          supplierPhone: matchedSup.phone || '',
+          supplierCity: matchedSup.city || ''
+        }));
+      }
+      price = singleLink.purchasePrice;
+    }
+
     setDraftItem({
       ...draftItem,
       product: product._id,
       productName: product.name,
-      unitPrice: product.retailPrice || 0,
+      unitPrice: price,
       quantity: 1
     });
     setSearchTerm(product.name);
     setIsSearchOpen(false);
     setHighlightedIndex(-1);
+
+    // 💡 FIX: Suppliers ki list ko filter kar dete hain taake sirf approved suppliers hi dropdown mein dikhein
+    if (approvedSupplierIds.length > 0 && !purchaseInfo.supplierId) {
+    }
 
     setTimeout(() => {
       if (qtyInputRef.current) {
@@ -254,11 +304,17 @@ function AddPurchase() {
   };
 
   const selectModalProduct = (product) => {
+    let price = product.costPrice || product.retailPrice || 0;
+    if (purchaseInfo.supplierId) {
+      const link = product.approvedSuppliers?.find(s => (s.supplier?._id || s.supplier) === purchaseInfo.supplierId);
+      if (link) price = link.purchasePrice;
+    }
+
     setEditFormData({
       ...editFormData,
       product: product._id,
       productName: product.name,
-      unitPrice: product.retailPrice || 0,
+      unitPrice: price,
     });
     setModalSearchTerm(product.name);
     setIsModalSearchOpen(false);
@@ -281,12 +337,15 @@ function AddPurchase() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // --- Cart / Table Logic ---
-  const handleAddDraftToTable = (e) => {
+ const handleAddDraftToTable = (e) => {
     if (e) e.preventDefault();
     if (!draftItem.product) return showMessage('Please select a valid product.', 'error');
+    if (!purchaseInfo.supplierId) return showMessage('Please select a supplier first.', 'error');
     if (draftItem.quantity <= 0) return showMessage('Quantity must be greater than 0.', 'error');
     if (draftItem.unitPrice < 0) return showMessage('Unit price cannot be negative.', 'error');
+
+    const currentSupplier = suppliers.find(s => s._id === purchaseInfo.supplierId);
+    const supplierDisplayName = currentSupplier ? (currentSupplier.companyName || currentSupplier.contactPerson) : 'N/A';
 
     setItems(prevItems => {
       const existingIndex = prevItems.findIndex(item => item.product === draftItem.product);
@@ -306,7 +365,12 @@ function AddPurchase() {
         return updated;
       }
 
-      return [...prevItems, { ...draftItem, totalPrice: draftItem.quantity * draftItem.unitPrice }];
+      return [...prevItems, { 
+        ...draftItem, 
+        supplierId: purchaseInfo.supplierId,
+        supplierName: supplierDisplayName,
+        totalPrice: draftItem.quantity * draftItem.unitPrice 
+      }];
     });
 
     setDraftItem({ product: '', productName: '', quantity: 1, unitPrice: 0, expiryDate: '' });
@@ -556,9 +620,6 @@ function AddPurchase() {
         </div>
       )}
 
-      {/* --- PAGE HEADER --- */}
-    
-
       <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-md)' }}>
         
         {/* --- TOP SPLIT: ADD PRODUCTS & SUPPLIER --- */}
@@ -571,7 +632,7 @@ function AddPurchase() {
             <div className="form-group" style={{ position: 'relative' }} ref={searchRef}>
               <label className="form-label">Search Product *</label>
               <input
-                type="text" className="form-input" placeholder="Type to search..."
+                type="text" className="form-input" placeholder={purchaseInfo.supplierId ? "Type to search approved products..." : "Type to search all products..."}
                 value={searchTerm}
                 onChange={(e) => { setSearchTerm(e.target.value); setIsSearchOpen(true); setHighlightedIndex(-1); }}
                 onKeyDown={handleSearchKeyDown}
@@ -600,7 +661,7 @@ function AddPurchase() {
                     >
                       <span style={{ fontSize: '14px', fontWeight: index === highlightedIndex ? 600 : 400 }}>{product.name}</span>
                       <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                        Stock: {product.quantity || 0} | Price: {product.retailPrice || 0}
+                        Stock: {product.quantity || 0}
                       </span>
                     </li>
                   ))}
@@ -657,7 +718,21 @@ function AddPurchase() {
               <label className="form-label">Select Supplier *</label>
               <select className="form-input" name="supplierId" value={purchaseInfo.supplierId} onChange={handleSupplierChange} required>
                 <option value="">-- Choose Supplier --</option>
-                {suppliers.map(s => <option key={s._id} value={s._id}>{s.contactPerson} {s.companyName ? `(${s.companyName})` : ''}</option>)}
+                {suppliers
+                  .filter(s => {
+                    if (draftItem.product) {
+                      const selectedProd = products.find(p => p._id === draftItem.product);
+                      if (selectedProd && selectedProd.approvedSuppliers && selectedProd.approvedSuppliers.length > 0) {
+                        return selectedProd.approvedSuppliers.some(link => (link.supplier?._id || link.supplier) === s._id);
+                      }
+                    }
+                    return true; 
+                  })
+                  .map(s => (
+                    <option key={s._id} value={s._id}>
+                      {s.contactPerson} {s.companyName ? `(${s.companyName})` : ''}
+                    </option>
+                  ))}
               </select>
             </div>
 
@@ -683,10 +758,11 @@ function AddPurchase() {
         <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead>
+             <thead>
                 <tr>
                   <th style={tableStyles.th}>Sr#</th>
                   <th style={tableStyles.th}>Product Name</th>
+                  <th style={tableStyles.th}>Supplier</th>
                   <th style={tableStyles.th}>Qty</th>
                   <th style={tableStyles.th}>Cost</th>
                   <th style={tableStyles.th}>Subtotal</th>
@@ -696,7 +772,7 @@ function AddPurchase() {
               <tbody>
                 {items.length === 0 ? (
                   <tr>
-                    <td colSpan="6" style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)', fontSize: '14px' }}>
+                    <td colSpan="7" style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)', fontSize: '14px' }}>
                       No products added yet. Use the form above to add items.
                     </td>
                   </tr>
@@ -705,6 +781,7 @@ function AddPurchase() {
                     <tr key={index} style={{ borderBottom: '1px solid var(--border-color)' }}>
                       <td style={tableStyles.td}>{index + 1}</td>
                       <td style={tableStyles.td}>{item.productName}</td>
+                      <td style={{ ...tableStyles.td, fontWeight: 500, color: 'var(--primary)' }}>{item.supplierName}</td> {/* 💡 SUPPLIER NAME */}
                       <td style={tableStyles.td}>{item.quantity}</td>
                       <td style={tableStyles.td}>{item.unitPrice.toFixed(2)}</td>
                       <td style={{ ...tableStyles.td, fontWeight: 'bold' }}>{item.totalPrice.toFixed(2)}</td>
@@ -734,9 +811,20 @@ function AddPurchase() {
           </div>
         </div>
 
-        {/* --- BOTTOM: BILLING --- */}
+      {/* --- BOTTOM: BILLING --- */}
         <div className="card">
-          <h4 style={{ margin: '0 0 var(--space-md) 0', color: 'var(--primary)', fontSize: '15px' }}>Billing Summary</h4>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-md)' }}>
+            <h4 style={{ margin: 0, color: 'var(--primary)', fontSize: '15px' }}>Billing Summary</h4>
+            
+            <button
+              type="button"
+              className="btn btn-secondary"
+              style={{ fontSize: '12px', padding: '6px 12px', height: '32px', backgroundColor: 'var(--primary-light)', color: 'var(--primary)', borderColor: 'var(--primary)' }}
+              onClick={() => setPaidAmount(netPayable)}
+            >
+             Pay All (Full Payment)
+            </button>
+          </div>
           
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 'var(--space-md)', alignItems: 'flex-end', padding: 'var(--space-md)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
             <div className="form-group" style={{ marginBottom: 0 }}>
@@ -778,7 +866,6 @@ function AddPurchase() {
             </button>
           </div>
         </div>
-
       </form>
     </div>
   );
