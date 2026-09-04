@@ -118,8 +118,8 @@ function ProfitLossReport() {
       if (r.type === 'finalSummary') {
         const isProfit = r.amount >= 0;
         const bgColor = isProfit ? '#d1fae5' : '#ffe4e6';
-        const textColor = isProfit ? '#10b981' : '#e11d48';
-        const borderColor = isProfit ? '#10b981' : '#e11d48';
+        const textColor = isProfit ? '#10b981' : '#935562';
+        const borderColor = isProfit ? '#10b981' : '#f08299';
         return `<tr>
           <td style="padding: 20px 24px; font-weight: 900; font-size: 16px; background-color: ${bgColor}; color: ${textColor}; border-top: 3px solid ${borderColor}; border-bottom: 3px solid ${borderColor}; text-transform: uppercase;">${r.title}</td>
           <td style="padding: 20px 24px; font-weight: 900; font-size: 18px; text-align: left; background-color: ${bgColor}; color: ${textColor}; border-top: 3px solid ${borderColor}; border-bottom: 3px solid ${borderColor};">Rs. ${formatCurrency(r.amount)}</td>
@@ -303,8 +303,8 @@ function ProfitLossReport() {
                         padding: '6px 24px', fontSize: '16px', fontWeight: 800, textAlign: 'center', textTransform: 'uppercase', letterSpacing: '0.5px',
                         backgroundColor: isProfit ? 'var(--success-bg)' : 'var(--danger-bg)', 
                         color: isProfit ? 'var(--success)' : 'var(--danger)', 
-                        borderTop: `2px solid ${isProfit ? 'var(--success)' : 'var(--danger)'}`, 
-                        borderBottom: `2px solid ${isProfit ? 'var(--success)' : 'var(--danger)'}`
+                        borderTop: `1px solid ${isProfit ? 'var(--success)' : 'var(--danger)'}`, 
+                        borderBottom: `1px solid ${isProfit ? 'var(--success)' : 'var(--danger)'}`
                       }}>
                         {row.title}
                       </td>
@@ -312,8 +312,8 @@ function ProfitLossReport() {
                         padding: '10px 24px', fontSize: '16px', fontWeight: 700, textAlign: 'center', fontVariantNumeric: 'tabular-nums',
                         backgroundColor: isProfit ? 'var(--success-bg)' : 'var(--danger-bg)', 
                         color: isProfit ? 'var(--success)' : 'var(--danger)', 
-                        borderTop: `2px solid ${isProfit ? 'var(--success)' : 'var(--danger)'}`,
-                        borderBottom: `2px solid ${isProfit ? 'var(--success)' : 'var(--danger)'}`
+                        borderTop: `1px solid ${isProfit ? 'var(--success)' : 'var(--danger)'}`,
+                        borderBottom: `1px solid ${isProfit ? 'var(--success)' : 'var(--danger)'}`
                       }}>
                         Rs. {formatCurrency(row.amount)}
                       </td>

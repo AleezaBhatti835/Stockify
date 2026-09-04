@@ -238,7 +238,7 @@ function SalesReturnList() {
             <div className="modal-overlay" onClick={closeReceipt}>
                 <div className="modal-container" style={{ width: '850px', padding: 0, overflow: 'hidden' }} onClick={(e) => e.stopPropagation()}>
                     <div className="modal-header">
-                        <h3 className="modal-title" style={{ color: '#000' }}>CAPOBIZ</h3>
+                        <h3 className="modal-title" style={{ color: '#000' }}>Stockify</h3>
                         <div style={{ display: 'flex', gap: 'var(--space-sm)' }}>
                             <button className="btn btn-primary" onClick={handlePrint}>🖨️ Print</button>
                             <button className="btn btn-secondary" onClick={closeReceipt}>✕ Close</button>
@@ -264,14 +264,14 @@ function SalesReturnList() {
                         <div style={{ borderTop: '2px dashed #000', margin: '14px 0' }}></div>
 
                         <table style={{ width: '100%', tableLayout: 'fixed', borderCollapse: 'collapse', marginBottom: '12px' }}>
-                            <thead>
+                            <thead style={{backgroundColor:'var(--primary-light)'}}>
                                 <tr>
-                                    <th style={{ ...tableStyles.th, width: '15%' }}>Product</th>
-                                    <th style={{ ...tableStyles.th, textAlign: 'left', width: '15%' }}>Orig. Sale</th>
-                                    <th style={{ ...tableStyles.th, textAlign: 'left', width: '15%' }}>Date</th>
-                                    <th style={{ ...tableStyles.th, textAlign: 'left', width: '15%' }}>Ret. Qty</th>
-                                    <th style={{ ...tableStyles.th, textAlign: 'left', width: '15%' }}>Price</th>
-                                    <th style={{ ...tableStyles.th, textAlign: 'left', width: '15%' }}>Total</th>
+                                    <th style={{ ...styles.receiptTh, textAlign: 'left', width: '15%' }}>Product</th>
+                                    <th style={{ ...styles.receiptTh, textAlign: 'left', width: '15%' }}>Orig. Sale</th>
+                                    <th style={{ ...styles.receiptTh, textAlign: 'left', width: '15%' }}>Date</th>
+                                    <th style={{ ...styles.receiptTh, textAlign: 'left', width: '15%' }}>Ret. Qty</th>
+                                    <th style={{ ...styles.receiptTh, textAlign: 'left', width: '15%' }}>Price</th>
+                                    <th style={{ ...styles.receiptTh, textAlign: 'left', width: '15%' }}>Total</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -543,7 +543,7 @@ const styles = {
     receiptHeaderInfo: { textAlign: 'left', marginBottom: '16px' },
     receiptDivider: { borderTop: '2px dashed #000', margin: '14px 0' },
     receiptTable: { width: '100%', tableLayout: 'fixed', borderCollapse: 'collapse', marginBottom: '12px' },
-    receiptTh: { textAlign: 'left', padding: '6px 8px', backgroundColor: '#394654', borderBottom: '2px solid #000', fontSize: '12px', fontWeight: 600, color: '#ffffff', textTransform: 'uppercase', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
+    receiptTh: { textAlign: 'left', padding: '10px 8px', borderBottom: '1px solid #000', fontSize: '12px', fontWeight: 600, color: 'var(--primary)', textTransform: 'uppercase', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
     receiptTd: { padding: '6px 8px', borderBottom: '1px solid #ccc', fontSize: '13px', color: '#000' },
     receiptTotals: { marginTop: '14px' },
     receiptTotalRow: { display: 'flex', justifyContent: 'space-between', padding: '5px 0', fontSize: '13px', color: '#000' }

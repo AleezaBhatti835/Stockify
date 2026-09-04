@@ -34,7 +34,7 @@ function MyLedger() {
       
       {/* PAGE HEADER */}
       <div style={{ marginBottom: '24px' }}>
-        <h2 style={{ color: 'var(--primary)', margin: 0, fontSize: '24px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <h2 style={{ color: 'var(--primary)', margin: 0, fontSize: '18px', display: 'flex', alignItems: 'center', gap: '10px' }}>
           <FontAwesomeIcon icon={faWallet} /> My Account Ledger
         </h2>
       </div>
@@ -88,7 +88,7 @@ function MyLedger() {
         </div>
       </div>
 
-      {/* CURRENT BALANCE FOOTER */}
+      {/* CURRENT BALANCE FOOTER WITH STATUS */}
       {!loading && (
         <div style={{ 
           marginTop: '16px', 
@@ -102,7 +102,16 @@ function MyLedger() {
           color: closingBalance < 0 ? 'var(--danger)' : 'var(--success)'
         }}>
           <span style={{ color: 'var(--text-main)', marginRight: '10px' }}>Current Balance:</span> 
-          PKR {closingBalance.toLocaleString()}
+          PKR {Math.abs(closingBalance).toLocaleString()} 
+          <span style={{ 
+            marginLeft: '12px', 
+            padding: '4px 8px', 
+            borderRadius: '4px', 
+            fontSize: '13px', 
+            color: closingBalance < 0 ? 'var(--danger)' : 'var(--success)'
+          }}>
+            {closingBalance > 0 ? 'Receivable from Company' : closingBalance < 0 ? '(Payable by You)' : '(Settled)'}
+          </span>
         </div>
       )}
 
@@ -110,22 +119,22 @@ function MyLedger() {
   );
 }
 
-// 💡 Global Theme Styles & Left Alignment
+// Global Theme Styles & Left Alignment
 const tableStyles = {
   th: { 
     padding: '14px 20px', 
     backgroundColor: 'var(--header)', 
     color: '#ffffff', 
-    textAlign: 'left',     // <-- Left Aligned
+    textAlign: 'left', 
     fontSize: '13px', 
     fontWeight: '600',
     whiteSpace: 'nowrap'
   },
   td: { 
-    padding: '14px 20px', 
+    padding: '5px 20px', 
     fontSize: '13px', 
     color: 'var(--text-main)',
-    textAlign: 'left',     // <-- Left Aligned
+    textAlign: 'left', 
     verticalAlign: 'middle'
   },
   tr: { 

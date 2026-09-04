@@ -514,7 +514,7 @@ function Users() {
 
       {/* HEADER */}
       <div className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h4 style={{ margin: 0, color: 'var(--primary)', fontSize: '22px', fontWeight: 600 }}>Manage System Users</h4>
+        <h4 style={{ margin: 0, color: 'var(--primary)', fontSize: '18px', fontWeight: 600 }}>Manage System Users</h4>
         <button
           className="btn btn-primary"
           onClick={() => { clearMessage(); setIsAddModalOpen(true); }}
@@ -667,8 +667,8 @@ function Users() {
       {/* VIEW USER MODAL */}
       {viewUser && (
         <div className="modal-overlay" onClick={closeView}>
-          <div className="modal-container" style={{ maxWidth: '450px', padding: 0, overflow: 'hidden' }} onClick={(e) => e.stopPropagation()}>
-            <div style={{ backgroundColor: 'var(--primary)', padding: 'var(--space-lg)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 'var(--space-sm)' }}>
+          <div className="modal-container" style={{ width: '550px', padding: 0, overflow: 'hidden' }} onClick={(e) => e.stopPropagation()}>
+            <div style={{ backgroundColor: 'var(--primary)', padding:'10px',display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 'var(--space-sm)' }}>
               {viewUser.pic ? (
                 <img src={viewUser.pic} alt={viewUser.name} style={{ width: '80px', height: '80px', borderRadius: '50%', objectFit: 'cover', border: '3px solid white', boxShadow: 'var(--shadow-sm)' }} />
               ) : (
@@ -683,22 +683,22 @@ function Users() {
               <h3 style={{ color: 'white', margin: 0, fontSize: '18px' }}>{viewUser.name}</h3>
             </div>
 
-            <div className="modal-body" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-md)' }}>
+            <div className="modal-body" style={{ display: 'grid',textAlign:'left', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-md)' }}>
               <div>
-                <label style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 600 }}>Email</label>
-                <p style={{ fontSize: '14px', margin: '4px 0 0', color: 'var(--text-main)', fontWeight: 500, wordBreak: 'break-word' }}>{viewUser.email || "N/A"}</p>
+                <label style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-main)', fontWeight: 600 }}>Email</label>
+                <p style={{ fontSize: '12px', margin: '4px 0 0', color: 'var(--text-muted)', fontWeight: 500, wordBreak: 'break-word' }}>{viewUser.email || "N/A"}</p>
               </div>
               <div>
-                <label style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 600 }}>Contact Number</label>
-                <p style={{ fontSize: '14px', margin: '4px 0 0', color: 'var(--text-main)', fontWeight: 500 }}>{viewUser.contact || "N/A"}</p>
+                <label style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-main)', fontWeight: 600 }}>Contact Number</label>
+                <p style={{ fontSize: '12px', margin: '4px 0 0', color: 'var(--text-muted)', fontWeight: 500 }}>{viewUser.contact || "N/A"}</p>
               </div>
               <div>
-                <label style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 600 }}>CNIC</label>
-                <p style={{ fontSize: '14px', margin: '4px 0 0', color: 'var(--text-main)', fontWeight: 500 }}>{viewUser.cnic || "N/A"}</p>
+                <label style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-main)', fontWeight: 600 }}>CNIC</label>
+                <p style={{ fontSize: '12px', margin: '4px 0 0', color: 'var(--text-muted)', fontWeight: 500 }}>{viewUser.cnic || "N/A"}</p>
               </div>
               <div>
-                <label style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 600 }}>Role</label>
-                <p style={{ fontSize: '14px', margin: '4px 0 0', color: 'var(--text-main)', fontWeight: 500 }}>
+                <label style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-main)', fontWeight: 600 }}>Role</label>
+                <p style={{ fontSize: '12px', margin: '4px 0 0', color: 'var(--text-muted)', fontWeight: 500 }}>
                   {(() => {
                     if (!viewUser.role) return "N/A";
                     if (typeof viewUser.role === 'object' && viewUser.role.role) return viewUser.role.role;
@@ -709,7 +709,7 @@ function Users() {
               </div>
 
               <div style={{ gridColumn: 'span 2' }}>
-                <label style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 600, display: 'block', marginBottom: '4px' }}>Assigned Capabilities</label>
+                <label style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-main)', fontWeight: 600, display: 'block', marginBottom: '4px' }}>Assigned Capabilities</label>
                 <div style={{
                   display: 'flex', flexWrap: 'wrap', gap: '6px',
                   backgroundColor: 'var(--bg-app)', padding: '10px',
@@ -740,8 +740,8 @@ function Users() {
               </div>
 
               <div style={{ gridColumn: 'span 2' }}>
-                <label style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 600 }}>Address</label>
-                <p style={{ fontSize: '14px', margin: '4px 0 0', color: 'var(--text-main)', fontWeight: 500, backgroundColor: 'var(--bg-app)', padding: '10px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)' }}>
+                <label style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-main)', fontWeight: 600 }}>Address</label>
+                <p style={{ fontSize: '12px', margin: '4px 0 0', color: 'var(--text-muted)', fontWeight: 500, backgroundColor: 'var(--bg-app)', padding: '10px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)' }}>
                   {viewUser.address || "No Address Provided"}
                 </p>
               </div>

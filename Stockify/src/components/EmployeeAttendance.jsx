@@ -32,7 +32,7 @@ const EmployeeAttendance = () => {
     const [attendanceData, setAttendanceData] = useState({});
     const [saving, setSaving] = useState(false);
     
-    // 💡 NAYI STATE: Check agar salary generate ho chuki hai
+    // Check agar salary generate ho chuki hai
     const [isMonthLocked, setIsMonthLocked] = useState(false);
 
     const todayDate = new Date().toISOString().split('T')[0];
@@ -47,11 +47,10 @@ const EmployeeAttendance = () => {
         setCurrentPage(1);
     }, [filters]);
 
-    // Fetch existing attendance + Cycle Status when date changes in Add/Mark view
     useEffect(() => {
         if (activeView === 'add' && selectedDate) {
             fetchAttendanceForDate(selectedDate);
-            checkSalaryCycleStatus(selectedDate); // 💡 Cycle Lock check call karein
+            checkSalaryCycleStatus(selectedDate);
         }
     }, [selectedDate, activeView]);
 
@@ -60,7 +59,6 @@ const EmployeeAttendance = () => {
         setTimeout(() => setMessage({ text: '', type: '' }), 4000);
     };
 
-    // 💡 Function to check if Salary for this month is Processed/Paid
     const checkSalaryCycleStatus = async (dateStr) => {
         try {
             const token = localStorage.getItem('token');
@@ -74,9 +72,7 @@ const EmployeeAttendance = () => {
                 const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
                 const month = monthNames[d.getMonth()];
                 
-                // Find matching cycle
                 const cycle = data.data.find(c => c.year === year && c.month === month);
-                // Agar Processed ya Paid hai, toh edit lock kar dein!
                 if (cycle && (cycle.status === 'Processed' || cycle.status === 'Paid')) {
                     setIsMonthLocked(true);
                 } else {
@@ -221,9 +217,6 @@ const EmployeeAttendance = () => {
     };
 
     const handleAttendanceChange = (empId, field, value) => {
-        // If locked by salary cycle, do nothing.
-        if (isMonthLocked) return;
-
         const currentRow = attendanceData[empId] || { clockIn: attendanceRules.shiftStartTime || '09:00', clockOut: attendanceRules.shiftEndTime || '18:00', status: 'Present', remarks: '' };
         if (field === 'clockIn' && currentRow.clockOut && value > currentRow.clockOut && value !== '') { return showMessage('Clock In time cannot be later than Clock Out time.', 'error'); }
         if (field === 'clockOut' && currentRow.clockIn && value < currentRow.clockIn && value !== '') { return showMessage('Clock Out time cannot be earlier than Clock In time.', 'error'); }
@@ -242,8 +235,6 @@ const EmployeeAttendance = () => {
     };
 
     const handleSaveAttendance = async () => {
-        if (isMonthLocked) return showMessage('Cannot modify attendance. Salary is already processed.', 'error');
-        
         setSaving(true);
         try {
             const token = localStorage.getItem('token');
@@ -272,8 +263,8 @@ const EmployeeAttendance = () => {
             });
 
             if (res.ok) {
-                showMessage('Attendance saved successfully!', 'success');
-                setTimeout(() => { setActiveView('report'); fetchReport(); }, 1000);
+                showMessage('Attendance updated successfully! (Note: Existing calculated salary ledger remains unaffected until recalculated).', 'success');
+                setTimeout(() => { setActiveView('report'); fetchReport(); }, 1200);
             } else {
                 const errorData = await res.json();
                 showMessage(errorData.message || 'Failed to save attendance.', 'error');
@@ -379,10 +370,10 @@ const EmployeeAttendance = () => {
 
         return (
             <div className="card" style={{ padding: '20px', width: '100%', boxSizing: 'border-box' }}>
-                {/* 💡 YAHAN SALARY LOCK WARNING AYEGI */}
+                {/* Salary locked warning with clear info note */}
                 {isMonthLocked && (
-                    <div style={{ padding: '12px',fontSize:'14px',textAlign:'center', backgroundColor: '#fef2f2', color: '#dc2626', border: '1px solid #fca5a5', borderRadius: '8px', marginBottom: '16px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span>🔒</span> Salary for this month has already been generated or paid. You cannot modify attendance for this date.
+                    <div style={{ padding: '12px', fontSize:'13px', textAlign:'left', backgroundColor: '#fdf8f6', color: '#9a3412', border: '1px solid #fed7aa', borderRadius: '8px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span>⚠️</span> <strong>Notice:</strong>Financial ledger will remain unaffected until the salary is recalculated.
                     </div>
                 )}
 
@@ -434,8 +425,8 @@ const EmployeeAttendance = () => {
                                 const isOff = rowData.status === 'Absent' || rowData.status === 'Leave';
                                 const isPresent = rowData.status === 'Present';
                                 
-                                // 💡 YAHAN INPUTS KO LOCK KIYA GAYA HAI
-                                const isDisabled = isOff || isMonthLocked; 
+                                // Inputs are only disabled if status is Absent/Leave, allowing updates even if month is locked
+                                const isDisabled = isOff; 
 
                                 return (
                                     <tr key={emp._id} style={tableStyles.tr}>
@@ -459,7 +450,6 @@ const EmployeeAttendance = () => {
                                         <td style={tableStyles.td}>
                                             <select className="form-input" value={rowData.status || 'Present'}
                                                 onChange={(e) => handleAttendanceChange(emp._id, 'status', e.target.value)}
-                                                disabled={isMonthLocked}
                                                 style={{
                                                     width: '100%', minWidth: '120px', padding: '6px',
                                                     backgroundColor: rowData.status === 'Absent' ? 'var(--danger-bg)' :
@@ -478,7 +468,7 @@ const EmployeeAttendance = () => {
                                             {!isPresent ? (
                                                 <input type="text" className="form-input" placeholder="Reason (required/optional)"
                                                     value={rowData.remarks || ''} onChange={(e) => handleAttendanceChange(emp._id, 'remarks', e.target.value)}
-                                                    disabled={isMonthLocked} style={{ width: '100%', minWidth: '130px', padding: '6px' }}
+                                                    style={{ width: '100%', minWidth: '130px', padding: '6px' }}
                                                 />
                                             ) : (
                                                 <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>Not required</span>
@@ -503,7 +493,7 @@ const EmployeeAttendance = () => {
 
                 {displayEmployees.length > 0 && (
                     <div style={{ marginTop: '20px', display: 'flex', justifyContent: 'flex-end' }}>
-                        <button className="btn btn-primary" onClick={handleSaveAttendance} disabled={saving || isMonthLocked} style={{ minWidth: '160px', height: '40px' }}>
+                        <button className="btn btn-primary" onClick={handleSaveAttendance} disabled={saving} style={{ minWidth: '160px', height: '40px' }}>
                             <FontAwesomeIcon icon={faSave} style={{ marginRight: '6px' }} />
                             {saving ? 'Saving...' : 'Save Attendance'}
                         </button>
@@ -516,10 +506,10 @@ const EmployeeAttendance = () => {
     return (
         <div className="dashboard-wrapper" style={{ width: '100%', boxSizing: 'border-box' }}>
             {message.text && (
-                <div style={{
+                <div style={{ fontSize:'13px',
                     padding: '12px 16px', marginBottom: '16px', borderRadius: 'var(--radius-sm)',
                     backgroundColor: message.type === 'error' ? 'var(--danger-bg)' : 'var(--success-bg)',
-                    color: message.type === 'error' ? 'var(--danger)' : 'var(--success)',
+                    color: message.type === 'error' ? 'var(--danger)' : 'var(--primary)',
                     border: `1px solid ${message.type === 'error' ? 'var(--danger)' : 'var(--success)'}`
                 }}>{message.text}</div>
             )}

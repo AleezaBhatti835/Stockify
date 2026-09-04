@@ -1,38 +1,18 @@
 import mongoose from 'mongoose';
 
 const employeeAccountSchema = new mongoose.Schema({
-  employee: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Employee',
-    required: [true, 'Employee is required']
+  employee: { 
+    type: mongoose.Schema.Types.ObjectId, 
+    ref: 'Employee', 
+    required: true 
   },
-  invoiceNumber: {
-    type: String,
-    trim: true
-  },
-  transactionType: {
-    type: String,
- enum: ['Salary', 'Payment', 'Refund', 'Loan', 'Loan Recovery', 'Advance'],
-    required: [true, 'Transaction type is required']
-  },
-  debit: {
-    type: Number,
-    default: 0,
-    min: [0, 'Debit cannot be negative']
-  },
-  credit: {
-    type: Number,
-    default: 0,
-    min: [0, 'Credit cannot be negative']
-  },
-  notes: {
-    type: String,
-    trim: true
-  },
-  date: {
-    type: Date,
-    default: Date.now
-  }
+  invoiceNumber: { type: String },
+  transactionType: { type: String }, 
+  debit: { type: Number, default: 0 }, 
+  credit: { type: Number, default: 0 }, 
+  date: { type: Date, default: Date.now },
+  referenceId: { type: mongoose.Schema.Types.ObjectId },
+  notes: { type: String }
 }, { timestamps: true });
 
 export default mongoose.model('EmployeeAccount', employeeAccountSchema);

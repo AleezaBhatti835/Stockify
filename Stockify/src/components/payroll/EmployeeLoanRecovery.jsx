@@ -418,7 +418,7 @@ const handleSaveRecovery = async () => {
                 <div className="modal-overlay" onClick={closeViewModal}>
                     <div className="modal-container" style={{ width: '70%', padding: 0, display: 'flex', flexDirection: 'column', maxHeight: '90vh' }} onClick={(e) => e.stopPropagation()}>
                         <div className="modal-header" style={{ backgroundColor: 'var(--bg-app)', borderBottom: '1px solid var(--border-color)' }}>
-                            <h3 style={{ margin: 0, color: 'var(--text-main)' }}>CAPOBIZ</h3>
+                            <h3 style={{ margin: 0, color: 'var(--text-main)' }}>Stockify</h3>
                             <div style={{ display: 'flex', gap: '8px' }}>
                                 <button className="btn btn-primary" onClick={handlePrint}>🖨️ Print</button>
                                 <button className="btn btn-secondary" onClick={closeViewModal}>✕ Close</button>

@@ -50,7 +50,7 @@ function InvoiceList() {
     const [loading, setLoading] = useState(true);
 
     const [currentPage, setCurrentPage] = useState(1);
-    const [itemsPerPage] = useState(5);
+    const [itemsPerPage] = useState(10);
 
     const { settings: printSettings } = usePrintSettings();
 
@@ -69,7 +69,6 @@ function InvoiceList() {
         setCurrentPage(1);
     }, [fromDate, toDate, selectedCustomer]);
 
-    // CORE ARCHITECTURE: Synchronous retrieval and date-sorted ordering of sales transactions from backend endpoints.
     const fetchSales = async () => {
         setLoading(true);
         try {
@@ -81,7 +80,7 @@ function InvoiceList() {
             const sortedData = data.sort((a, b) => {
                 const dateA = new Date(a.createdAt || a.saleDate);
                 const dateB = new Date(b.createdAt || b.saleDate);
-                return dateA - dateB;
+                return dateA - dateB; 
             });
             setSales(sortedData);
         } catch (err) {
@@ -198,7 +197,6 @@ function InvoiceList() {
     const currentItems = filteredSales.slice(indexOfFirstItem, indexOfLastItem);
     const totalPages = Math.ceil(filteredSales.length / itemsPerPage);
 
-    // UI ENGINE: Isolated document rendering logic ensuring receipts display correctly across A4, A5, and Thermal printer widths.
     const handlePrint = () => {
         const paperConfig = getPaperConfig(printSettings?.paperSize);
         const contentEl = document.getElementById('receipt-content');
@@ -256,117 +254,154 @@ function InvoiceList() {
         }, 300);
     };
 
-    const renderReceipt = () => {
-        if (!viewSale) return null;
+    const handleCloseReceipt = () => {
+        setViewSale(null);
+    };
 
+    // 💡 Render Receipt function instead of separate component
+    const renderReceipt = (sale) => {
+        if (!sale) return null;
         const paperConfig = getPaperConfig(printSettings?.paperSize);
-        const balance = (viewSale.totalAmount || 0) - (viewSale.paidAmount || 0);
+
+        const itemsTotal = sale.items.reduce((sum, item) => sum + (item.quantity * item.unitPrice - (Number(item.discount) || 0)), 0);
+        const freight = Number(sale.freightAmount) || 0;
+        const labour = Number(sale.labourCharges) || 0;
+        const discountAmount = Number(sale.discountAmount || sale.discount) || 0;
+        
+        const finalTotal = Number(sale.totalAmount) || 0;
+        const finalPaid = Number(sale.paidAmount) || 0;
+        const balance = finalTotal - finalPaid;
 
         return (
-            <div className="modal-overlay" onClick={() => setViewSale(null)}>
-                <div className="modal-container" style={{ width: '850px', padding: 0, display: 'flex', flexDirection: 'column', maxHeight: '90vh' }} onClick={(e) => e.stopPropagation()}>
-
-                    <div className="modal-header" style={{ backgroundColor: 'var(--bg-app)', borderBottom: '1px solid var(--border-color)' }}>
-                        <h3 style={{ margin: 0, color: 'var(--text-main)' }}>CAPOBIZ</h3>
+            <div style={{
+                position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 999999,
+                display: 'flex', alignItems: 'center', justifyContent: 'center'
+            }} onClick={handleCloseReceipt}>
+                <div className="card" style={{ width: '800px', maxWidth: '95%', height: '90vh', display: 'flex', flexDirection: 'column', padding: 0, margin: 0, boxShadow: '0 10px 25px rgba(0,0,0,0.2)' }} onClick={(e) => e.stopPropagation()}>
+                    
+                    <div style={{ padding: '16px 24px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0, background: '#fff' }}>
+                        <h3 style={{ margin: 0, fontSize: '20px', fontWeight: 700, color: '#000' }}>Stockify</h3>
                         <div style={{ display: 'flex', gap: '8px' }}>
                             <button className="btn btn-primary" onClick={handlePrint}>🖨️ Print</button>
-                            <button className="btn btn-secondary" onClick={() => setViewSale(null)}>✕ Close</button>
+                            <button className="btn btn-secondary" onClick={handleCloseReceipt}>✕ Close</button>
                         </div>
                     </div>
 
-                    <div
-                        style={{
-                            padding: paperConfig.bodyPadding,
-                            fontSize: paperConfig.fontSize,
+                    <div style={{ flex: 1, overflowY: 'auto', background: '#f1f5f9', padding: '24px' }}>
+                        <div id="receipt-content" style={{
+                            margin: '0 auto', background: '#fff', padding: paperConfig.bodyPadding,
+                            maxWidth: paperConfig.maxWidth, fontSize: paperConfig.fontSize,
                             fontFamily: paperConfig.mono ? "'Courier New', monospace" : 'inherit',
-                            overflowY: 'auto'
-                        }}
-                        id="receipt-content"
-                    >
-                        <div style={{ textAlign: 'left', marginBottom: '16px' }}>
-                            <h4 style={{ margin: '4px 0', textAlign:'center',fontSize:'16px' }}>Sales Invoice</h4>
+                            boxShadow: '0 4px 6px rgba(0,0,0,0.1)', minHeight: '400px'
+                        }}>
+                            <div style={{ textAlign: 'left', marginBottom: '16px' }}>
+                                <h4 style={{ margin: '4px 0', textAlign:'center', fontSize:'16px' }}>Sales Invoice</h4>
 
-                            <p style={{ margin: '4px 0', color: '#333' }}>Invoice: <strong>{viewSale.saleNumber}</strong></p>
-                            <p style={{ margin: '4px 0', color: '#333' }}>Date: <strong>{new Date(viewSale.saleDate).toLocaleDateString()}</strong></p>
-                            <p style={{ margin: '4px 0', color: '#333' }}>
-                                Customer: <strong>{viewSale.customer?.name || viewSale.customer?.customerName || 'Walk-in Customer'}</strong>
-                            </p>
-                            {viewSale.status === 'Cancelled' && (
-                                <p style={{ margin: '4px 0', color: 'var(--danger)', fontWeight: 'bold' }}>[ CANCELLED ]</p>
-                            )}
-                        </div>
-                        <div style={{ borderTop: '2px dashed #000', margin: '14px 0' }}></div>
+                                <p style={{ margin: '4px 0', color: '#333' }}>Invoice: <strong>{sale.saleNumber}</strong></p>
+                                <p style={{ margin: '4px 0', color: '#333' }}>Date: <strong>{new Date(sale.saleDate || sale.createdAt).toLocaleDateString()}</strong></p>
+                                <p style={{ margin: '4px 0', color: '#333' }}>
+                                    Customer: <strong>{sale.customer?.name || sale.customer?.customerName || 'Walk-in Customer'}</strong>
+                                </p>
+                                
+                                {sale.transporter && (
+                                    <p style={{ margin: '4px 0', color: '#333' }}>
+                                        Transporter: <strong>{sale.transporter?.name || 'Included'}</strong>
+                                    </p>
+                                )}
+                                {sale.labour && (
+                                    <p style={{ margin: '4px 0', color: '#333' }}>
+                                        Labour: <strong>{sale.labour?.name || 'Included'}</strong>
+                                    </p>
+                                )}
 
-                        {paperConfig.mono ? (
-                            <div>
-                                {viewSale.items.map((item, idx) => {
-                                    const lineTotal = item.quantity * item.unitPrice - (Number(item.discount) || 0);
-                                    return (
+                                {sale.status === 'Cancelled' && (
+                                    <p style={{ margin: '4px 0', color: 'var(--danger)', fontWeight: 'bold', textAlign: 'center' }}>[ CANCELLED ]</p>
+                                )}
+                            </div>
+                            
+                            <div style={{ borderTop: '2px dashed #000', margin: '14px 0' }}></div>
+
+                            {paperConfig.mono ? (
+                                <div>
+                                    {(sale.items || []).map((item, idx) => (
                                         <div key={idx} style={{ borderBottom: '1px dashed #000', padding: '6px 0' }}>
                                             <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 700, color: '#000' }}>
-                                                <span>{item.name}</span>
+                                                <span>{item.name || item.product?.name}</span>
                                                 <span>x{item.quantity}</span>
                                             </div>
                                             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85em', color: '#000', marginTop: '2px' }}>
                                                 <span>
-                                                    @{item.unitPrice.toFixed(2)}
-                                                    {Number(item.discount) > 0 ? ` −${item.discount.toFixed(2)}` : ''}
+                                                    @{item.unitPrice?.toFixed(2)}
+                                                    {item.discount > 0 ? ` −${item.discount.toFixed(2)}` : ''}
                                                 </span>
-                                                <span style={{ fontWeight: 700 }}>{lineTotal.toFixed(2)}</span>
+                                                <span style={{ fontWeight: 700 }}>{item.lineTotal?.toFixed(2)}</span>
                                             </div>
                                         </div>
-                                    );
-                                })}
-                            </div>
-                        ) : (
-                            <table style={{ width: '100%', tableLayout: 'fixed', borderCollapse: 'collapse', marginBottom: '12px' }}>
-                                <thead>
-                                    <tr>
-                                        <th style={{ textAlign: 'left', padding: '6px 8px', backgroundColor: 'var(--header)', fontSize: '12px', fontWeight: 600, color: '#fefefe', textTransform: 'uppercase', width: '18%' }}>Product</th>
-                                        <th style={{ textAlign: 'left', padding: '6px 8px', backgroundColor: 'var(--header)', fontSize: '12px', fontWeight: 600, color: '#fefefe', textTransform: 'uppercase', width: '14%' }}>Qty</th>
-                                        <th style={{ textAlign: 'left', padding: '6px 8px', backgroundColor: 'var(--header)', fontSize: '12px', fontWeight: 600, color: '#fefefe', textTransform: 'uppercase', width: '18%' }}>Price</th>
-                                        <th style={{ textAlign: 'left', padding: '6px 8px', backgroundColor: 'var(--header)', fontSize: '12px', fontWeight: 600, color: '#fefefe', textTransform: 'uppercase', width: '16%' }}>Disc</th>
-                                        <th style={{ textAlign: 'left', padding: '6px 8px', backgroundColor: 'var(--header)', fontSize: '12px', fontWeight: 600, color: '#fefefe', textTransform: 'uppercase', width: '10%' }}>Total</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {viewSale.items.map((item, idx) => (
-                                        <tr key={idx}>
-                                            <td style={{ padding: '6px 8px', borderBottom: '1px solid #ccc', fontSize: '13px', color: '#000', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textAlign: 'left' }}>{item.name}</td>
-                                            <td style={{ padding: '6px 8px', borderBottom: '1px solid #ccc', fontSize: '13px', color: '#000', textAlign: 'left' }}>{item.quantity}</td>
-                                            <td style={{ padding: '6px 8px', borderBottom: '1px solid #ccc', fontSize: '13px', color: '#000', textAlign: 'left' }}>{item.unitPrice.toFixed(2)}</td>
-                                            <td style={{ padding: '6px 8px', borderBottom: '1px solid #ccc', fontSize: '13px', color: '#000', textAlign: 'left' }}>{item.discount?.toFixed(2) || '0.00'}</td>
-                                            <td style={{ padding: '6px 8px', borderBottom: '1px solid #ccc', fontSize: '13px', color: '#000', fontWeight: 600, textAlign: 'left' }}>
-                                                {(item.quantity * item.unitPrice - (Number(item.discount) || 0)).toFixed(2)}
-                                            </td>
-                                        </tr>
                                     ))}
-                                </tbody>
-                            </table>
-                        )}
+                                </div>
+                            ) : (
+                                <table style={{ width: '100%', tableLayout: 'fixed', borderCollapse: 'collapse', marginBottom: '12px' }}>
+                                    <thead>
+                                        <tr>
+                                            <th style={{ textAlign: 'left', padding: '6px 8px', backgroundColor: 'var(--primary-light)', fontSize: '12px', fontWeight: 600, color: 'var(--primary)', textTransform: 'uppercase', width: '22%' }}>Product</th>
+                                            <th style={{ textAlign: 'left', padding: '6px 8px', backgroundColor: 'var(--primary-light)', fontSize: '12px', fontWeight: 600, color: 'var(--primary)', textTransform: 'uppercase', width: '14%' }}>Qty</th>
+                                            <th style={{ textAlign: 'left', padding: '6px 8px', backgroundColor: 'var(--primary-light)', fontSize: '12px', fontWeight: 600, color: 'var(--primary)', textTransform: 'uppercase', width: '18%' }}>Price</th>
+                                            <th style={{ textAlign: 'left', padding: '6px 8px', backgroundColor: 'var(--primary-light)', fontSize: '12px', fontWeight: 600, color: 'var(--primary)', textTransform: 'uppercase', width: '16%' }}>Disc</th>
+                                            <th style={{ textAlign: 'left', padding: '6px 8px', backgroundColor: 'var(--primary-light)', fontSize: '12px', fontWeight: 600, color: 'var(--primary)', textTransform: 'uppercase', width: '20%' }}>Total</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {(sale.items || []).map((item, idx) => (
+                                            <tr key={idx} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                                                <td style={{textAlign: 'left', padding: '6px 8px', fontSize: '13px', color: '#000', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.name || item.product?.name}</td>
+                                                <td style={{ textAlign: 'left',padding: '6px 8px', fontSize: '13px', color: '#000', textAlign: 'left' }}>{item.quantity}</td>
+                                                <td style={{ textAlign: 'left',padding: '6px 8px', fontSize: '13px', color: '#000' }}>{item.unitPrice?.toFixed(2)}</td>
+                                                <td style={{textAlign: 'left', padding: '6px 8px', fontSize: '13px', color: '#000' }}>{item.discount > 0 ? item.discount.toFixed(2) : '0.00'}</td>
+                                                <td style={{textAlign: 'left', padding: '6px 8px', fontSize: '13px', color: '#000', fontWeight: 600 }}>{item.lineTotal?.toFixed(2)}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            )}
 
-                        <div style={{ borderTop: '2px dashed #000', margin: '14px 0' }}></div>
-                        <div style={{ marginTop: '14px' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', fontSize: '13px', color: '#000' }}>
-                                <span>Subtotal</span>
-                                <span>Rs. {(viewSale.subtotal || 0).toFixed(2)}</span>
+                            <div style={{ borderTop: '2px dashed #000', margin: '14px 0' }}></div>
+                            
+                            <div style={{ marginTop: '14px' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', fontSize: '13px', color: '#000' }}>
+                                    <span>Items Total</span>
+                                    <span>Rs. {itemsTotal.toFixed(2)}</span>
+                                </div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', fontSize: '13px', color: '#000' }}>
+                                    <span>Discount {sale.discountType === 'cash' ? '(Fixed)' : sale.discountValue ? `(${sale.discountValue}%)` : ''}</span>
+                                    <span>Rs. {discountAmount.toFixed(2)}</span>
+                                </div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', fontSize: '13px', color: '#000' }}>
+                                    <span>Freight Amount</span>
+                                    <span>Rs. {freight.toFixed(2)}</span>
+                                </div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', fontSize: '13px', color: '#000' }}>
+                                    <span>Labour Charges</span>
+                                    <span>Rs. {labour.toFixed(2)}</span>
+                                </div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', fontSize: '1.15em', color: '#000', fontWeight: 700, borderTop: '2px solid #000', paddingTop: '10px' }}>
+                                    <span>Grand Total</span>
+                                    <span>Rs. {finalTotal.toFixed(2)}</span>
+                                </div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', fontSize: '13px', color: '#000' }}>
+                                    <span>Paid</span>
+                                    <span>Rs. {finalPaid.toFixed(2)}</span>
+                                </div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', fontSize: '13px', color: '#000', fontWeight: 700 }}>
+                                    <span>Balance Due</span>
+                                    <span>Rs. {balance.toFixed(2)}</span>
+                                </div>
                             </div>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', fontSize: '13px', color: '#000' }}>
-                                <span>Discount {viewSale.discountType === 'cash' ? '(Fixed)' : `(${viewSale.discountValue || viewSale.discountPercent || 0}%)`}</span>
-                                <span>Rs. {(viewSale.discountAmount || viewSale.discount || 0).toFixed(2)}</span>
+                            
+                            <div style={{ borderTop: '2px dashed #000', margin: '16px 0' }}></div>
+                            <div style={{ textAlign: 'center', color: '#555', fontSize: '13px' }}>
+                                <p>System Generated Receipt</p>
                             </div>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', fontSize: '1.15em', color: '#000', fontWeight: 700, borderTop: '2px solid #000' }}>
-                                <span>Grand Total</span>
-                                <span>Rs. {(viewSale.totalAmount || 0).toFixed(2)}</span>
-                            </div>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', fontSize: '13px', color: '#000' }}>
-                                <span>Paid</span>
-                                <span>Rs. {(viewSale.paidAmount || 0).toFixed(2)}</span>
-                            </div>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', fontSize: '13px', color: '#000', fontWeight: 700 }}>
-                                <span>Balance</span>
-                                <span>Rs. {balance.toFixed(2)} {balance > 0 ? '(Due)' : '(Paid)'}</span>
-                            </div>
+
                         </div>
                     </div>
                 </div>
@@ -467,18 +502,19 @@ function InvoiceList() {
                                 return (
                                     <tr key={s._id} style={{ borderBottom: '1px solid var(--border-color)', transition: 'background-color 0.2s' }} onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--bg-app)'} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}>
                                         <td style={{ padding: '10px 16px', fontSize: '13px', color: 'var(--text-main)', textAlign: 'left' }}>{serialNumber}</td>
-                                        <td style={{ padding: '10px 16px', fontSize: '13px', color: 'var(--text-muted)', textAlign: 'left' }}>{new Date(s.saleDate).toLocaleDateString()}</td>
+                                        <td style={{ padding: '10px 16px', fontSize: '13px', color: 'var(--text-muted)', textAlign: 'left' }}>{new Date(s.saleDate || s.createdAt).toLocaleDateString()}</td>
                                         <td style={{ padding: '10px 16px', fontSize: '13px', color: 'var(--text-main)', textAlign: 'left', fontWeight: '600' }}>{s.saleNumber}</td>
                                         <td style={{ padding: '10px 16px', fontSize: '13px', color: 'var(--text-main)', textAlign: 'left' }}>{s.customer?.name || s.customer?.customerName || '—'}</td>
                                         <td style={{ padding: '10px 16px', fontSize: '14px', color: 'var(--success)', textAlign: 'left', fontWeight: '600' }}>Rs. {s.totalAmount?.toFixed(2) || '0.00'}</td>
                                         <td style={{ padding: '10px 16px', textAlign: 'center' }}>
-                                            <div style={{ display: 'flex', justifyContent: 'center' }}>
-                                                <button style={styles.iconBtnView} onClick={() => handleView(s._id)} title="View">
+                                            <div style={{ display: 'flex', justifyContent: 'center', gap: '8px' }}>
+                                                <button style={styles.iconBtnView} onClick={() => handleView(s._id)} title="View Receipt">
                                                     <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
                                                         <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
                                                         <circle cx="12" cy="12" r="3"></circle>
                                                     </svg>
                                                 </button>
+                                              
                                             </div>
                                         </td>
                                     </tr>
@@ -512,22 +548,25 @@ function InvoiceList() {
                 )}
             </div>
 
-            {viewSale && renderReceipt()}
+            {viewSale && renderReceipt(viewSale)}
 
             {cancelTarget && (
-                <div className="modal-overlay" onClick={() => setCancelTarget(null)}>
-                    <div className="modal-container" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '450px' }}>
-                        <div className="modal-header">
-                            <h3 className="modal-title">⚠️ Cancel Sale?</h3>
-                            <button className="modal-close" onClick={() => setCancelTarget(null)}>×</button>
+                <div style={{
+                    position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 999999,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center'
+                }} onClick={() => setCancelTarget(null)}>
+                    <div className="card" onClick={(e) => e.stopPropagation()} style={{ width: '450px', maxWidth: '95%', padding: 0, margin: 0, boxShadow: '0 10px 25px rgba(0,0,0,0.2)' }}>
+                        <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: 'var(--text-main)' }}>⚠️ Cancel Sale?</h3>
+                            <button onClick={() => setCancelTarget(null)} style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', color: 'var(--text-muted)' }}>&times;</button>
                         </div>
-                        <div className="modal-body">
+                        <div style={{ padding: '24px' }}>
                             <p style={{ color: 'var(--text-muted)', lineHeight: 1.6, margin: 0 }}>
                                 Are you sure you want to cancel <strong style={{ color: 'var(--text-main)' }}>{cancelTarget.saleNumber}</strong>?
                                 This will restore stock and reverse the customer ledger entry.
                             </p>
                         </div>
-                        <div className="modal-footer">
+                        <div style={{ padding: '16px 24px', borderTop: '1px solid var(--border-color)', display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
                             <button className="btn btn-secondary" onClick={() => setCancelTarget(null)}>No, keep it</button>
                             <button className="btn btn-danger" onClick={handleCancelConfirm}>Yes, cancel it</button>
                         </div>
@@ -549,24 +588,26 @@ const styles = {
         display: 'flex',
         alignItems: 'center'
     },
-    receiptOverlay: { position: 'fixed', inset: 0, background: 'rgba(0, 0, 0, 0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000, padding: '20px' },
-    receiptContainer: { background: '#ffffff', borderRadius: '10px', border: '1px solid #000', width: '100%', maxHeight: '92vh', display: 'flex', flexDirection: 'column', boxShadow: '0 25px 80px rgba(0,0,0,0.3)', overflow: 'hidden' },
-    receiptHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 18px', background: '#ffffff', flexShrink: 0 },
-    receiptActions: { display: 'flex', gap: '10px' },
-    printReceiptBtn: { background: '#294463', color: '#fff', border: '1px solid #000', padding: '8px 14px', borderRadius: '6px', cursor: 'pointer', fontWeight: 600, fontSize: '13px', whiteSpace: 'nowrap' },
-    closeReceiptBtn: { background: '#fff', color: '#000', border: '1px solid #000', padding: '8px 14px', borderRadius: '6px', cursor: 'pointer', fontWeight: 600, fontSize: '13px', whiteSpace: 'nowrap' },
-    receiptBody: { overflowY: 'auto', overflowX: 'hidden', flex: 1, color: '#000' },
-    receiptHeaderInfo: { textAlign: 'left', marginBottom: '16px' },
-    receiptDivider: { borderTop: '2px dashed #000', margin: '14px 0' },
-    receiptTable: { width: '100%', tableLayout: 'fixed', borderCollapse: 'collapse', marginBottom: '12px' },
-    receiptTh: { textAlign: 'left', padding: '6px 8px', backgroundColor: '#394654', fontSize: '12px', fontWeight: 600, color: '#ffffff', textTransform: 'uppercase', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
-    receiptTd: { textAlign: 'left', padding: '6px 8px', borderBottom: '1px solid #ccc', fontSize: '13px', color: '#000' },
-    receiptTdName: { textAlign: 'left', padding: '6px 8px', borderBottom: '1px solid #ccc', fontSize: '13px', color: '#000', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
-    receiptTotals: { marginTop: '14px' },
-    receiptTotalRow: { display: 'flex', justifyContent: 'space-between', padding: '5px 0', fontSize: '13px', color: '#000' },
-    thermalItemRow: { borderBottom: '1px dashed #000', padding: '6px 0' },
-    thermalItemLine1: { display: 'flex', justifyContent: 'space-between', fontWeight: 700, fontSize: '1em', color: '#000' },
-    thermalItemLine2: { display: 'flex', justifyContent: 'space-between', fontSize: '0.85em', color: '#000', marginTop: '2px' }
+    iconBtnDelete: {
+        backgroundColor: 'var(--danger-bg)',
+        color: 'var(--danger)',
+        border: 'none',
+        padding: '6px',
+        borderRadius: 'var(--radius-sm)',
+        cursor: 'pointer',
+        display: 'flex',
+        alignItems: 'center'
+    }
 };
+
+const styleSheet = document.createElement("style");
+styleSheet.textContent = `
+  /* 💡 Removed animations to fix glitching */
+  ::-webkit-scrollbar { width: 8px; }
+  ::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 4px; }
+  ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+  ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+`;
+document.head.appendChild(styleSheet);
 
 export default InvoiceList;

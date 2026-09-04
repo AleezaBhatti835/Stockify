@@ -67,6 +67,7 @@ export const authorize = (requiredPermission) => {
 };
 import User from './models/user.js';
 import Role from './models/Role.js';
+import SupplierCompany from './models/SupplierCompany.js';
 import Customer from './models/Customer.js';
 import Supplier from './models/Supplier.js';
 import Designation from './models/Designation.js';
@@ -87,9 +88,10 @@ import PrintSettings from './models/Printsettings.js';
 import Client from './models/Client.js';
 import CashRegister from './models/CashRegister.js';
 import CustomerType from './models/CustomerType.js';
-import Holiday from './models/Holiday.js';
 import SaleReturn from './models/SaleReturn.js';
 import EmployeeAccount from './models/EmployeeAccount.js';
+import LabourAccount from './models/LabourAccount.js';
+import TransporterAccount from './models/TransporterAccount.js';
 import ExpenseCategory from './models/ExpenseCategory.js';
 import Expense from './models/Expense.js';
 import StockBreakage from './models/StockBreakage.js';
@@ -106,6 +108,8 @@ import AttendanceRule from './models/AttendanceRule.js';
 import Batch from './models/Batch.js';
 import EmployeeLoan from './models/EmployeeLoan.js';
 import SalaryConfig from './models/SalaryConfig.js';
+import Labour from './models/Labour.js';
+import Transporter from './models/Transporter.js';
 console.log("Checking URI:", process.env.MONGO_URI);
 
 const __filename = fileURLToPath(import.meta.url);
@@ -394,25 +398,35 @@ app.delete('/api/customers/:id', authorize('customers_delete'), async (req, res)
 });
 
 // ==================== SUPPLIERS ====================
-app.get('/api/suppliers', authorize('suppliers_view'), async (req, res) => {  try {
-    const suppliers = await Supplier.find({ status: { $ne: 'Inactive' } });
+app.get('/api/suppliers', authorize('suppliers_view'), async (req, res) => { 
+  try {
+    const suppliers = await Supplier.find({ status: { $ne: 'Inactive' } })
+      .populate('companyId', 'name contact email address'); 
     res.json(suppliers);
   } catch (error) {
     res.status(500).json({ message: 'Error fetching suppliers' });
   }
 });
 
-app.post('/api/suppliers', authorize('suppliers_add'), async (req, res) => {  try {
+app.post('/api/suppliers', authorize('suppliers_add'), async (req, res) => { 
+  try {
     const newSupplier = await Supplier.create(req.body);
-    res.status(201).json(newSupplier);
+    const populatedSupplier = await Supplier.findById(newSupplier._id).populate('companyId', 'name');
+    res.status(201).json(populatedSupplier);
   } catch (error) {
     console.error("MONGOOSE ERROR:", error.message, error);
     res.status(400).json({ message: 'Error creating supplier', error });
   }
 });
 
-app.put('/api/suppliers/:id', authorize('suppliers_edit'), async (req, res) => {  try {
-    const updatedSupplier = await Supplier.findByIdAndUpdate(req.params.id, req.body, { returnDocument: 'after' });
+app.put('/api/suppliers/:id', authorize('suppliers_edit'), async (req, res) => { 
+  try {
+    const updatedSupplier = await Supplier.findByIdAndUpdate(
+      req.params.id, 
+      req.body, 
+      { returnDocument: 'after' }
+    ).populate('companyId', 'name');
+    
     res.json(updatedSupplier);
   } catch (error) {
     res.status(400).json({ message: 'Error updating supplier', error });
@@ -488,13 +502,55 @@ app.delete('/api/designations/:id', authorize('settings_edit'), async (req, res)
   }
 });
 
-// ==================== EMPLOYEES ====================
-app.post('/api/employees', authorize('employees_add'), async (req, res) => {  try {
-    const newEmployee = await Employee.create(req.body);
-    const populatedEmployee = await Employee.findById(newEmployee._id).populate('designation');
-    return res.status(201).json(populatedEmployee);
+// ==================== ADD EMPLOYEE (POST) ====================
+app.post('/api/employees', async (req, res) => {
+  const { name, email, phone, cnic, address, pic, designation, joiningDate, status, employeeType, commission } = req.body;
+
+  try {
+    const employeeData = {
+      name, email, phone, cnic, address, pic, joiningDate, status,
+      employeeType: employeeType || 'Employee',
+      commission: employeeType === 'Salesman' ? Number(commission) : 0
+    };
+
+    if (employeeType === 'Employee' && designation) {
+      employeeData.designation = designation;
+    }
+
+    const newEmployee = new Employee(employeeData);
+    const savedEmployee = await newEmployee.save();
+    res.status(201).json(savedEmployee);
   } catch (error) {
-    return res.status(400).json({ message: 'Error creating employee', error });
+    res.status(400).json({ message: error.message });
+  }
+});
+
+// ==================== UPDATE EMPLOYEE (PUT) ====================
+app.put('/api/employees/:id', async (req, res) => {
+  const { name, email, phone, cnic, address, pic, designation, joiningDate, status, employeeType, commission } = req.body;
+
+  try {
+    const updateData = {
+      name, email, phone, cnic, address, pic, joiningDate, status,
+      employeeType: employeeType || 'Employee',
+      commission: employeeType === 'Salesman' ? Number(commission) : 0
+    };
+
+    if (employeeType === 'Employee' && designation) {
+      updateData.designation = designation;
+    } else {
+      updateData.$unset = { designation: 1 };
+    }
+
+    const updatedEmployee = await Employee.findByIdAndUpdate(
+      req.params.id,
+      updateData,
+      { new: true, runValidators: true } 
+    );
+
+    res.json(updatedEmployee);
+  } catch (error) {
+    res.status(400).json({ message: error.message });
   }
 });
 
@@ -505,32 +561,7 @@ app.get('/api/employees', authorize('employees_view'), async (req, res) => {  tr
     return res.status(500).json({ success: false, message: 'Server error' });
   }
 });
-app.put('/api/employees/:id', authorize('employees_edit'), async (req, res) => {
-  try {
-    const { status, joiningDate, ...rest } = req.body;
-    const existingEmp = await User.findById ? await mongoose.model('Employee').findById(req.params.id) : null;
 
-    let updateData = { ...rest, status };
-    
-    // Agar employee pehle inactive tha aur ab dobara 'Active' kiya gaya hai,
-    // aur admin ne nayi joining date nahi di, toh system auto aaj ki date set kar dega.
-    if (existingEmp && existingEmp.status === 'inactive' && status === 'Active') {
-        updateData.joiningDate = joiningDate || new Date();
-    } else if (joiningDate) {
-        updateData.joiningDate = joiningDate;
-    }
-
-    const updatedEmployee = await mongoose.model('Employee').findByIdAndUpdate(
-      req.params.id,
-      updateData,
-      { returnDocument: 'after' }
-    ).populate('designation');
-    
-    return res.json(updatedEmployee);
-  } catch (error) {
-    return res.status(500).json({ message: 'Error updating employee', error: error.message });
-  }
-});
 
 app.delete('/api/employees/:id', authorize('employees_delete'), async (req, res) => {  try {
     const deletedEmployee = await Employee.findByIdAndUpdate(
@@ -601,6 +632,7 @@ app.post('/api/employee-payments', authorize('employee_account_add'), async (req
     if (finalTxnType === 'Loan Recovery') prefix = 'LN-REC-';
     else if (finalTxnType === 'Payment') prefix = 'PAY-';
     else if (finalTxnType === 'Loan' || finalTxnType === 'Advance') prefix = 'LN-';
+    else if (finalTxnType === 'Commission Payout') prefix = 'COMM-'; // 💡 Salesman Commission Payout Prefix
 
     const counter = await Counter.findOneAndUpdate(
       { name: `empEntry_${prefix}` },
@@ -620,14 +652,14 @@ app.post('/api/employee-payments', authorize('employee_account_add'), async (req
       notes
     }], { session });
 
-    // --- CASH REGISTER UPDATE ---
+ // --- CASH REGISTER UPDATE ---
     const activeRegister = await CashRegister.findOne({ closingDate: null }).session(session);
     if (activeRegister) {
       if (finalTxnType === 'Loan Recovery') {
-         // Cash in
          activeRegister.salesAmount = (activeRegister.salesAmount || 0) + amt;
-      } else if (finalTxnType === 'Payment' || finalTxnType === 'Loan' || finalTxnType === 'Advance') {
-         // Cash out
+      } else if (finalTxnType === 'Payment' || finalTxnType === 'Commission Payout') {
+         activeRegister.expenseAmount = (activeRegister.expenseAmount || 0) + amt;
+      } else if (finalTxnType === 'Loan' || finalTxnType === 'Advance') {
          activeRegister.purchaseAmount = (activeRegister.purchaseAmount || 0) + amt;
       }
       await activeRegister.save({ session });
@@ -644,6 +676,8 @@ app.post('/api/employee-payments', authorize('employee_account_add'), async (req
     session.endSession();
   }
 });
+
+
 // ==================== EMPLOYEE LEDGER ====================
 app.get('/api/employee-ledger', authorize('employee_account_view'), async (req, res) => {
   try {
@@ -922,6 +956,27 @@ app.post('/api/products', authorize('products_add'), async (req, res) => {  try 
     }
 
     await product.save();
+    const savedProduct = await newProduct.save();
+
+// 💡 AGAR OPENING STOCK HAI, TOH BATCH AUR MOVEMENT CREATE KAREIN
+if (savedProduct.quantity > 0) {
+  const batchNo = `OPEN-${Date.now()}`;
+  await Batch.create({
+    product: savedProduct._id,
+    batchNumber: batchNo,
+    purchasePrice: savedProduct.costPrice || 0,
+    quantity: savedProduct.quantity,
+    originalQuantity: savedProduct.quantity,
+    expiryDate: savedProduct.expiryDate || new Date(new Date().setFullYear(new Date().getFullYear() + 1))
+  });
+
+  await StockMovement.create({
+    product: savedProduct._id,
+    movementType: 'IN',
+    quantity: savedProduct.quantity,
+    referenceType: 'Opening Stock'
+  });
+}
     const populated = await Product.findById(product._id)
       .populate('categoryId', 'name')
       .populate('uomId', 'name abbreviation');
@@ -1031,13 +1086,25 @@ app.post('/api/products/:id/opening-stocks', authorize('products_edit'), async (
     res.status(500).json({ success: false, message: error.message });
   }
 });
-
 // ==================== ADD PURCHASE (POST) ====================
-app.post('/api/purchases', authorize('purchases_add'), async (req, res) => {  const { supplierId, invoiceNumber, purchaseDate, items, totalAmount, paidAmount } = req.body;
+app.post('/api/purchases', authorize('purchases_add'), async (req, res) => {  
+  const { supplierId, transporterId, freightAmount, invoiceNumber, purchaseDate, items, totalAmount, paidAmount } = req.body;
   const session = await mongoose.startSession();
 
   try {
     session.startTransaction();
+
+    if (transporterId && Number(freightAmount) > 0) {
+      await TransporterAccount.create([{
+        transporter: transporterId,
+        invoiceNumber: invoiceNumber,
+        transactionType: 'Freight',
+        debit: Number(freightAmount), 
+        credit: 0,
+        date: purchaseDate,
+        notes: `Freight charges for purchase invoice ${invoiceNumber}`
+      }], { session });
+    }
 
     const counter = await Counter.findOneAndUpdate(
       { name: 'purchaseNumber' },
@@ -1046,10 +1113,14 @@ app.post('/api/purchases', authorize('purchases_add'), async (req, res) => {  co
     );
 
     const autoPurchaseNumber = `PO-${counter.seq}`;
+    
+    // 💡 3. Purchase schema mein transporter aur freightAmount dono pass kar diye
     const newPurchase = new Purchase({
       purchaseNumber: autoPurchaseNumber,
       invoiceNumber: invoiceNumber, 
       supplier: supplierId,
+      transporter: transporterId || null,
+      freightAmount: Number(freightAmount) || 0,
       purchaseDate,
       totalAmount,
       paidAmount: Number(paidAmount) || 0,
@@ -1101,12 +1172,12 @@ app.post('/api/purchases', authorize('purchases_add'), async (req, res) => {  co
     if (paid < 0) throw new Error('Paid amount cannot be negative.');
     if (paid > totalAmount) throw new Error('Paid amount cannot exceed the total purchase amount.');
 
-    const singleEntry = new SupplierAccount({
+   const singleEntry = new SupplierAccount({
       supplier: supplierId,
       invoiceNumber: invoiceNumber,
       transactionType: 'Purchase',
-      debit: totalAmount,
-      credit: paid,
+      debit: paid,             
+      credit: totalAmount,      
       referenceId: savedPurchase._id,
       referenceModel: 'Purchase',
       date: purchaseDate
@@ -1137,6 +1208,7 @@ app.post('/api/purchases', authorize('purchases_add'), async (req, res) => {  co
 app.get('/api/purchases', authorize('purchases_view'), async (req, res) => {  try {
     const purchases = await Purchase.find()
       .populate('supplier')
+      .populate('transporter')
       .populate('items.product')
       .sort({ purchaseDate: -1 });
 
@@ -1384,7 +1456,6 @@ app.put('/api/purchase-returns/:id/status', authorize('purchase_returns_edit'), 
       throw new Error(`Cannot move from "${currentStatus}" to "${newStatus}".`);
     }
 
-    // Side effect: when goods leave the warehouse
     if (newStatus === 'Shipped to Supplier') {
       for (const item of purchaseReturn.items) {
         const product = await Product.findById(item.product).session(session);
@@ -1407,13 +1478,13 @@ app.put('/api/purchase-returns/:id/status', authorize('purchase_returns_edit'), 
       }
     }
 
-    if (newStatus === 'Completed') {
+ if (newStatus === 'Completed') {
       await SupplierAccount.create([{
         supplier: purchaseReturn.supplier,
         invoiceNumber: purchaseReturn.returnNumber,
         transactionType: 'Purchase Return',
-        debit: 0,
-        credit: purchaseReturn.totalAmount,
+        debit: purchaseReturn.totalAmount, 
+        credit: 0,
         referenceId: purchaseReturn._id,
         referenceModel: 'PurchaseReturn',
         date: new Date()
@@ -1534,20 +1605,21 @@ app.post('/api/purchase-returns/complete', authorize('purchase_returns_add'), as
       }], { session });
     }
 
-    // LEDGER MATH
+  // LEDGER MATH
     const priorEntries = await SupplierAccount.find({ supplier: supplierId }).session(session);
-    const previousBalance = priorEntries.reduce((sum, e) => sum + (e.debit - e.credit), 0);
+    const previousBalance = priorEntries.reduce((sum, e) => sum + (e.credit - e.debit), 0); // 💡 Fix: Credit - Debit
 
     await SupplierAccount.create([{
       supplier: supplierId,
       invoiceNumber,
       transactionType: 'Purchase Return',
-      debit: 0,
-      credit: totalAmount,
+      debit: totalAmount, 
+      credit: 0,
       referenceId: savedReturn._id,
       referenceModel: 'PurchaseReturn',
       date: new Date()
     }], { session });
+
 
     const activeRegister = await CashRegister.findOne({ closingDate: null }).session(session);
     if (activeRegister) {
@@ -1651,16 +1723,16 @@ app.post('/api/purchase-returns/blind-return', authorize('purchase_returns_add')
       }], { session });
     }
 
-    // LEDGER MATH for blind return
+   // LEDGER MATH for blind return
     const priorEntries = await SupplierAccount.find({ supplier: supplierId }).session(session);
-    const previousBalance = priorEntries.reduce((sum, e) => sum + (e.debit - e.credit), 0);
+    const previousBalance = priorEntries.reduce((sum, e) => sum + (e.credit - e.debit), 0); // 💡 Fix: Credit - Debit
 
     await SupplierAccount.create([{
       supplier: supplierId,
       invoiceNumber: `BLIND-${returnNumber}`,
       transactionType: 'Purchase Return',
-      debit: 0,
-      credit: totalAmount,
+      debit: totalAmount, 
+      credit: 0,
       referenceId: savedReturn._id,
       referenceModel: 'PurchaseReturn',
       date: returnDate || new Date()
@@ -1752,7 +1824,7 @@ app.get('/api/supplier-ledger', authorize('supplier_account_view'), async (req, 
 
     for (const entry of allEntries) {
       const previousBalance = runningBalance;
-      const balance = (entry.debit || 0) - (entry.credit || 0);
+const balance = (entry.credit || 0) - (entry.debit || 0);
       runningBalance += balance;
 
       const entryDate = new Date(entry.date);
@@ -1796,7 +1868,7 @@ app.get('/api/suppliers/:id/ledger', authorize('supplier_account_view'), async (
 
     let runningBalance = 0;
     const ledger = entries.map(entry => {
-      runningBalance += (entry.debit - entry.credit);
+      runningBalance += (entry.credit - entry.debit); 
       return {
         _id: entry._id,
         invoiceNumber: entry.invoiceNumber,
@@ -2155,10 +2227,13 @@ app.get('/api/products/:id/stock-adjustment', authorize('stock_adjustment_view')
 });
 
 
-// ==================== SALES (POS) ====================
-
-// Create a sale — one-shot, instant stock deduction (POS style, no draft workflow)
-app.post('/api/sales', authorize('pos_add'), async (req, res) => {  const { customerId, items, discount, paidAmount, notes, saleDate } = req.body;
+// ==================== ADD SALE (POST) ====================
+app.post('/api/sales', authorize('pos_add'), async (req, res) => { 
+  const { 
+    customerId, transporterId, labourId, salesmanId, 
+    freightAmount, freightPaidBy, labourCharges, labourPaidBy, 
+    items, discount, paidAmount, notes, saleDate 
+  } = req.body;
   const session = await mongoose.startSession();
 
   try {
@@ -2168,15 +2243,16 @@ app.post('/api/sales', authorize('pos_add'), async (req, res) => {  const { cust
     if (!items || !Array.isArray(items) || items.length === 0) {
       throw new Error('At least one item is required.');
     }
+    
     const activeRegister = await CashRegister.findOne({ closingDate: null });
     if (activeRegister) {
       activeRegister.salesAmount += Number(paidAmount);
-      await activeRegister.save();
+      await activeRegister.save({ session }); 
     }
+    
     const customer = await Customer.findById(customerId).session(session);
     if (!customer) throw new Error('Customer not found.');
 
-    // Validate stock and compute line totals first (fail fast before writing anything)
     let subtotal = 0;
     const preparedItems = [];
 
@@ -2197,36 +2273,43 @@ app.post('/api/sales', authorize('pos_add'), async (req, res) => {  const { cust
 
       const lineTotal = (qty * unitPrice) - lineDiscount;
       subtotal += lineTotal;
-
       preparedItems.push({ product, qty, unitPrice, lineDiscount, lineTotal });
     }
 
     const overallDiscount = Number(discount) || 0;
-    const totalAmount = subtotal - overallDiscount;
+    const freight = Number(freightAmount) || 0;
+    const labour = Number(labourCharges) || 0;
+    
+    const chargeableFreight = freightPaidBy === 'Customer' ? freight : 0;
+    const chargeableLabour = labourPaidBy === 'Customer' ? labour : 0;
 
+    const totalAmount = (subtotal - overallDiscount) + chargeableFreight + chargeableLabour;
     if (totalAmount < 0) throw new Error('Total amount cannot be negative.');
 
     const paid = Number(paidAmount) || 0;
     if (paid < 0) throw new Error('Paid amount cannot be negative.');
     if (paid > totalAmount) throw new Error('Paid amount cannot exceed the total sale amount.');
 
-    // Generate SL-XXXX sale number
     const counter = await Counter.findOneAndUpdate(
-      { name: 'saleNumber' },
-      { $inc: { seq: 1 } },
-      { returnDocument: 'after', upsert: true, session, returnDocument: 'after' }
+      { name: 'saleNumber' }, { $inc: { seq: 1 } }, { returnDocument: 'after', upsert: true, session }
     );
     const saleNumber = `SL-${counter.seq.toString()}`;
 
     let paymentStatus = 'Credit';
     if (paid >= totalAmount && totalAmount > 0) paymentStatus = 'Paid';
     else if (paid > 0) paymentStatus = 'Partial';
-
     const balance = totalAmount - paid;
 
     const createdSale = await Sale.create([{
       saleNumber,
       customer: customerId,
+      transporter: transporterId || null,
+      labour: labourId || null,                 
+      salesman: salesmanId || null,
+      freightAmount: freight,  
+      freightPaidBy: freightPaidBy || 'Customer', 
+      labourCharges: labour,  
+      labourPaidBy: labourPaidBy || 'Customer',  
       saleDate: saleDate || new Date(),
       subtotal,
       discount: overallDiscount,
@@ -2237,94 +2320,107 @@ app.post('/api/sales', authorize('pos_add'), async (req, res) => {  const { cust
       status: 'Completed',
       notes
     }], { session });
+    
     const savedSale = createdSale[0];
 
-   // Deduct stock, create SaleDetail rows, log StockMovement
     for (const prepared of preparedItems) {
-      // 1. Master product se total quantity minus karein
       prepared.product.quantity -= prepared.qty;
       await prepared.product.save({ session });
 
-      // 2. FEFO Logic: Find batches for this product that have stock, sorted by Expiry Date (Ascending)
-      const batches = await Batch.find({ 
-        product: prepared.product._id, 
-        quantity: { $gt: 0 } 
-      }).sort({ expiryDate: 1 }).session(session);
-
+      const batches = await Batch.find({ product: prepared.product._id, quantity: { $gt: 0 } }).sort({ expiryDate: 1 }).session(session);
       let quantityToDeduct = prepared.qty;
 
-      // 3. Deduct from batches one by one until order is fulfilled
       for (const batch of batches) {
         if (quantityToDeduct <= 0) break;
-
         if (batch.quantity >= quantityToDeduct) {
-          // This batch has enough stock to fulfill the remaining required quantity
-          batch.quantity -= quantityToDeduct;
-          quantityToDeduct = 0;
+          batch.quantity -= quantityToDeduct; quantityToDeduct = 0;
           await batch.save({ session });
         } else {
-          // This batch doesn't have enough stock, take whatever is left and move to the next batch
-          quantityToDeduct -= batch.quantity;
-          batch.quantity = 0;
+          quantityToDeduct -= batch.quantity; batch.quantity = 0;
           await batch.save({ session });
         }
       }
 
-      if (quantityToDeduct > 0) {
-        // Fallback safety (Ideally shouldn't happen if master product quantity check passed)
-        throw new Error(`Critical Error: Master stock mismatch for "${prepared.product.name}". Not enough batch stock available.`);
-      }
-
-      // Record Sale Detail
       await SaleDetail.create([{
-        sale: savedSale._id,
-        product: prepared.product._id,
-        quantity: prepared.qty,
-        unitPrice: prepared.unitPrice,
-        discount: prepared.lineDiscount,
-        lineTotal: prepared.lineTotal
+        sale: savedSale._id, product: prepared.product._id, quantity: prepared.qty, unitPrice: prepared.unitPrice,
+        discount: prepared.lineDiscount, lineTotal: prepared.lineTotal
       }], { session });
 
-      // Log Movement
       await StockMovement.create([{
-        product: prepared.product._id,
-        movementType: 'OUT',
-        quantity: prepared.qty,
-        referenceType: 'Sale',
-        referenceId: savedSale._id
+        product: prepared.product._id, movementType: 'OUT', quantity: prepared.qty, referenceType: 'Sale', referenceId: savedSale._id
       }], { session });
     }
-        // Ledger entry — debit what they owe, credit what they paid now
+
     await CustomerAccount.create([{
-      customer: customerId,
-      invoiceNumber: saleNumber,
-      transactionType: 'Sale',
-      debit: totalAmount,
-      credit: paid,
-      referenceId: savedSale._id,
-      referenceModel: 'Sale',
-      date: savedSale.saleDate
+      customer: customerId, invoiceNumber: saleNumber, transactionType: 'Sale', debit: totalAmount, credit: paid,
+      referenceId: savedSale._id, referenceModel: 'Sale', date: savedSale.saleDate
     }], { session });
+
+    if (transporterId && freight > 0) {
+      await TransporterAccount.create([{
+        transporter: transporterId,
+        invoiceNumber: saleNumber,
+        transactionType: freightPaidBy === 'Company' ? 'Freight (Company Paid)' : 'Freight (Sale)',
+        debit: 0,
+        credit: freight,
+        date: savedSale.saleDate,
+        notes: `Freight charges for sale invoice ${saleNumber} (Paid By: ${freightPaidBy})`
+      }], { session });
+    }
+
+    if (labourId && labour > 0) {
+      await LabourAccount.create([{
+        labour: labourId,
+        invoiceNumber: saleNumber,
+        transactionType: labourPaidBy === 'Company' ? 'Service (Company Paid)' : 'Service (Sale)',
+        debit: 0, 
+        credit: labour,
+        date: savedSale.saleDate,
+        notes: `Labour charges for sale invoice ${saleNumber} (Paid By: ${labourPaidBy})`
+      }], { session });
+    }
+
+    // =======================================================
+    // 💡 SALESMAN COMMISSION LOGIC ADDED HERE
+    // =======================================================
+    if (salesmanId) {
+      const salesmanData = await Employee.findById(salesmanId).session(session);
+      
+      if (salesmanData && salesmanData.commission > 0) {
+        const commissionBaseAmount = subtotal - overallDiscount; 
+        
+        if (commissionBaseAmount > 0) {
+          const commissionAmount = (commissionBaseAmount * salesmanData.commission) / 100;
+
+          await EmployeeAccount.create([{
+            employee: salesmanId,
+            invoiceNumber: saleNumber,
+            transactionType: 'Commission (Sale)',
+            debit: commissionAmount,
+            credit: 0,
+            date: savedSale.saleDate,
+            referenceId: savedSale._id,
+            notes: `Commission (${salesmanData.commission}%) for sale invoice ${saleNumber}`
+          }], { session });
+        }
+      }
+    }
 
     await session.commitTransaction();
 
-    return res.status(201).json({
-      success: true,
-      message: 'Sale completed successfully',
-      sale: savedSale
-    });
+    return res.status(201).json({ success: true, message: 'Sale completed successfully', sale: savedSale });
   } catch (error) {
     await session.abortTransaction();
-    console.error('Error creating sale:', error);
     return res.status(400).json({ success: false, message: error.message });
   } finally {
     session.endSession();
   }
 });
-
 app.get('/api/sales', authorize('pos_view'), async (req, res) => {  try {
     const sales = await Sale.find()
       .populate('customer')
+      .populate('labour')
+      .populate('transporter')
       .sort({ saleDate: -1, createdAt: 1 })
       .lean();
 
@@ -2358,7 +2454,7 @@ app.get('/api/sales/search', authorize('pos_view'), async (req, res) => {  const
   try {
     const sale = await Sale.findOne({
       saleNumber: { $regex: new RegExp(`^${invoiceNumber.trim()}$`, 'i') },
-      status: { $nin: ['Hold', 'Cancelled'] } // can't return against a held or already-cancelled sale
+      status: { $nin: ['Hold', 'Cancelled'] }
     }).populate('customer');
 
     if (!sale) {
@@ -2377,7 +2473,6 @@ app.get('/api/sales/search', authorize('pos_view'), async (req, res) => {  const
       });
     }
 
-    // Subtract quantities already returned against this sale (across all prior sale returns)
     const existingReturns = await SaleReturn.find({ sale: sale._id });
     const alreadyReturnedMap = {};
     existingReturns.forEach(ret => {
@@ -2405,7 +2500,7 @@ app.get('/api/sales/search', authorize('pos_view'), async (req, res) => {  const
       sale: {
         _id: sale._id,
         saleNumber: sale.saleNumber,
-        invoiceNumber: sale.saleNumber, // alias so the existing frontend fields keep working
+        invoiceNumber: sale.saleNumber, 
         customer: sale.customer,
         saleDate: sale.saleDate,
         createdAt: sale.createdAt
@@ -2448,7 +2543,6 @@ app.post('/api/sales/hold', authorize('pos_add'), async (req, res) => {  const {
     const paid = Number(paidAmount) || 0;
     const balance = totalAmount - paid;
 
-    // Separate HO-XXXX sequence so hold numbers never collide with SL-XXXX sale numbers
     const counter = await Counter.findOneAndUpdate(
       { name: 'holdNumber' },
       { $inc: { seq: 1 } },
@@ -2494,7 +2588,6 @@ app.post('/api/sales/hold', authorize('pos_add'), async (req, res) => {  const {
   }
 });
 
-// List all held sales — for the POS "Hold List" table (includes item count per hold)
 app.get('/api/sales/hold', authorize('pos_view'), async (req, res) => {  try {
     const holds = await Sale.find({ status: 'Hold' })
       .populate('customer')
@@ -2533,9 +2626,8 @@ app.delete('/api/sales/:id/hold', authorize('pos_delete'), async (req, res) => {
   }
 });
 
-// Get a single sale with its line items (for view/print)
 app.get('/api/sales/:id', authorize('pos_view'), async (req, res) => {  try {
-    const sale = await Sale.findById(req.params.id).populate('customer');
+    const sale = await Sale.findById(req.params.id).populate('customer').populate('transporter').populate('labour');
     if (!sale) {
       return res.status(404).json({ success: false, message: 'Sale not found' });
     }
@@ -2549,7 +2641,6 @@ app.get('/api/sales/:id', authorize('pos_view'), async (req, res) => {  try {
   }
 });
 
-// Cancel/void a sale — restores stock, reverses ledger entry (audit trail preserved, nothing deleted)
 app.put('/api/sales/:id/cancel', authorize('pos_delete'), async (req, res) => {  const session = await mongoose.startSession();
 
   try {
@@ -2578,7 +2669,6 @@ app.put('/api/sales/:id/cancel', authorize('pos_delete'), async (req, res) => { 
       }], { session });
     }
 
-    // Reverse the ledger: credit back the total owed, debit back what was paid
     await CustomerAccount.create([{
       customer: sale.customer,
       invoiceNumber: sale.saleNumber,
@@ -2666,11 +2756,7 @@ app.put('/api/print-settings', authorize('dashboard_view'), async (req, res) => 
   }
 });
 
-// ==========================================
-// CLIENT DETAILS ROUTES (Single Entry Logic)
-// ==========================================
 
-// 1. GET Client
 app.get('/api/client', authorize('settings_view'), async (req, res) => {  try {
     const clients = await Client.find();
 
@@ -2681,7 +2767,6 @@ app.get('/api/client', authorize('settings_view'), async (req, res) => {  try {
   }
 });
 
-// 2. POST Client (Add New - Restricted to 1)
 app.post('/api/client', authorize('settings_edit'), async (req, res) => {  try {
     const existingCount = await Client.countDocuments();
     if (existingCount >= 1) {
@@ -2766,8 +2851,9 @@ app.get('/api/cash-register/status', authorize('cash_register_view'), async (req
   }
 });
 
-// 2. Open Cash Register
-app.post('/api/cash-register/open', authorize('cash_register_manage'), async (req, res) => {  try {
+// ==================== 2. Open Cash Register ====================
+app.post('/api/cash-register/open', authorize('cash_register_manage'), async (req, res) => {  
+  try {
     const { openingAmount } = req.body;
 
     const existing = await CashRegister.findOne({ closingDate: null });
@@ -2778,7 +2864,10 @@ app.post('/api/cash-register/open', authorize('cash_register_manage'), async (re
     const newRegister = new CashRegister({
       openingAmount: openingAmount || 0,
       salesAmount: 0,
-      totalReturn: 0
+      totalReturn: 0,
+      purchaseAmount: 0,
+      purchaseReturnAmount: 0,
+      expenseAmount: 0 // 💡 Added expense tracker
     });
 
     await newRegister.save();
@@ -2789,17 +2878,22 @@ app.post('/api/cash-register/open', authorize('cash_register_manage'), async (re
   }
 });
 
-// 3. Close Cash Register 
-app.post('/api/cash-register/close', authorize('cash_register_manage'), async (req, res) => {  try {
+// ==================== 3. Close Cash Register ====================
+app.post('/api/cash-register/close', authorize('cash_register_manage'), async (req, res) => {  
+  try {
     const activeRegister = await CashRegister.findOne({ closingDate: null });
 
     if (!activeRegister) {
       return res.status(400).json({ success: false, message: 'No open register found.' });
     }
+
+    // 💡 Proper calculation including expenses
     const closingAmount =
       (activeRegister.openingAmount + activeRegister.salesAmount + (activeRegister.purchaseReturnAmount || 0))
-      - activeRegister.totalReturn
-      - (activeRegister.purchaseAmount || 0);
+      - (activeRegister.totalReturn || 0)
+      - (activeRegister.purchaseAmount || 0)
+      - (activeRegister.expenseAmount || 0);
+
     activeRegister.closingDate = new Date();
     activeRegister.closingAmount = closingAmount;
 
@@ -2811,6 +2905,51 @@ app.post('/api/cash-register/close', authorize('cash_register_manage'), async (r
   }
 });
 
+// ==================== EXPENSES (Updated to track in Cash Register) ====================
+app.post('/api/expenses', authorize('expenses_add'), async (req, res) => {
+  const session = await mongoose.startSession();
+  try {
+    session.startTransaction();
+
+    const { category, expenseName, date, amount, addedBy, description } = req.body;
+
+    if (!category) return res.status(400).json({ message: 'Expense category is required.' });
+    if (!expenseName || !expenseName.trim()) return res.status(400).json({ message: 'Expense name is required.' });
+    if (!date) return res.status(400).json({ message: 'Date is required.' });
+    if (amount === undefined || amount === null || Number(amount) <= 0) {
+      return res.status(400).json({ message: 'Amount must be greater than zero.' });
+    }
+    if (!addedBy || !addedBy.trim()) return res.status(400).json({ message: 'Added by is required.' });
+
+    const expense = new Expense({
+      category,
+      expenseName: expenseName.trim(),
+      date,
+      amount: Number(amount),
+      addedBy: addedBy.trim(),
+      description: description ? description.trim() : ''
+    });
+
+    await expense.save({ session });
+
+    // 💡 TRACK EXPENSE IN ACTIVE CASH REGISTER
+    const activeRegister = await CashRegister.findOne({ closingDate: null }).session(session);
+    if (activeRegister) {
+      activeRegister.expenseAmount = (activeRegister.expenseAmount || 0) + Number(amount);
+      await activeRegister.save({ session });
+    }
+
+    await session.commitTransaction();
+    session.endSession();
+
+    const populated = await Expense.findById(expense._id).populate('category', 'name');
+    res.status(201).json(populated);
+  } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
+    res.status(400).json({ message: error.message });
+  }
+});
 // ==================== CASH REGISTER HISTORY (for reports) ====================
 app.get('/api/cash-register/history', authorize('cash_register_view'), async (req, res) => {  try {
     const registers = await CashRegister.find().sort({ createdAt: 1 });
@@ -2956,7 +3095,7 @@ app.post('/api/sale-returns/complete', authorize('sale_returns_add'), async (req
       invoiceNumber: `BLIND-${returnNumber}`,
       transactionType: 'Sale Return',
       debit: 0,
-      credit: totalAmount, // Refund lowers what they owe us
+      credit: totalAmount, 
       referenceId: savedReturn._id,
       referenceModel: 'SaleReturn',
       date: new Date()
@@ -3224,34 +3363,7 @@ app.get('/api/expenses', authorize('expenses_view'), async (req, res) => {
   }
 });
 
-app.post('/api/expenses', authorize('expenses_add'), async (req, res) => {
-  try {
-    const { category, expenseName, date, amount, addedBy, description } = req.body;
 
-    if (!category) return res.status(400).json({ message: 'Expense category is required.' });
-    if (!expenseName || !expenseName.trim()) return res.status(400).json({ message: 'Expense name is required.' });
-    if (!date) return res.status(400).json({ message: 'Date is required.' });
-    if (amount === undefined || amount === null || Number(amount) <= 0) {
-      return res.status(400).json({ message: 'Amount must be greater than zero.' });
-    }
-    if (!addedBy || !addedBy.trim()) return res.status(400).json({ message: 'Added by is required.' });
-
-    const expense = new Expense({
-      category,
-      expenseName: expenseName.trim(),
-      date,
-      amount: Number(amount),
-      addedBy: addedBy.trim(),
-      description: description ? description.trim() : ''
-    });
-
-    await expense.save();
-    const populated = await Expense.findById(expense._id).populate('category', 'name');
-    res.status(201).json(populated);
-  } catch (error) {
-    res.status(400).json({ message: error.message });
-  }
-});
 
 app.put('/api/expenses/:id', authorize('expenses_edit'), async (req, res) => {
   try {
@@ -3304,10 +3416,9 @@ app.delete('/api/expenses/:id', authorize('expenses_delete'), async (req, res) =
 });
 
 // ==================== STOCK BREAKAGE ====================
-// List all breakage records (main table)
 app.get('/api/stock-breakage', authorize('stock_breakage_view'), async (req, res) => {  try {
     const records = await StockBreakage.find()
-      .populate('product', 'name categoryId uomId') // Make sure to populate product
+      .populate('product', 'name categoryId uomId') 
       .sort({ createdAt: 1 });
     res.json(records);
   } catch (error) {
@@ -3315,7 +3426,6 @@ app.get('/api/stock-breakage', authorize('stock_breakage_view'), async (req, res
   }
 });
 
-// Add multiple broken products at once — ONE breakageNumber for the whole batch
 app.post('/api/stock-breakage/batch', authorize('stock_breakage_add'), async (req, res) => {  const { items, notes } = req.body;
   const session = await mongoose.startSession();
 
@@ -3329,7 +3439,6 @@ app.post('/api/stock-breakage/batch', authorize('stock_breakage_add'), async (re
     const preparedItems = [];
 
     for (const item of items) {
-      // Allow frontend to pass 'product' or 'productId' safely
       const productId = item.productId || item.product;
       if (!productId) throw new Error('Product is required for all items.');
 
@@ -3351,7 +3460,6 @@ app.post('/api/stock-breakage/batch', authorize('stock_breakage_add'), async (re
       preparedItems.push({ product: productId, quantity: qty, previousQuantity, newQuantity });
     }
 
-    // ONE counter increment / ONE breakage number for the entire batch
     const counter = await Counter.findOneAndUpdate(
       { name: 'breakageNumber' },
       { $inc: { seq: 1 } },
@@ -3359,10 +3467,9 @@ app.post('/api/stock-breakage/batch', authorize('stock_breakage_add'), async (re
     );
     const breakageNumber = `BRK-${counter.seq.toString()}`;
 
-    // 1. Create a flat document for EACH product in the batch, sharing the breakageNumber
     const breakageDocs = preparedItems.map(item => ({
       breakageNumber: breakageNumber,
-      invoiceNumber: breakageNumber, // Setting invoiceNumber so frontend grouping works flawlessly
+      invoiceNumber: breakageNumber,
       product: item.product,
       quantity: item.quantity,
       previousQuantity: item.previousQuantity,
@@ -3370,10 +3477,8 @@ app.post('/api/stock-breakage/batch', authorize('stock_breakage_add'), async (re
       notes: notes
     }));
 
-    // 2. Insert all breakage documents at once
     const createdRecords = await StockBreakage.insertMany(breakageDocs, { session });
 
-    // 3. Individual StockMovement entry per product, referencing its specific breakage record ID
     for (let i = 0; i < preparedItems.length; i++) {
       const item = preparedItems[i];
       const savedRecord = createdRecords[i];
@@ -3393,7 +3498,7 @@ app.post('/api/stock-breakage/batch', authorize('stock_breakage_add'), async (re
     return res.status(201).json({
       success: true,
       message: `Broken stock recorded successfully (${breakageNumber}).`,
-      records: createdRecords // Return the array of created records
+      records: createdRecords 
     });
   } catch (error) {
     await session.abortTransaction();
@@ -3449,7 +3554,6 @@ app.get('/api/purchases/:id/rebatable-items', authorize('purchase_rebates_view')
     res.status(500).json({ success: false, message: 'Server error', error: error.message });
   }
 });
-// Complete a purchase rebate — one-step, supplier ledger only, NO stock/StockMovement effect
 app.post('/api/purchase-rebates/complete', authorize('purchase_rebates_add'), async (req, res) => {  const { purchaseId, supplierId, invoiceNumber, items } = req.body;
   const session = await mongoose.startSession();
 
@@ -3465,7 +3569,6 @@ app.post('/api/purchase-rebates/complete', authorize('purchase_rebates_add'), as
       throw new Error('Original purchase not found.');
     }
 
-    // Re-validate quantities against already-rebated amounts
     const existingRebates = await PurchaseRebate.find({ purchase: purchaseId }).session(session);
     const rebateIds = existingRebates.map(r => r._id);
     const existingDetails = await PurchaseRebateDetail.find({ rebate: { $in: rebateIds } }).session(session);
@@ -3510,7 +3613,6 @@ app.post('/api/purchase-rebates/complete', authorize('purchase_rebates_add'), as
     }], { session });
     const savedRebate = createdRebate[0];
 
-    // Line items — NO stock/product/StockMovement changes here
     for (const item of items) {
       await PurchaseRebateDetail.create([{
         rebate: savedRebate._id,
@@ -3521,16 +3623,15 @@ app.post('/api/purchase-rebates/complete', authorize('purchase_rebates_add'), as
       }], { session });
     }
 
-    // LEDGER — credit the supplier (reduces what we owe them), NO cash/register movement
     const priorEntries = await SupplierAccount.find({ supplier: supplierId }).session(session);
-    const previousBalance = priorEntries.reduce((sum, e) => sum + (e.debit - e.credit), 0);
+    const previousBalance = priorEntries.reduce((sum, e) => sum + (e.credit - e.debit), 0);
 
-    await SupplierAccount.create([{
+await SupplierAccount.create([{
       supplier: supplierId,
       invoiceNumber: `PRB-${invoiceNumber}`,
       transactionType: 'Purchase Rebate',
-      debit: 0,
-      credit: totalAmount,
+      debit: totalAmount,  
+      credit: 0,           
       referenceId: savedRebate._id,
       referenceModel: 'PurchaseRebate',
       date: new Date()
@@ -3645,15 +3746,14 @@ app.post('/api/purchase-rate-difference/complete', authorize('purchase_rate_diff
     }], { session });
     const savedRateDiff = createdRateDiff[0];
 
-    // HIT THE SUPPLIER ACCOUNT (Ledger Math)
     if (netDifference !== 0) {
       const priorEntries = await SupplierAccount.find({ supplier: supplierId }).session(session);
-      const previousBalance = priorEntries.reduce((sum, e) => sum + (e.debit - e.credit), 0);
+      const previousBalance = priorEntries.reduce((sum, e) => sum + (e.credit - e.debit), 0); 
 
       // netDifference > 0 means rate increased (we owe them more -> Credit)
       // netDifference < 0 means rate decreased (we owe them less -> Debit)
-     const debitAmount = netDifference > 0 ? netDifference : 0;
-      const creditAmount = netDifference < 0 ? Math.abs(netDifference) : 0;
+      const creditAmount = netDifference > 0 ? netDifference : 0; 
+      const debitAmount = netDifference < 0 ? Math.abs(netDifference) : 0; 
 
       await SupplierAccount.create([{
         supplier: supplierId,
@@ -3664,7 +3764,8 @@ app.post('/api/purchase-rate-difference/complete', authorize('purchase_rate_diff
         referenceId: savedRateDiff._id,
         referenceModel: 'PurchaseRateDifference', 
         date: new Date()
-      }], { session });}
+      }], { session });
+    }
 
     await session.commitTransaction();
 
@@ -4034,9 +4135,6 @@ app.post('/api/sale-rate-difference/complete', authorize('sale_rate_difference_a
       }))
     }], { session });
     const savedRateDiff = createdRateDiff[0];
-
-    // HIT THE CUSTOMER ACCOUNT (Ledger Math)
-    // Only hit ledger if it's NOT a walk-in customer (i.e., customerId exists)
     if (netDifference !== 0 && customerId) {
 
       // netDifference > 0 means rate increased (customer owes us MORE -> Debit)
@@ -4105,72 +4203,6 @@ app.get('/api/users/:id', authorize(), async (req, res) => {
   }
 });
 
-// ==================== PROFIT AND LOSS REPORT ====================
-app.get('/api/reports/profit-loss', authorize('report_profit_loss_view'), async (req, res) => {
-  const { fromDate, toDate } = req.query;
-
-  try {
-    const dateMatch = {};
-    if (fromDate && toDate) {
-      dateMatch.$gte = new Date(fromDate);
-      dateMatch.$lte = new Date(new Date(toDate).setHours(23, 59, 59, 999));
-    }
-
-    // Match conditions for different date fields in your models
-    const saleDateFilter = dateMatch.$gte ? { saleDate: dateMatch } : {};
-    const expenseDateFilter = dateMatch.$gte ? { date: dateMatch } : {};
-    const createdDateFilter = dateMatch.$gte ? { createdAt: dateMatch } : {};
-
-    // ==================== 1. TOTAL SALES ====================
-    const salesAgg = await Sale.aggregate([
-      { $match: { status: 'Completed', ...saleDateFilter } },
-      { $group: { _id: null, total: { $sum: '$totalAmount' } } }
-    ]);
-    const TotalSales = salesAgg[0]?.total || 0;
-
-    // ==================== 2. SALES RETURNS ====================
-    const saleReturnsAgg = await SaleReturn.aggregate([
-      { $match: { ...createdDateFilter } },
-      { $group: { _id: null, total: { $sum: '$totalAmount' } } }
-    ]);
-    const totalSaleReturns = saleReturnsAgg[0]?.total || 0;
-
-    // ==================== 3. TOTAL EXPENSES ====================
-    // 3A. General Expenses
-    const expensesAgg = await Expense.aggregate([
-      { $match: { status: { $ne: 'inactive' }, ...expenseDateFilter } },
-      { $group: { _id: null, total: { $sum: '$amount' } } }
-    ]);
-    const regularExpenses = expensesAgg[0]?.total || 0;
-
-    // 3B. Employee Salaries
-    const salariesAgg = await EmployeeAccount.aggregate([
-      { $match: { transactionType: 'Salary', ...expenseDateFilter } },
-      { $group: { _id: null, total: { $sum: '$debit' } } }
-    ]);
-    const totalSalaries = salariesAgg[0]?.total || 0;
-
-    const totalExpenses = regularExpenses + totalSalaries;
-
-    // ==================== SEND RESPONSE ====================
-    return res.json({
-      success: true,
-      data: {
-        revenue: {
-          TotalSales,
-          totalSaleReturns
-        },
-        expenses: {
-          totalExpenses
-        }
-      }
-    });
-
-  } catch (error) {
-    console.error('Error generating Profit and Loss report:', error);
-    return res.status(500).json({ success: false, message: 'Server error generating report.', error: error.message });
-  }
-});
 
 // ==================== PAYABLE & RECEIVABLE REPORT ====================
 app.get('/api/reports/balances', authorize('report_payable_receivable_view'), async (req, res) => {
@@ -4208,26 +4240,20 @@ app.get('/api/reports/balances', authorize('report_payable_receivable_view'), as
       { $unwind: '$info' }
     ]);
 
-    const suppliers = suppliersAg.map(s => {
-      const bal = (s.totalDebit || 0) - (s.totalCredit || 0);
+  const suppliers = suppliersAg.map(s => {
+      const bal = (s.totalCredit || 0) - (s.totalDebit || 0); 
       return {
         id: s._id,
         entityGroup: 'Supplier',
-        // Show Contact Person under 'Name'. If empty, fallback to Company Name.
         name: s.info.contactPerson || s.info.companyName || 'Unknown Supplier',
-        
-        // FIX: Show actual Company Name under the 'Company' column
         designation: s.info.companyName || '-', 
-        
         payable: bal > 0 ? bal : 0,
         receivable: bal < 0 ? Math.abs(bal) : 0,
         netBalance: bal
       };
     }).filter(s => s.netBalance !== 0);
 
-    // 3. EMPLOYEES BALANCE
-    // Salary: Debit = Salary applied (Payable), Credit = Salary paid
-    // Balance (Debit - Credit) > 0 means Payable (Amount we need to pay)
+
     const employeesAg = await EmployeeAccount.aggregate([
       { $group: { _id: '$employee', totalDebit: { $sum: '$debit' }, totalCredit: { $sum: '$credit' } } },
       { $lookup: { from: 'employees', localField: '_id', foreignField: '_id', as: 'info' } },
@@ -4259,11 +4285,109 @@ app.get('/api/reports/balances', authorize('report_payable_receivable_view'), as
   }
 });
 
+// ==================== PROFIT AND LOSS REPORT ====================
+app.get('/api/reports/profit-loss', authorize('report_profit_loss_view'), async (req, res) => {
+  const { fromDate, toDate } = req.query;
+
+  try {
+    const dateMatch = {};
+    if (fromDate && toDate) {
+      dateMatch.$gte = new Date(fromDate);
+      dateMatch.$lte = new Date(new Date(toDate).setHours(23, 59, 59, 999));
+    }
+
+    // Match conditions for different date fields
+    const saleDateFilter = dateMatch.$gte ? { saleDate: dateMatch } : {};
+    const expenseDateFilter = dateMatch.$gte ? { date: dateMatch } : {};
+    const createdDateFilter = dateMatch.$gte ? { createdAt: dateMatch } : {};
+
+    // ==================== 1. TOTAL SALES ====================
+    const salesAgg = await Sale.aggregate([
+      { $match: { status: 'Completed', ...saleDateFilter } },
+      { $group: { _id: null, total: { $sum: '$totalAmount' } } }
+    ]);
+    const TotalSales = salesAgg[0]?.total || 0;
+
+    // ==================== 2. SALES RETURNS ====================
+    const saleReturnsAgg = await SaleReturn.aggregate([
+      { $match: { ...createdDateFilter } },
+      { $group: { _id: null, total: { $sum: '$totalAmount' } } }
+    ]);
+    const totalSaleReturns = saleReturnsAgg[0]?.total || 0;
+
+    // ==================== 3. TOTAL EXPENSES ====================
+    // 3A. General Expenses
+    const expensesAgg = await Expense.aggregate([
+      { $match: { status: { $ne: 'inactive' }, ...expenseDateFilter } },
+      { $group: { _id: null, total: { $sum: '$amount' } } }
+    ]);
+    const regularExpenses = expensesAgg[0]?.total || 0;
+
+    // 3B. Employee Salaries
+    const salariesAgg = await EmployeeAccount.aggregate([
+      { $match: { transactionType: 'Salary', ...expenseDateFilter } },
+      { $group: { _id: null, total: { $sum: '$debit' } } }
+    ]);
+    const totalSalaries = salariesAgg[0]?.total || 0;
+
+    // 💡 3C. Salesman Commission (New)
+    const commissionAgg = await EmployeeAccount.aggregate([
+      { $match: { transactionType: 'Commission (Sale)', ...expenseDateFilter } },
+      { $group: { _id: null, total: { $sum: '$debit' } } }
+    ]);
+    const totalCommission = commissionAgg[0]?.total || 0;
+
+    // 💡 3D. Company Paid Freight & Labour (New)
+    const companyPaidChargesAgg = await Sale.aggregate([
+      { $match: { status: 'Completed', ...saleDateFilter } },
+      { 
+        $group: { 
+          _id: null, 
+          totalCompanyFreight: { 
+            $sum: { $cond: [{ $eq: ['$freightPaidBy', 'Company'] }, '$freightAmount', 0] } 
+          },
+          totalCompanyLabour: { 
+            $sum: { $cond: [{ $eq: ['$labourPaidBy', 'Company'] }, '$labourCharges', 0] } 
+          }
+        } 
+      }
+    ]);
+    const companyFreight = companyPaidChargesAgg[0]?.totalCompanyFreight || 0;
+    const companyLabour = companyPaidChargesAgg[0]?.totalCompanyLabour || 0;
+
+    // 💡 Calculate Grand Total Expenses
+    const totalExpenses = regularExpenses + totalSalaries + totalCommission + companyFreight + companyLabour;
+
+    // ==================== SEND RESPONSE ====================
+    return res.json({
+      success: true,
+      data: {
+        revenue: {
+          TotalSales,
+          totalSaleReturns
+        },
+        expenses: {
+          regularExpenses,
+          totalSalaries,
+          totalCommission,
+          companyFreight,
+          companyLabour,
+          totalExpenses // Grand total of all expenses
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('Error generating Profit and Loss report:', error);
+    return res.status(500).json({ success: false, message: 'Server error generating report.', error: error.message });
+  }
+});
+
+
 // ==================== BUSINESS CAPITAL REPORT ====================
 app.get('/api/reports/business-capital', authorize('report_business_capital_view'), async (req, res) => {
   try {
     // 1. CURRENT STOCK VALUE
-    // Calculate total value of all active inventory
     const stockAgg = await Product.aggregate([
       { $match: { status: 'active', quantity: { $gt: 0 } } },
       { $group: { _id: null, totalValue: { $sum: { $multiply: ['$quantity', '$costPrice'] } } } }
@@ -4274,8 +4398,8 @@ app.get('/api/reports/business-capital', authorize('report_business_capital_view
     const customerAgg = await CustomerAccount.aggregate([
       { $group: { _id: '$customer', totalDebit: { $sum: '$debit' }, totalCredit: { $sum: '$credit' } } }
     ]);
-    let customerReceivables = 0; // Asset: Amount customers owe us
-    let customerPayables = 0;    // Liability: Advance payments received from customers
+    let customerReceivables = 0; 
+    let customerPayables = 0;    
 
     customerAgg.forEach(c => {
       const balance = (c.totalDebit || 0) - (c.totalCredit || 0);
@@ -4287,8 +4411,8 @@ app.get('/api/reports/business-capital', authorize('report_business_capital_view
     const supplierAgg = await SupplierAccount.aggregate([
       { $group: { _id: '$supplier', totalDebit: { $sum: '$debit' }, totalCredit: { $sum: '$credit' } } }
     ]);
-    let supplierPayables = 0;    // Liability: Amount we owe to suppliers
-    let supplierReceivables = 0; // Asset: Advance payments given to suppliers
+    let supplierPayables = 0;    
+    let supplierReceivables = 0; 
 
     supplierAgg.forEach(s => {
       const balance = (s.totalCredit || 0) - (s.totalDebit || 0);
@@ -4297,21 +4421,20 @@ app.get('/api/reports/business-capital', authorize('report_business_capital_view
     });
 
     // 4. EMPLOYEE BALANCES (Receivables & Payables)
+    // 💡 Note: This automatically handles unpaid Salesman Commission because Commission is saved as Debit!
     const employeeAgg = await EmployeeAccount.aggregate([
       { $group: { _id: '$employee', totalDebit: { $sum: '$debit' }, totalCredit: { $sum: '$credit' } } }
     ]);
-    let employeePayables = 0;    // Liability: Unpaid salaries we owe to employees
-    let employeeReceivables = 0; // Asset: Advance payments given to employees
+    let employeePayables = 0;    
+    let employeeReceivables = 0; 
 
     employeeAgg.forEach(e => {
-      // Debit = Salary (Increase in liability), Credit = Payment (Decrease in liability)
       const balance = (e.totalDebit || 0) - (e.totalCredit || 0);
       if (balance > 0) employeePayables += balance;
       else if (balance < 0) employeeReceivables += Math.abs(balance);
     });
 
     // 5. FINAL BUSINESS CAPITAL FORMULA
-    // Formula: Capital = Total Assets - Total Liabilities
     const totalAssets = currentStockValue + customerReceivables + supplierReceivables + employeeReceivables;
     const totalLiabilities = customerPayables + supplierPayables + employeePayables;
     
@@ -4978,25 +5101,38 @@ app.post('/api/payroll/process', authorize('employee_account_add'), async (req, 
   }
 });
 // ==========================================
-// POST: Save Loan Recovery
+// GET & POST: Employee Loan Recovery
 // ==========================================
 
-app.get('/api/employee-loan-recoveries', authorize('settings_view'), async (req, res) => {
+app.get('/api/employee-loan-recoveries', authorize('employee_account_view'), async (req, res) => {
   try {
-    const recoveries = await EmployeeAccount.find({ transactionType: 'Loan Recovery' })
+    // 💡 Ab yeh directly aapke 'EmployeeLoanRecovery' model se data uthayega
+    const recoveries = await EmployeeLoanRecovery.find()
       .populate('employee', 'name designation')
-      .sort({ date: 1 });  
+      .sort({ recoveryDate: -1, date: -1, createdAt: -1 });  
+
+    // Frontend table ki asani ke liye data ko format kar diya
+    const formattedData = recoveries.map(r => ({
+      _id: r._id,
+      employee: r.employee,
+      invoiceNumber: r.invoiceNumber,
+      amount: r.amount || r.debit,
+      debit: r.amount || r.debit, // fallback
+      date: r.recoveryDate || r.date || r.createdAt, 
+      notes: r.notes
+    }));
 
     res.status(200).json({ 
       success: true, 
-      data: recoveries 
+      data: formattedData 
     });
   } catch (error) {
     console.error('Error fetching loan recoveries:', error);
     res.status(500).json({ success: false, message: 'Server error while fetching data.' });
   }
 });
-app.post('/api/employee-loan-recoveries', authorize('employee_account'), async (req, res) => {
+
+app.post('/api/employee-loan-recoveries', authorize('employee_account_add'), async (req, res) => {
   const { employeeId, amount, recoveryDate, notes } = req.body;
   const session = await mongoose.startSession();
 
@@ -5009,6 +5145,7 @@ app.post('/api/employee-loan-recoveries', authorize('employee_account'), async (
 
     const recDate = new Date(recoveryDate);
 
+    // 1. Employee ka balance check karein (Ledger se)
     const empLedger = await EmployeeAccount.find({ employee: employeeId }).session(session);
     const currentBalance = empLedger.reduce((sum, e) => sum + (e.debit || 0) - (e.credit || 0), 0);
 
@@ -5021,26 +5158,29 @@ app.post('/api/employee-loan-recoveries', authorize('employee_account'), async (
       throw new Error(`Aap sirf PKR ${totalLoanOwed} tak hi recover kar sakte hain.`);
     }
 
-const lastLoanEntry = await EmployeeAccount.findOne({
-  employee: employeeId,
-  transactionType: { $regex: /loan|advance/i }
-}).sort({ date: -1 }).session(session);
+    // Date Logic Check
+    const lastLoanEntry = await EmployeeAccount.findOne({
+      employee: employeeId,
+      transactionType: { $regex: /loan|advance/i }
+    }).sort({ date: -1 }).session(session);
 
-if (lastLoanEntry && lastLoanEntry.date) {
-  const loanDate = new Date(lastLoanEntry.date);
-  if (!isNaN(loanDate.getTime()) && recDate < loanDate) {
-    throw new Error('Illogical Date! Recovery cannot take place before loan date .');
-  }
-}
+    if (lastLoanEntry && lastLoanEntry.date) {
+      const loanDate = new Date(lastLoanEntry.date);
+      if (!isNaN(loanDate.getTime()) && recDate < loanDate) {
+        throw new Error('Illogical Date! Recovery cannot take place before loan date.');
+      }
+    }
 
-  const counter = await Counter.findOneAndUpdate(
+    // 2. Invoice Number Generate
+    const counter = await Counter.findOneAndUpdate(
       { name: 'loanRecoveryNumber' },
       { $inc: { seq: 1 } },
       { returnDocument: 'after', upsert: true, session }
     );
     const invoiceNumber = `LN-REC-${counter.seq}`;
 
-    const recoveryEntry = new EmployeeAccount({
+    // 💡 3. LEDGER ENTRY (Pehla hissa, taake balance sahi rahay)
+    const ledgerEntry = new EmployeeAccount({
       employee: employeeId,
       invoiceNumber: invoiceNumber,
       transactionType: 'Loan Recovery',
@@ -5049,9 +5189,21 @@ if (lastLoanEntry && lastLoanEntry.date) {
       date: recDate,
       notes: notes || 'Loan Recovery'
     });
+    await ledgerEntry.save({ session });
 
+    // 💡 4. DEDICATED COLLECTION ENTRY (Dusra hissa: Aapka gray import issue theek karega aur MongoDB mein alag table show hoga)
+    const recoveryEntry = new EmployeeLoanRecovery({
+      employee: employeeId,
+      invoiceNumber: invoiceNumber,
+      amount: Number(amount),
+      debit: Number(amount), // schema ke mutabiq safe rakhne ke liye dono pass kar diye
+      recoveryDate: recDate,
+      date: recDate, 
+      notes: notes || 'Loan Recovery'
+    });
     await recoveryEntry.save({ session });
 
+    // 5. Cash Register Update
     const activeRegister = await CashRegister.findOne({ closingDate: null }).session(session);
     if (activeRegister) {
       activeRegister.cashInHand = (activeRegister.cashInHand || 0) + Number(amount);
@@ -5318,9 +5470,9 @@ app.put('/api/salary-calendar/pay-all', authorize('settings_edit'), async (req, 
       await EmployeeAccount.insertMany(ledgerEntries, { session });
     }
 
-    const activeRegister = await CashRegister.findOne({ closingDate: null }).session(session);
+const activeRegister = await CashRegister.findOne({ closingDate: null }).session(session);
     if (activeRegister) {
-      activeRegister.purchaseAmount = (activeRegister.purchaseAmount || 0) + totalPaid;
+      activeRegister.expenseAmount = (activeRegister.expenseAmount || 0) + totalPaid;
       await activeRegister.save({ session });
     }
 
@@ -5829,6 +5981,435 @@ app.post('/api/my-attendance/clock', authorize(), async (req, res) => {
     res.json({ success: true, record });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+// ==================== LABOUR APIS ====================
+app.get('/api/labour', authorize(), async (req, res) => {
+  try {
+    const labour = await Labour.find({ status: { $ne: 'Inactive' } });
+    res.json(labour);
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching labour' });
+  }
+});
+
+app.post('/api/labour', authorize(), async (req, res) => {
+  try {
+    const newLabour = await Labour.create(req.body);
+    res.status(201).json(newLabour);
+  } catch (error) {
+    res.status(400).json({ message: 'Error creating labour', error });
+  }
+});
+
+app.put('/api/labour/:id', authorize(), async (req, res) => {
+  try {
+    const updatedLabour = await Labour.findByIdAndUpdate(req.params.id, req.body, { returnDocument: 'after' });
+    res.json(updatedLabour);
+  } catch (error) {
+    res.status(400).json({ message: 'Error updating labour', error });
+  }
+});
+
+app.delete('/api/labour/:id', authorize(), async (req, res) => {
+  try {
+    await Labour.findByIdAndUpdate(req.params.id, { status: 'Inactive' });
+    res.json({ message: 'Labour deleted' });
+  } catch (error) {
+    res.status(400).json({ message: 'Error deleting labour', error });
+  }
+});
+
+// ==================== TRANSPORTER APIS ====================
+app.get('/api/transporters', authorize(), async (req, res) => {
+  try {
+    const transporters = await Transporter.find({ status: { $ne: 'Inactive' } });
+    res.json(transporters);
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching transporters' });
+  }
+});
+
+app.post('/api/transporters', authorize(), async (req, res) => {
+  try {
+    const newTransporter = await Transporter.create(req.body);
+    res.status(201).json(newTransporter);
+  } catch (error) {
+    res.status(400).json({ message: 'Error creating transporter', error });
+  }
+});
+
+app.put('/api/transporters/:id', authorize(), async (req, res) => {
+  try {
+    const updatedTransporter = await Transporter.findByIdAndUpdate(req.params.id, req.body, { returnDocument: 'after' });
+    res.json(updatedTransporter);
+  } catch (error) {
+    res.status(400).json({ message: 'Error updating transporter', error });
+  }
+});
+
+app.delete('/api/transporters/:id', authorize(), async (req, res) => {
+  try {
+    await Transporter.findByIdAndUpdate(req.params.id, { status: 'Inactive' });
+    res.json({ message: 'Transporter deleted' });
+  } catch (error) {
+    res.status(400).json({ message: 'Error deleting transporter', error });
+  }
+});
+
+
+
+// ==================== LABOUR LEDGER ROUTE ====================
+app.get('/api/labour-ledger', authorize(), async (req, res) => {
+  try {
+    const { labourId, fromDate, toDate } = req.query;
+    const filter = {};
+    if (labourId) filter.labour = labourId;
+
+    const allEntries = await LabourAccount.find(filter).populate('labour', 'name phone').sort({ date: 1, createdAt: 1 });
+    let runningBalance = 0;
+    const rows = [];
+    let srNo = 0;
+
+    for (const entry of allEntries) {
+      const previousBalance = runningBalance;
+      const balance = (entry.credit || 0) - (entry.debit || 0);
+      runningBalance += balance;
+
+      const entryDate = new Date(entry.date);
+      const inRange = (!fromDate || entryDate >= new Date(fromDate)) && (!toDate || entryDate <= new Date(new Date(toDate).setHours(23, 59, 59, 999)));
+
+      if (inRange) {
+        srNo += 1;
+        rows.push({
+          srNo, _id: entry._id, date: entry.date, invoiceNumber: entry.invoiceNumber,
+          transactionType: entry.transactionType, labour: entry.labour,
+          debit: entry.debit || 0, credit: entry.credit || 0, balance,
+          previousBalance, net: runningBalance
+        });
+      }
+    }
+    res.json({ success: true, rows, closingBalance: runningBalance });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+
+// ==================== TRANSPORTER LEDGER ROUTE ====================
+app.get('/api/transporter-ledger', authorize(), async (req, res) => {
+  try {
+    const { transporterId, fromDate, toDate } = req.query;
+    const filter = {};
+    if (transporterId) filter.transporter = transporterId;
+
+    const allEntries = await TransporterAccount.find(filter).populate('transporter', 'name companyName phone').sort({ date: 1, createdAt: 1 });
+    let runningBalance = 0;
+    const rows = [];
+    let srNo = 0;
+
+    for (const entry of allEntries) {
+      const previousBalance = runningBalance;
+      const balance = (entry.credit || 0) - (entry.debit || 0);
+      runningBalance += balance;
+
+      const entryDate = new Date(entry.date);
+      const inRange = (!fromDate || entryDate >= new Date(fromDate)) && (!toDate || entryDate <= new Date(new Date(toDate).setHours(23, 59, 59, 999)));
+
+      if (inRange) {
+        srNo += 1;
+        rows.push({
+          srNo, _id: entry._id, date: entry.date, invoiceNumber: entry.invoiceNumber,
+          transactionType: entry.transactionType, transporter: entry.transporter,
+          debit: entry.debit || 0, credit: entry.credit || 0, balance,
+          previousBalance, net: runningBalance
+        });
+      }
+    }
+    res.json({ success: true, rows, closingBalance: runningBalance });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+
+
+// ==================== TRANSPORTER PAYMENTS ====================
+app.post('/api/transporter-payments', authorize(), async (req, res) => {
+  const { transporterId, date, amount, notes, refSaleNumber } = req.body;
+  try {
+    const amt = Number(amount);
+    if (!amt || amt <= 0) return res.status(400).json({ success: false, message: 'Valid amount is required.' });
+
+    // Cash Register se deduct karne ki logic
+    const activeRegister = await CashRegister.findOne({ closingDate: null });
+    if (!activeRegister) return res.status(400).json({ success: false, message: 'Cash register is closed.' });
+
+    const entry = await TransporterAccount.create({
+      transporter: transporterId,
+      date: date ? new Date(date) : new Date(),
+      transactionType: 'Payment',
+      debit: amt, // Direct amount debit mein jayegi
+      credit: 0,
+      notes: notes || `Freight Payment`
+    });
+
+    // Register se cash expense out
+    activeRegister.expenseAmount = (activeRegister.expenseAmount || 0) + amt;
+    await activeRegister.save();
+
+    res.status(201).json({ success: true, message: 'Payment recorded successfully', entry });
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message });
+  }
+});
+
+// ==================== LABOUR PAYMENTS ====================
+app.post('/api/labour-payments', authorize(), async (req, res) => {
+  const { labourId, date, amount, notes, refSaleNumber } = req.body;
+  try {
+    const amt = Number(amount);
+    if (!amt || amt <= 0) return res.status(400).json({ success: false, message: 'Valid amount is required.' });
+
+    const activeRegister = await CashRegister.findOne({ closingDate: null });
+    if (!activeRegister) return res.status(400).json({ success: false, message: 'Cash register is closed.' });
+
+    const entry = await LabourAccount.create({
+      labour: labourId,
+      date: date ? new Date(date) : new Date(),
+      transactionType: 'Payment',
+      invoiceNumber: refSaleNumber || `PAY-${Date.now()}`, 
+      debit: amt,
+      credit: 0,
+      notes: notes || `Labour Payment`
+    });
+
+    activeRegister.expenseAmount = (activeRegister.expenseAmount || 0) + amt;
+    await activeRegister.save();
+
+    res.status(201).json({ success: true, message: 'Payment recorded successfully', entry });
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message });
+  }
+});
+// ==================== SUPPLIER COMPANIES APIS ====================
+
+// 1. Get All Supplier Companies
+app.get('/api/supplier-companies', authorize('suppliers_view'), async (req, res) => {
+  try {
+    const companies = await SupplierCompany.find({ status: { $ne: 'inactive' } }).sort({ name: 1 });
+    res.json({ success: true, data: companies });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// 2. Add Supplier Company
+app.post('/api/supplier-companies', authorize('suppliers_add'), async (req, res) => {
+  try {
+    const { name, contact, address,email } = req.body;
+    if (!name || !name.trim()) {
+      return res.status(400).json({ success: false, message: 'Company name is required.' });
+    }
+
+    const existing = await SupplierCompany.findOne({
+      name: { $regex: new RegExp(`^${name.trim()}$`, 'i') },
+      status: { $ne: 'inactive' }
+    });
+
+    if (existing) {
+      return res.status(400).json({ success: false, message: 'Supplier company already exists!' });
+    }
+
+    const company = new SupplierCompany({ name: name.trim(), contact, address,email });
+    await company.save();
+    res.status(201).json({ success: true, data: company });
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message });
+  }
+});
+
+// 3. Update Supplier Company
+app.put('/api/supplier-companies/:id', authorize('suppliers_edit'), async (req, res) => {
+  try {
+    const { name, contact, address,email } = req.body;
+    const company = await SupplierCompany.findByIdAndUpdate(
+      req.params.id,
+      { name: name?.trim(), contact, address,email },
+      { returnDocument: 'after' }
+    );
+    if (!company) return res.status(404).json({ success: false, message: 'Company not found.' });
+    res.json({ success: true, data: company });
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message });
+  }
+});
+
+// 4. Delete Supplier Company
+app.delete('/api/supplier-companies/:id', authorize('suppliers_delete'), async (req, res) => {
+  try {
+    const inUse = await Supplier.findOne({ companyId: req.params.id, status: { $ne: 'inactive' } });
+    if (inUse) {
+      return res.status(400).json({ success: false, message: 'Cannot delete: Company is assigned to active suppliers.' });
+    }
+
+    const company = await SupplierCompany.findByIdAndUpdate(
+      req.params.id,
+      { status: 'inactive' },
+      { returnDocument: 'after' }
+    );
+    if (!company) return res.status(404).json({ success: false, message: 'Company not found.' });
+    res.json({ success: true, message: 'Company deleted successfully.' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// ==================== SUPPLIER COMPANY LEDGER ====================
+app.get('/api/supplier-company-ledger', authorize('supplier_account_view'), async (req, res) => {
+  try {
+    const { companyId, fromDate, toDate } = req.query;
+    if (!companyId) {
+      return res.status(400).json({ success: false, message: 'Company ID is required.' });
+    }
+
+    const suppliers = await Supplier.find({ companyId, status: { $ne: 'inactive' } }).select('_id contactPerson companyName');
+    const supplierIds = suppliers.map(s => s._id);
+
+    const allEntries = await SupplierAccount.find({ supplier: { $in: supplierIds } })
+      .populate('supplier', 'contactPerson name companyName')
+      .sort({ date: 1, createdAt: 1 });
+
+    let runningBalance = 0;
+    const rows = [];
+    let srNo = 0;
+
+   for (const entry of allEntries) {
+      const previousBalance = runningBalance;
+      const balance = (entry.credit || 0) - (entry.debit || 0); 
+      runningBalance += balance;
+
+      const entryDate = new Date(entry.date);
+      const inRange =
+        (!fromDate || entryDate >= new Date(fromDate)) &&
+        (!toDate || entryDate <= new Date(new Date(toDate).setHours(23, 59, 59, 999)));
+
+      if (inRange) {
+        srNo += 1;
+        rows.push({
+          srNo,
+          _id: entry._id,
+          date: entry.date,
+          invoiceNumber: entry.invoiceNumber,
+          transactionType: entry.transactionType,
+          supplier: entry.supplier,
+          debit: entry.debit || 0,
+          credit: entry.credit || 0,
+          balance,
+          previousBalance,
+          net: runningBalance
+        });
+      }
+    }
+
+    res.json({ success: true, rows, closingBalance: runningBalance, suppliersCount: suppliers.length });
+  } catch (error) {
+    console.error('Error fetching company ledger:', error);
+    res.status(500).json({ success: false, message: 'Server error', error: error.message });
+  }
+});
+// ==================== LEAVE MANAGEMENT SYSTEM ====================
+const leaveSchema = new mongoose.Schema({
+  employee: { type: mongoose.Schema.Types.ObjectId, ref: 'Employee', required: true },
+  leaveType: { type: String, enum: ['Sick', 'Casual', 'Annual', 'Other'], required: true },
+  startDate: { type: Date, required: true },
+  endDate: { type: Date, required: true },
+  reason: { type: String, required: true },
+  status: { type: String, enum: ['Pending', 'Approved', 'Rejected'], default: 'Pending' },
+  adminRemarks: { type: String, default: '' }
+}, { timestamps: true });
+
+const Leave = mongoose.model('Leave', leaveSchema);
+
+app.post('/api/leaves', authorize(), async (req, res) => {
+  try {
+    const { leaveType, startDate, endDate, reason } = req.body;
+    
+    const employeeId = req.user.employeeId || req.user._id; 
+
+    if (!leaveType || !startDate || !endDate || !reason) {
+      return res.status(400).json({ success: false, message: 'All fields are required.' });
+    }
+
+    const newLeave = new Leave({
+      employee: employeeId,
+      leaveType,
+      startDate,
+      endDate,
+      reason
+    });
+
+    await newLeave.save();
+    res.status(201).json({ success: true, message: 'Leave application submitted successfully.', leave: newLeave });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+app.get('/api/my-leaves', authorize(), async (req, res) => {
+  try {
+    const employeeId = req.user.employeeId || req.user._id;
+    const leaves = await Leave.find({ employee: employeeId }).sort({ createdAt: -1 });
+
+    const totalQuota = 15;
+    const usedLeaves = leaves
+      .filter(l => l.status === 'Approved')
+      .reduce((acc, curr) => {
+        const start = new Date(curr.startDate);
+        const end = new Date(curr.endDate);
+        const diffDays = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
+        return acc + (diffDays > 0 ? diffDays : 1);
+      }, 0);
+
+    const remainingQuota = Math.max(0, totalQuota - usedLeaves);
+
+    res.json({
+      success: true,
+      leaves,
+      quota: {
+        total: totalQuota,
+        used: usedLeaves,
+        remaining: remainingQuota
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// 3. Get All Leaves (Admin / HR Panel)
+app.get('/api/admin/leaves', authorize(), async (req, res) => {
+  try {
+    const leaves = await Leave.find().populate('employee', 'name email phone').sort({ createdAt: -1 });
+    res.json({ success: true, leaves });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+app.put('/api/admin/leaves/:id', authorize(), async (req, res) => {
+  try {
+    const { status, adminRemarks } = req.body; 
+    const updatedLeave = await Leave.findByIdAndUpdate(
+      req.params.id,
+      { status, adminRemarks: adminRemarks || '' },
+      { new: true }
+    );
+    if (!updatedLeave) return res.status(404).json({ success: false, message: 'Leave not found.' });
+    res.json({ success: true, message: `Leave ${status} successfully.`, leave: updatedLeave });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
   }
 });
 // ==================== ROOT ROUTE ====================

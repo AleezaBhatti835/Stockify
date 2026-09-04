@@ -32,7 +32,7 @@ function MySalary() {
       
       {/* PAGE HEADER */}
       <div style={{ marginBottom: '24px' }}>
-        <h2 style={{ color: 'var(--primary)', margin: 0, fontSize: '24px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <h2 style={{ color: 'var(--primary)', margin: 0, fontSize: '18px', display: 'flex', alignItems: 'center', gap: '10px' }}>
           <FontAwesomeIcon icon={faFileInvoiceDollar} /> My Salary Slips
         </h2>
       </div>

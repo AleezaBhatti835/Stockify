@@ -1,9 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faTruckMoving } from '@fortawesome/free-solid-svg-icons';
+
+const API_BASE_URL = 'http://localhost:5000';
 
 function AddPurchase() {
   // --- Data States ---
   const [suppliers, setSuppliers] = useState([]);
   const [products, setProducts] = useState([]);
+  const [transporters, setTransporters] = useState([]); // 💡 Transporter State
   const [nextInvoiceNumber, setNextInvoiceNumber] = useState('');
 
   // --- Form States ---
@@ -12,15 +17,17 @@ function AddPurchase() {
     invoiceNumber: '',
     purchaseDate: new Date().toISOString().split('T')[0],
     supplierPhone: '',
-    supplierCity: ''
+    supplierCity: '',
+    transporterId: '', // 💡 Transporter ID
+    freightAmount: ''  // 💡 Default '' instead of 0
   });
 
   const [items, setItems] = useState([]);
-  const [paidAmount, setPaidAmount] = useState(0);
+  const [paidAmount, setPaidAmount] = useState(''); // 💡 Default '' instead of 0
 
   // --- Draft Item State ---
   const [draftItem, setDraftItem] = useState({
-    product: '', productName: '', quantity: 1, unitPrice: 0, expiryDate: ''
+    product: '', productName: '', quantity: 1, unitPrice: '', expiryDate: ''
   });
 
   // --- Edit Modal States ---
@@ -57,10 +64,11 @@ function AddPurchase() {
           'Content-Type': 'application/json'
         };
 
-        const [supplierRes, productRes, purchaseRes] = await Promise.all([
-          fetch('http://localhost:5000/api/suppliers', { headers }),
-          fetch('http://localhost:5000/api/products', { headers }),
-          fetch('http://localhost:5000/api/purchases/last-invoice', { headers })
+        const [supplierRes, productRes, purchaseRes, transporterRes] = await Promise.all([
+          fetch(`${API_BASE_URL}/api/suppliers`, { headers }),
+          fetch(`${API_BASE_URL}/api/products`, { headers }),
+          fetch(`${API_BASE_URL}/api/purchases/last-invoice`, { headers }),
+          fetch(`${API_BASE_URL}/api/transporters`, { headers }) 
         ]);
         
         if (!supplierRes.ok || !productRes.ok) {
@@ -73,9 +81,11 @@ function AddPurchase() {
         const supplierData = await supplierRes.json();
         const productData = await productRes.json();
         const purchaseData = await purchaseRes.json();
+        const transporterData = await transporterRes.json();
 
         setSuppliers(Array.isArray(supplierData) ? supplierData : (supplierData.data || []));
         setProducts(Array.isArray(productData) ? productData : (productData.data || []));
+        setTransporters(Array.isArray(transporterData) ? transporterData : (transporterData.data || []));
         
         generateNextInvoiceNumber(purchaseData.lastInvoiceNumber);
       } catch (error) {
@@ -157,29 +167,24 @@ function AddPurchase() {
       supplierCity: selectedSupplier?.city || ''
     });
 
-    // Agar draft mein koi product pehle se selected tha, toh check karein ke kya wo naye supplier se linked hai?
     if (draftItem.product) {
       const currentProd = products.find(p => p._id === draftItem.product);
       if (currentProd && selectedId) {
         const link = currentProd.approvedSuppliers?.find(s => (s.supplier?._id || s.supplier) === selectedId);
         if (link) {
-          // Rate update kar dein agar supplier ka makhsoos rate mojood hai
           setDraftItem(prev => ({ ...prev, unitPrice: link.purchasePrice }));
         }
       }
     }
   };
 
-  // --- Two-Way Logic: Available Products Filtering based on Supplier ---
   const availableProducts = products.filter(p => {
-    // Agar supplier select hai, toh sirf wahi products dikhayein jo is supplier se linked hain
     if (purchaseInfo.supplierId) {
       return p.approvedSuppliers?.some(s => (s.supplier?._id || s.supplier) === purchaseInfo.supplierId);
     }
-    return true; // Agar supplier select nahi hai toh sare products show honge
+    return true; 
   });
 
-  // --- Main Form Search Logic ---
   const filteredProducts = availableProducts.filter(p =>
     p.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -217,8 +222,8 @@ function AddPurchase() {
     }
   };
 
-const selectProduct = (product) => {
-    let price = product.costPrice || product.retailPrice || 0;
+  const selectProduct = (product) => {
+    let price = product.costPrice || product.retailPrice || '';
     const approvedSupplierIds = product.approvedSuppliers?.map(s => s.supplier?._id || s.supplier) || [];
 
     if (purchaseInfo.supplierId) {
@@ -253,10 +258,6 @@ const selectProduct = (product) => {
     setIsSearchOpen(false);
     setHighlightedIndex(-1);
 
-    // 💡 FIX: Suppliers ki list ko filter kar dete hain taake sirf approved suppliers hi dropdown mein dikhein
-    if (approvedSupplierIds.length > 0 && !purchaseInfo.supplierId) {
-    }
-
     setTimeout(() => {
       if (qtyInputRef.current) {
         qtyInputRef.current.focus();
@@ -265,7 +266,6 @@ const selectProduct = (product) => {
     }, 10);
   };
 
-  // --- Modal Form Search Logic ---
   const filteredModalProducts = products.filter(p =>
     p.name.toLowerCase().includes(modalSearchTerm.toLowerCase())
   );
@@ -304,7 +304,7 @@ const selectProduct = (product) => {
   };
 
   const selectModalProduct = (product) => {
-    let price = product.costPrice || product.retailPrice || 0;
+    let price = product.costPrice || product.retailPrice || '';
     if (purchaseInfo.supplierId) {
       const link = product.approvedSuppliers?.find(s => (s.supplier?._id || s.supplier) === purchaseInfo.supplierId);
       if (link) price = link.purchasePrice;
@@ -321,7 +321,6 @@ const selectProduct = (product) => {
     setModalHighlightedIndex(-1);
   };
 
-  // Close dropdowns on outside click
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (searchRef.current && !searchRef.current.contains(event.target)) {
@@ -337,10 +336,10 @@ const selectProduct = (product) => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
- const handleAddDraftToTable = (e) => {
+  const handleAddDraftToTable = (e) => {
     if (e) e.preventDefault();
-    if (!draftItem.product) return showMessage('Please select a valid product.', 'error');
     if (!purchaseInfo.supplierId) return showMessage('Please select a supplier first.', 'error');
+    if (!draftItem.product) return showMessage('Please select a valid product.', 'error');
     if (draftItem.quantity <= 0) return showMessage('Quantity must be greater than 0.', 'error');
     if (draftItem.unitPrice < 0) return showMessage('Unit price cannot be negative.', 'error');
 
@@ -373,7 +372,7 @@ const selectProduct = (product) => {
       }];
     });
 
-    setDraftItem({ product: '', productName: '', quantity: 1, unitPrice: 0, expiryDate: '' });
+    setDraftItem({ product: '', productName: '', quantity: 1, unitPrice: '', expiryDate: '' });
     setSearchTerm('');
     if(message.type === 'error') setMessage({ text: '', type: '' });
   };
@@ -382,7 +381,6 @@ const selectProduct = (product) => {
     setItems(items.filter((_, i) => i !== index));
   };
 
-  // --- Edit Modal Logic ---
   const openEditModal = (index) => {
     const item = items[index];
     setEditingIndex(index);
@@ -425,7 +423,9 @@ const selectProduct = (product) => {
   };
 
   // --- Calculations ---
-  const netPayable = items.reduce((sum, item) => sum + (item.totalPrice || 0), 0);
+  const itemsTotal = items.reduce((sum, item) => sum + (item.totalPrice || 0), 0);
+  const freight = Number(purchaseInfo.freightAmount) || 0;
+  const netPayable = itemsTotal + freight; 
   const balance = netPayable - (Number(paidAmount) || 0);
 
   // --- Submission ---
@@ -443,10 +443,12 @@ const selectProduct = (product) => {
 
     const payload = {
       supplierId: purchaseInfo.supplierId,
+      transporterId: purchaseInfo.transporterId || null, 
+      freightAmount: freight,                            
       invoiceNumber: invoiceNumber,
       purchaseDate: purchaseInfo.purchaseDate,
       totalAmount: netPayable,
-      paidAmount: Number(paidAmount),
+      paidAmount: Number(paidAmount) || 0,
       balanceAmount: balance,
       items: items.map(item => ({
         product: item.product, 
@@ -459,7 +461,7 @@ const selectProduct = (product) => {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:5000/api/purchases', {
+      const response = await fetch(`${API_BASE_URL}/api/purchases`, {
         method: 'POST', 
         headers: { 
           'Content-Type': 'application/json',
@@ -482,12 +484,14 @@ const selectProduct = (product) => {
         setPurchaseInfo(prev => ({ 
           ...prev,
           supplierId: '', 
+          transporterId: '', 
+          freightAmount: '', 
           supplierPhone: '', 
           supplierCity: '',
           purchaseDate: new Date().toISOString().split('T')[0]
         }));
         setItems([]); 
-        setPaidAmount(0);
+        setPaidAmount('');
       } else {
         showMessage(result.message || 'Failed to process purchase order.', 'error');
       }
@@ -626,7 +630,7 @@ const selectProduct = (product) => {
         <div style={{ display: 'flex', gap: 'var(--space-md)', flexWrap: 'wrap' }}>
           
           {/* Add Products Section */}
-          <div className="card" style={{ flex: 1, minWidth: '320px' }}>
+          <div className="card" style={{ flex: 1, minWidth: '320px', display: 'flex', flexDirection: 'column' }}>
             <h4 style={{ margin: '0 0 var(--space-md) 0', color: 'var(--primary)', fontSize: '15px' }}>Add Products</h4>
             
             <div className="form-group" style={{ position: 'relative' }} ref={searchRef}>
@@ -705,9 +709,6 @@ const selectProduct = (product) => {
               <input type="date" className="form-input" value={draftItem.expiryDate} onChange={(e) => setDraftItem({ ...draftItem, expiryDate: e.target.value })} />
             </div>
 
-            <button type="button" className="btn btn-primary" style={{ width: '30%'}} onClick={handleAddDraftToTable}>
-              + Add to Cart
-            </button>
           </div>
 
           {/* Supplier Section */}
@@ -747,11 +748,60 @@ const selectProduct = (product) => {
               </div>
             </div>
 
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-md)', marginBottom: 'var(--space-md)' }}>
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="form-label">
+                  Transporter (Optional)
+                </label>
+                <select 
+                  className="form-input" 
+                  name="transporterId" 
+                  value={purchaseInfo.transporterId} 
+                  onChange={handleInfoChange}
+                >
+                  <option value="">-- None --</option>
+                  {transporters.map(t => (
+                    <option key={t._id} value={t._id}>
+                      {t.name} {t.companyName ? `(${t.companyName})` : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="form-label">Freight Amount</label>
+                <input 
+                  type="number" 
+                  min="0" 
+                  className="form-input" 
+                  name="freightAmount" 
+                  placeholder="0" 
+                  value={purchaseInfo.freightAmount === 0 || purchaseInfo.freightAmount === '' ? '' : purchaseInfo.freightAmount} 
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/^0+/, '');
+                    setPurchaseInfo({ ...purchaseInfo, freightAmount: val === '' ? '' : Number(val) });
+                  }}
+                />
+              </div>
+            </div>
+
             <div className="form-group" style={{ marginBottom: 0 }}>
               <label className="form-label">Purchase Date *</label>
               <input type="date" className="form-input" name="purchaseDate" value={purchaseInfo.purchaseDate} onChange={handleInfoChange} required />
             </div>
           </div>
+        </div>
+
+        {/* --- ADD TO CART BUTTON (OUTSIDE CARDS) --- */}
+        <div style={{marginTop: '8px', marginBottom: 'var(--space-md)' }}>
+           <button
+             type="button"
+             className="btn btn-primary"
+             style={{ padding: '14px 24px', fontSize: '15px', fontWeight: 'bold', width: '15%', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}
+             onClick={handleAddDraftToTable}
+           >
+             Add to Cart {(!purchaseInfo.supplierId || !draftItem.product) }
+           </button>
         </div>
 
         {/* --- MIDDLE: DATA TABLE --- */}
@@ -781,7 +831,7 @@ const selectProduct = (product) => {
                     <tr key={index} style={{ borderBottom: '1px solid var(--border-color)' }}>
                       <td style={tableStyles.td}>{index + 1}</td>
                       <td style={tableStyles.td}>{item.productName}</td>
-                      <td style={{ ...tableStyles.td, fontWeight: 500, color: 'var(--primary)' }}>{item.supplierName}</td> {/* 💡 SUPPLIER NAME */}
+                      <td style={{ ...tableStyles.td, fontWeight: 500, color: 'var(--primary)' }}>{item.supplierName}</td>
                       <td style={tableStyles.td}>{item.quantity}</td>
                       <td style={tableStyles.td}>{item.unitPrice.toFixed(2)}</td>
                       <td style={{ ...tableStyles.td, fontWeight: 'bold' }}>{item.totalPrice.toFixed(2)}</td>
@@ -826,7 +876,17 @@ const selectProduct = (product) => {
             </button>
           </div>
           
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 'var(--space-md)', alignItems: 'flex-end', padding: 'var(--space-md)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 'var(--space-md)', alignItems: 'flex-end', padding: 'var(--space-md)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label className="form-label" style={{ textAlign: 'center' }}>Items Total</label>
+              <input type="text" className="form-input" style={{ textAlign: 'center', backgroundColor: 'var(--bg-surface)' }} value={itemsTotal.toFixed(2)} readOnly disabled />
+            </div>
+
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label className="form-label" style={{ textAlign: 'center' }}>Freight (+)</label>
+              <input type="text" className="form-input" style={{ textAlign: 'center', backgroundColor: 'var(--bg-surface)' }} value={freight.toFixed(2)} readOnly disabled />
+            </div>
+
             <div className="form-group" style={{ marginBottom: 0 }}>
               <label className="form-label" style={{ textAlign: 'center' }}>Net Payable</label>
               <input type="text" className="form-input" style={{ textAlign: 'center', fontWeight: 'bold', backgroundColor: 'var(--bg-surface)' }} value={netPayable.toFixed(2)} readOnly disabled />
@@ -837,9 +897,10 @@ const selectProduct = (product) => {
               <input
                 type="number" step="10" className="form-input" style={{ textAlign: 'center', fontWeight: 'bold', border: '1px solid var(--primary)' }}
                 value={paidAmount === 0 || paidAmount === '' ? '' : paidAmount}
+                placeholder="0"
                 onChange={(e) => {
                   const val = e.target.value.replace(/^0+/, '');
-                  setPaidAmount(val === '' ? 0 : Number(val));
+                  setPaidAmount(val === '' ? '' : Number(val));
                 }}
               />
             </div>

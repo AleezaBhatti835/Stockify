@@ -127,7 +127,7 @@ function MyAttendance() {
     <div style={{ padding: '20px' }}>
       
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '15px' }}>
-        <h2 style={{ color: 'var(--primary)', margin: 0, fontSize: '24px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <h2 style={{ color: 'var(--primary)', margin: 0, fontSize: '18px', display: 'flex', alignItems: 'center', gap: '10px' }}>
           <FontAwesomeIcon icon={faCalendarDays} /> My Attendance History
         </h2>
         
@@ -179,9 +179,9 @@ function MyAttendance() {
                   </td>
                   <td style={tableStyles.td}>
                     <span style={{ 
-                      padding: '5px 14px', borderRadius: '20px', fontSize: '12px', fontWeight: 'bold', 
+                      padding: '1px 8px', borderRadius: '20px', fontSize: '11px', fontWeight: '600px', 
                       backgroundColor: att.status === 'Present' ? 'var(--success-bg)' : att.status === 'Absent' ? 'var(--danger-bg)' : '#fef3c7', 
-                      color: att.status === 'Present' ? 'var(--success)' : att.status === 'Absent' ? 'var(--danger)' : '#d97706',
+                      color: att.status === 'Present' ? 'var(--primary-other)' : att.status === 'Absent' ? 'var(--danger)' : '#d97706',
                       display: 'inline-block'
                     }}>
                       {att.status}
@@ -210,7 +210,7 @@ function MyAttendance() {
 
 const tableStyles = {
   th: { padding: '14px 20px', backgroundColor: 'var(--header)', color: 'white', textAlign: 'left', fontSize: '13px', fontWeight: '600' },
-  td: { padding: '14px 20px', fontSize: '13px', color: 'var(--text-main)' , textAlign: 'left'}
+  td: { padding: '4px 20px', fontSize: '13px', color: 'var(--text-main)' , textAlign: 'left'}
 };
 
 export default MyAttendance;

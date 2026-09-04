@@ -11,6 +11,8 @@ const TABS = [
   { key: 'customer', label: 'Customer Accounts' },
   { key: 'supplier', label: 'Supplier Accounts' },
   { key: 'employee', label: 'Employee Accounts' },
+  { key: 'labour', label: 'Labour Accounts' },
+  { key: 'transporter', label: 'Transporter Accounts' },
 ];
 
 function AccountReport() {
@@ -50,18 +52,30 @@ function AccountReport() {
       .catch(err => console.error(err));
   }, []);
 
-  // CORE ARCHITECTURE: Dynamic ledger aggregation and cross-collection relation mapping for contextual account reporting.
   useEffect(() => {
     const fetchDropdowns = async () => {
       try {
         const token = localStorage.getItem('token');
-        const res = await fetch(`${API_BASE_URL}/api/${activeTab}s`, {
+        
+        let endpoint = `${activeTab}s`;
+        if (activeTab === 'labour') {
+          endpoint = 'labour';
+        }
+
+        const res = await fetch(`${API_BASE_URL}/api/${endpoint}`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         const data = await res.json();
-        setDropdownList(Array.isArray(data) ? data : (data.employees || []));
+        
+        let list = [];
+        if (Array.isArray(data)) list = data;
+        else if (data.data && Array.isArray(data.data)) list = data.data;
+        else if (data.employees && Array.isArray(data.employees)) list = data.employees;
+        
+        setDropdownList(list);
       } catch (err) {
         console.error('Error fetching dropdown list:', err);
+        setDropdownList([]);
       }
     };
     fetchDropdowns();
@@ -71,7 +85,6 @@ function AccountReport() {
   useEffect(() => {
     fetchLedgerData();
     setCurrentPage(1);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, selectedAccountId, fromDate, toDate]);
 
   const fetchLedgerData = async () => {
@@ -131,11 +144,12 @@ function AccountReport() {
     return ledgerData.filter(row => {
       if (transactionType && row.transactionType !== transactionType) return false;
 
-      let accountId = '';
+  let accountId = '';
       if (activeTab === 'customer') accountId = row.customer?._id || row.customer;
       else if (activeTab === 'supplier') accountId = row.supplier?._id || row.supplier;
       else if (activeTab === 'employee') accountId = row.employee?._id || row.employee;
-
+      else if (activeTab === 'labour') accountId = row.labour?._id || row.labour;
+      else if (activeTab === 'transporter') accountId = row.transporter?._id || row.transporter;
       const fullAccount = dropdownList.find(acc => acc._id === accountId);
 
       if (activeTab === 'customer' && selectedCustomerType) {
@@ -152,33 +166,45 @@ function AccountReport() {
     });
   }, [ledgerData, transactionType, selectedCustomerType, selectedDesignation, dropdownList, activeTab]);
 
-  const columns = useMemo(() => {
+const columns = useMemo(() => {
     if (activeTab === 'customer') return ['Sr#', 'Date', 'Ref / Invoice No.', 'Customer Name', 'Customer Type', 'Transaction Type', 'Debit (+)', 'Credit (-)', 'Balance'];
     if (activeTab === 'supplier') return ['Sr#', 'Date', 'Ref / Invoice No.', 'Supplier Name', 'Company', 'Transaction Type', 'Debit (+)', 'Credit (-)', 'Balance'];
     if (activeTab === 'employee') return ['Sr#', 'Date', 'Ref / Invoice No.', 'Employee Name', 'Designation', 'Transaction Type', 'Debit (+)', 'Credit (-)', 'Balance'];
+    if (activeTab === 'labour') return ['Sr#', 'Date', 'Ref / Invoice No.', 'Labour Name', 'Phone', 'Transaction Type', 'Debit (+)', 'Credit (-)', 'Balance'];
+    if (activeTab === 'transporter') return ['Sr#', 'Date', 'Ref / Invoice No.', 'Transporter Name', 'Company', 'Transaction Type', 'Debit (+)', 'Credit (-)', 'Balance'];
     return [];
   }, [activeTab]);
 
-  const getRow = (row, idx) => {
+const getRow = (row, idx) => {
     let accountId = '';
     let accName = '—';
     let extraCol = '—';
 
     if (activeTab === 'customer') {
       accountId = row.customer?._id || row.customer;
-      const fullAcc = dropdownList.find(acc => acc._id === accountId);
+      const fullAcc = dropdownList.find(acc => String(acc._id) === String(accountId));
       accName = fullAcc?.name || fullAcc?.customerName || row.customer?.name || '—';
       extraCol = fullAcc?.customerTypeId?.name || '—';
     } else if (activeTab === 'supplier') {
       accountId = row.supplier?._id || row.supplier;
-      const fullAcc = dropdownList.find(acc => acc._id === accountId);
+      const fullAcc = dropdownList.find(acc => String(acc._id) === String(accountId));
       accName = fullAcc?.contactPerson || fullAcc?.name || row.supplier?.contactPerson || '—';
       extraCol = fullAcc?.companyName || row.supplier?.companyName || '—';
     } else if (activeTab === 'employee') {
       accountId = row.employee?._id || row.employee;
-      const fullAcc = dropdownList.find(acc => acc._id === accountId);
+      const fullAcc = dropdownList.find(acc => String(acc._id) === String(accountId));
       accName = fullAcc?.name || row.employee?.name || '—';
       extraCol = fullAcc?.designation?.designation || fullAcc?.designation?.name || '—';
+    } else if (activeTab === 'labour') {
+      accountId = row.labour?._id || row.labour;
+      const fullAcc = dropdownList.find(acc => String(acc._id) === String(accountId));
+      accName = fullAcc?.name || row.labour?.name || '—';
+      extraCol = fullAcc?.contact || fullAcc?.phoneNumber || row.labour?.phone || '—';
+    } else if (activeTab === 'transporter') {
+      accountId = row.transporter?._id || row.transporter;
+      const fullAcc = dropdownList.find(acc => String(acc._id) === String(accountId));
+      accName = fullAcc?.name || row.transporter?.name || '—';
+      extraCol = fullAcc?.phone || fullAcc?.phoneNumber || fullAcc?.companyName || row.transporter?.phone || '—';
     }
 
     return [
@@ -196,7 +222,6 @@ function AccountReport() {
 
   const activeTabLabel = TABS.find(t => t.key === activeTab)?.label || '';
 
-  // DATA EXPORT ENGINE: Multi-format document generation mapping complex JSON aggregates to printable iframe strings, binary Excel data, and vector PDFs.
   const handlePrint = () => {
     const rowsHtml = filteredLedger.map((item, idx) => {
       const row = getRow(item, idx);
@@ -325,10 +350,11 @@ function AccountReport() {
     <div className="dashboard-wrapper">
       
       {/* TABS & EXPORTS TOP BAR */}
-      <div className="card" style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: '16px' }}>
-        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+      <div className="card" style={{ display: 'flex', flexWrap: 'wrap',padding:'13px 3px ', justifyContent: 'space-between', alignItems: 'center', gap: '17px' }}>
+        <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap',padding:'1px' }}>
           {TABS.map(t => (
             <button
+            style={{ padding: '10px 8px', fontSize: '13px' }}
               key={t.key}
               className={`btn ${activeTab === t.key ? 'btn-primary' : 'btn-secondary'}`}
               onClick={() => setActiveTab(t.key)}
@@ -337,7 +363,7 @@ function AccountReport() {
             </button>
           ))}
         </div>
-        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
           <button className="btn btn-secondary" onClick={handlePrint}><FontAwesomeIcon icon={faPrint} /> Print</button>
           <button className="btn btn-secondary" onClick={handleExportPDF}><FontAwesomeIcon icon={faFilePdf} /> PDF</button>
           <button className="btn btn-secondary" onClick={handleExportExcel}><FontAwesomeIcon icon={faFileExcel} /> Excel</button>
@@ -355,6 +381,8 @@ function AccountReport() {
                if (activeTab === 'customer') label = item.name || item.customerName;
                else if (activeTab === 'supplier') label = item.companyName || item.contactPerson;
                else if (activeTab === 'employee') label = item.name;
+               else if (activeTab === 'labour') label = item.name; // 💡 Labour name
+               else if (activeTab === 'transporter') label = item.name;
                return <option key={item._id} value={item._id}>{label || 'Unnamed'}</option>
             })}
           </select>
@@ -409,11 +437,7 @@ function AccountReport() {
 
       {/* TABLE SECTION */}
       <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-        <div style={{ padding: '16px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'flex-end' }}>
-          <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
-            Showing {currentRows.length} of {filteredLedger.length} transaction(s)
-          </span>
-        </div>
+      
 
         <div style={{ overflowX: 'auto', width: '100%' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '900px' }}>

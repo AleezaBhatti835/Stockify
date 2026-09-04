@@ -17,6 +17,8 @@ const purchaseSchema = new mongoose.Schema({
   totalAmount: { type: Number, required: true },
   items: [purchaseDetailSchema], 
   paidAmount: { type: Number, default: 0 },
+  transporter: { type: mongoose.Schema.Types.ObjectId, ref: 'Transporter', default: null },
+  freightAmount: { type: Number, default: 0 },
   status: { type: String, enum: ['Completed', 'Pending', 'Returned'], default: 'Completed' }
 }, { timestamps: true });
 

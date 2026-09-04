@@ -11,8 +11,6 @@ const saleSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Customer',
     required: function () {
-      // A held sale can be created before a customer is picked (Walk-in),
-      // but a Completed sale must always have a customer.
       return this.status !== 'Hold';
     }
   },
@@ -66,6 +64,27 @@ const saleSchema = new mongoose.Schema({
   notes: {
     type: String,
     trim: true
+  },
+  transporter: { type: mongoose.Schema.Types.ObjectId, ref: 'Transporter', default: null },
+  labour: { type: mongoose.Schema.Types.ObjectId, ref: 'Labour', default: null },
+  freightAmount: { type: Number, default: 0 },
+  labourCharges: { type: Number, default: 0 },
+
+  // 💡 Nayi Fields (Salesman & Paid By Logic)
+  salesman: { 
+    type: mongoose.Schema.Types.ObjectId, 
+    ref: 'Employee', 
+    default: null 
+  },
+  freightPaidBy: { 
+    type: String, 
+    enum: ['Customer', 'Company'], 
+    default: 'Customer' 
+  },
+  labourPaidBy: { 
+    type: String, 
+    enum: ['Customer', 'Company'], 
+    default: 'Customer' 
   }
 }, { timestamps: true });
 

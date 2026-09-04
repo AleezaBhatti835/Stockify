@@ -4,9 +4,14 @@ import Roles from './roles.jsx';
 import Users from './user.jsx';
 import Customers from './Customers.jsx';
 import Suppliers from './Suppliers.jsx';
+import Labour from './Labour.jsx';
+import Transporters from './Transporter.jsx';
 import Designations from './Designation.jsx';
 import Employees from './Employee.jsx';
 import UOM from './catalogue/UOM.jsx';
+import LabourAccount from './accounts/LabourAccount.jsx';
+import SupplierCompanies from './SupplierCompanies.jsx';
+import TransporterAccount from './accounts/TransporterAccount.jsx';
 import Category from './catalogue/Category.jsx';
 import SalaryCycle from './payroll/SalaryCycle.jsx';
 import YearlyCalendar from './payroll/YearlyCalendar.jsx';
@@ -64,13 +69,14 @@ import SaleRateDifference from './sales/SaleRateDifference.jsx';
 import SaleRateDifferenceList from './sales/SaleRateDifferenceList.jsx';
 import EmployeeLoan from './payroll/EmployeeLoan.jsx';
 import BatchManagement from './BatchManagement.jsx';
+import SupplierCompanyLedger from './accounts/SupplierCompanyLedger.jsx';
 import { PrintSettingsProvider } from '../context/PrintSettingsContext';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
   faBank, faBoxOpen, faCartPlus, faChartBar, faCirclePause, faCoins, faCubes,
   faDashboard, faGear, faHandHoldingDollar, faMoneyCheckDollar, faReceipt,
   faScrewdriver, faUser, faUserGroup, faUsers, faTruckMoving, faUserTie, faBoxesStacked, faCashRegister, faMoneyBillWave
-,faWallet, faCalendarCheck, faFileInvoiceDollar
+  , faWallet, faCalendarCheck, faFileInvoiceDollar
 } from '@fortawesome/free-solid-svg-icons';
 import {
   BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, AreaChart, Area, PieChart, Pie, Cell
@@ -93,7 +99,6 @@ const getRoleLabel = (role) => {
 };
 
 function Dashboard({ user, onLogout }) {
-  // 💡 Prop na ho toh localStorage se direct uthayein
   const currentUser = user || (() => {
     try {
       const local = localStorage.getItem('user');
@@ -139,7 +144,7 @@ function Dashboard({ user, onLogout }) {
     return email === 'admin@gmail.com' || email === adminEmail || roleName === 'admin';
   });
 
-  const [userPermissions, setUserPermissions] = useState(() => 
+  const [userPermissions, setUserPermissions] = useState(() =>
     currentUser?.role?.permissions || currentUser?.permissions || []
   );
 
@@ -156,7 +161,7 @@ function Dashboard({ user, onLogout }) {
   const checkAccess = (permissionKeys) => {
     const userEmail = String(userInfo?.email || '').trim().toLowerCase();
     const adminEmail = String(import.meta.env.VITE_ADMIN_EMAIL || '').toLowerCase();
-    
+
     if (isAdmin || userEmail === adminEmail || userEmail === 'admin@gmail.com') {
       return true;
     }
@@ -250,7 +255,7 @@ function Dashboard({ user, onLogout }) {
     };
     document.addEventListener('mousedown', handleClickOutside);
 
-const fetchFreshProfile = async () => {
+    const fetchFreshProfile = async () => {
       if (!user?._id) return;
       try {
         const token = localStorage.getItem('token');
@@ -272,7 +277,7 @@ const fetchFreshProfile = async () => {
             const adminEmail = String(import.meta.env.VITE_ADMIN_EMAIL || '').toLowerCase();
 
             setIsAdmin(fetchedEmail === adminEmail);
-            
+
             // 💡 YAHAN PERMISSIONS UPDATE HONA LAZMI HAI:
             const newPerms = freshUser.role?.permissions || freshUser.permissions || [];
             setUserPermissions(newPerms);
@@ -422,7 +427,7 @@ const fetchFreshProfile = async () => {
       'StockMovementReport': 'Stock Movement Report', 'salary-payment': 'Salary Payment', 'payablereceivable': 'Payable & Receivable Report',
       'BusinessCapitalReport': 'Business Capital Report', 'batch-manage': 'Batch Management', 'access-control': 'Access Control',
       'employee-attendance': 'Employee Attendance', 'salary-report': 'Salary Report', 'product-supp': 'Product-Supplier Report', 'calendar': 'Calendar', 'employee-loan': 'Employee Loan',
-      'my-ledger': 'My Dashboard'
+      'my-ledger': 'My Dashboard','supplier-company-ledger':'Supplier Company Ledger', 'supplier-company': 'Supplier Company', 'labour-account': 'Labour Account', 'transporter-account': 'Transporter Account', 'labour': 'Labour', 'transporter': 'Transporter'
     };
     return titles[activeTab] || 'Dashboard';
   };
@@ -435,7 +440,7 @@ const fetchFreshProfile = async () => {
     { name: 'Purchases', value: dashStats.purchases || 0 },
     { name: 'Expenses', value: dashStats.expenses || 0 }
   ];
-  const PIE_COLORS = ['#0d9488', '#14b8a6', '#f43f5e'];
+  const PIE_COLORS = ['#0d9488', '#f0b857', '#f43f5e'];
 
   return (
     <div className="dashboard-container">
@@ -473,7 +478,6 @@ const fetchFreshProfile = async () => {
               </>
             )}
 
-            {/* 💡 --- COMPANY PORTAL SECTION --- 💡 */}
             {(isAdmin || userPermissions.length > 0) && (
               <>
                 {checkAccess(['dashboard_view']) && (
@@ -492,7 +496,10 @@ const fetchFreshProfile = async () => {
                       <ul className="submenu" style={{ paddingLeft: '20px', listStyleType: 'none', margin: 0 }}>
                         {checkAccess(['customers_view']) && <li className={activeTab === 'customers' ? 'active' : ''} onClick={() => { handleTabChange('customers'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Customers</li>}
                         {checkAccess(['suppliers_view']) && <li className={activeTab === 'suppliers' ? 'active' : ''} onClick={() => { handleTabChange('suppliers'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Suppliers</li>}
+                         {checkAccess(['supplier-company']) && <li className={activeTab === 'supplier-company' ? 'active' : ''} onClick={() => { handleTabChange('supplier-company'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Supplier Companies</li>}                     
                         {checkAccess(['employees_view']) && <li className={activeTab === 'employees' ? 'active' : ''} onClick={() => { handleTabChange('employees'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Employees</li>}
+                        {checkAccess(['transporter']) && <li className={activeTab === 'transporter' ? 'active' : ''} onClick={() => { handleTabChange('transporter'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Transporter</li>}
+                        {checkAccess(['labour']) && <li className={activeTab === 'labour' ? 'active' : ''} onClick={() => { handleTabChange('labour'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Labour</li>}
                       </ul>
                     )}
                   </>
@@ -536,6 +543,7 @@ const fetchFreshProfile = async () => {
                         {checkAccess(['uom_view']) && <li className={activeTab === 'uom' ? 'active' : ''} onClick={() => { handleTabChange('uom'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Units of Measure</li>}
                         {checkAccess(['categories_view']) && <li className={activeTab === 'category' ? 'active' : ''} onClick={() => { handleTabChange('category'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Categories</li>}
                         {checkAccess(['products_view']) && <li className={activeTab === 'product' ? 'active' : ''} onClick={() => { handleTabChange('product'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Products</li>}
+                         {checkAccess(['batch-manage']) && <li className={activeTab === 'batch-manage' ? 'active' : ''} onClick={() => { handleTabChange('batch-manage'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Batch Management</li>}                     
                       </ul>
                     )}
                   </>
@@ -634,6 +642,9 @@ const fetchFreshProfile = async () => {
                         {checkAccess(['customer_account_view']) && <li className={activeTab === 'customer-account' ? 'active' : ''} onClick={() => { handleTabChange('customer-account'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Customer Account</li>}
                         {checkAccess(['supplier_account_view']) && <li className={activeTab === 'supplier-account' ? 'active' : ''} onClick={() => { handleTabChange('supplier-account'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Supplier Account</li>}
                         {checkAccess(['employee_account_view']) && <li className={activeTab === 'employee-account' ? 'active' : ''} onClick={() => { handleTabChange('employee-account'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Employee Account</li>}
+                        {checkAccess(['labour-account']) && <li className={activeTab === 'labour-account' ? 'active' : ''} onClick={() => { handleTabChange('labour-account'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Labour Account</li>}
+                        {checkAccess(['transporter-account']) && <li className={activeTab === 'transporter-account' ? 'active' : ''} onClick={() => { handleTabChange('transporter-account'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Transporter Account</li>}
+                        {checkAccess(['supplier-company-ledger']) && <li className={activeTab === 'supplier-company-ledger' ? 'active' : ''} onClick={() => { handleTabChange('supplier-company-ledger'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div> Company Ledger</li>}
                       </ul>
                     )}
                   </>
@@ -710,7 +721,6 @@ const fetchFreshProfile = async () => {
                         {checkAccess(['client_details_view']) && <li className={activeTab === 'client-details' ? 'active' : ''} onClick={() => { handleTabChange('client-details'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Client Details</li>}
                         {checkAccess(['customer_types_view']) && <li className={activeTab === 'customer-types' ? 'active' : ''} onClick={() => { handleTabChange('customer-types'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Customer Types</li>}
                         {checkAccess(['access_control_view']) && <li className={activeTab === 'access-control' ? 'active' : ''} onClick={() => { handleTabChange('access-control'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Access Control</li>}
-                        {checkAccess(['batch-manage']) && <li className={activeTab === 'batch-manage' ? 'active' : ''} onClick={() => { handleTabChange('batch-manage'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Batch Management</li>}
 
                       </ul>
                     )}
@@ -993,7 +1003,7 @@ const fetchFreshProfile = async () => {
                           <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: 'var(--text-muted)', fontSize: 12 }} dy={10} />
                           <YAxis axisLine={false} tickLine={false} tick={{ fill: 'var(--text-muted)', fontSize: 12 }} dx={-10} />
                           <Tooltip cursor={{ fill: 'var(--bg-app)' }} contentStyle={{ borderRadius: '8px', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-md)' }} formatter={(value) => `Rs ${value.toLocaleString()}`} />
-                          <Bar dataKey="purchases" name="Purchases" fill="#14b8a6" radius={[4, 4, 0, 0]} maxBarSize={40} />
+                          <Bar dataKey="purchases" name="Purchases" fill="#40847c" radius={[4, 4, 0, 0]} maxBarSize={40} />
                         </BarChart>
                       </ResponsiveContainer>
                     ) : (<div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-muted)' }}>{isDashLoading ? 'Loading...' : 'No data'}</div>)}
@@ -1011,7 +1021,7 @@ const fetchFreshProfile = async () => {
                           <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: 'var(--text-muted)', fontSize: 12 }} dy={10} />
                           <YAxis axisLine={false} tickLine={false} tick={{ fill: 'var(--text-muted)', fontSize: 12 }} dx={-10} />
                           <Tooltip cursor={{ fill: 'var(--bg-app)' }} contentStyle={{ borderRadius: '8px', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-md)' }} formatter={(value) => `Rs ${value.toLocaleString()}`} />
-                          <Bar dataKey="profit" name="Net Profit" fill="var(--primary)" radius={[4, 4, 0, 0]} maxBarSize={40} />
+                          <Bar dataKey="profit" name="Net Profit" fill="var(--success)" radius={[4, 4, 0, 0]} maxBarSize={40} />
                         </BarChart>
                       </ResponsiveContainer>
                     ) : (<div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-muted)' }}>{isDashLoading ? 'Loading...' : 'No data'}</div>)}
@@ -1111,6 +1121,12 @@ const fetchFreshProfile = async () => {
             {activeTab === 'my-ledger' && <MyLedger />}
             {activeTab === 'my-attendance' && <MyAttendance />}
             {activeTab === 'my-salary' && <MySalary />}
+            {activeTab === 'transporter' && <Transporters />}
+            {activeTab === 'transporter-account' && <TransporterAccount />}
+            {activeTab === 'labour' && <Labour />}
+            {activeTab === 'labour-account' && <LabourAccount />}
+            {activeTab === 'supplier-company' && <SupplierCompanies />}
+            {activeTab === 'supplier-company-ledger' && <SupplierCompanyLedger />}
           </PrintSettingsProvider>
         </div>
       </main>

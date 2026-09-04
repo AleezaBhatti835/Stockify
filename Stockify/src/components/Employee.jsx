@@ -49,8 +49,6 @@ function InlineMessage({ message, type }) {
 
   const isError = type === 'error';
   const isSuccess = type === 'success';
-  const addModalBodyRef = React.useRef(null);
-  const editModalBodyRef = React.useRef(null);
   const bg = isError ? 'var(--danger-bg)' : isSuccess ? 'var(--success-bg)' : 'var(--info-bg)';
   const text = isError ? 'var(--danger)' : isSuccess ? 'var(--success)' : 'var(--info)';
   const icon = isError ? '⚠️' : isSuccess ? '✅' : 'ℹ️';
@@ -85,6 +83,7 @@ function Employees() {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
 
+  // Initial State Updated
   const initialState = {
     name: '',
     emailPrefix: '',
@@ -94,7 +93,9 @@ function Employees() {
     pic: '',
     designation: '',
     joiningDate: new Date().toISOString().split('T')[0],
-    status: 'Active'
+    status: 'Active',
+    employeeType: 'Employee',
+    commission: ''
   };
 
   const [newEmployee, setNewEmployee] = useState(initialState);
@@ -131,7 +132,6 @@ function Employees() {
     return `+92${numbers}`;
   };
 
-  // Keyboard shortcut handler (Only handling ESC key safely now)
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key === 'Escape') {
@@ -149,7 +149,6 @@ function Employees() {
         }
         if (viewEmployee) {
           e.preventDefault();
-          setViewReference(null); // or setViewEmployee(null)
           setViewEmployee(null);
         }
         if (deleteTarget) {
@@ -158,13 +157,12 @@ function Employees() {
           setDeleteMessage({ text: '', type: '' });
         }
       }
-      // Note: Enter key submit hata diya hai taake date/inputs freely edit ho sakein
     };
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [isAddModalOpen, editEmployeeId, viewEmployee, deleteTarget]);
-  // Pagination logic
+
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
   const currentItems = employees.slice(indexOfFirstItem, indexOfLastItem);
@@ -178,7 +176,8 @@ function Employees() {
     fetchEmployees();
     fetchDesignations();
   }, []);
-useEffect(() => {
+
+  useEffect(() => {
     if (addMessage.text && addModalBodyRef.current) {
       addModalBodyRef.current.scrollTop = 0;
     }
@@ -189,6 +188,7 @@ useEffect(() => {
       editModalBodyRef.current.scrollTop = 0;
     }
   }, [editMessage]);
+
   const showAddMessage = (text, type) => {
     setAddMessage({ text, type });
     setTimeout(() => setAddMessage({ text: '', type: '' }), 3000);
@@ -345,13 +345,30 @@ useEffect(() => {
   };
 
   const handleAddEmployee = async () => {
-    if (!newEmployee.name || !newEmployee.designation || !newEmployee.emailPrefix) {
-      showAddMessage('Name, Email prefix, and Designation are required!', 'error');
+    if (!newEmployee.name || !newEmployee.emailPrefix) {
+      showAddMessage('Name and Email prefix are required!', 'error');
+      return;
+    }
+
+    if (newEmployee.employeeType === 'Employee' && !newEmployee.designation) {
+      showAddMessage('Designation is required for a regular employee.', 'error');
+      return;
+    }
+    if (newEmployee.employeeType === 'Salesman' && (newEmployee.commission === '' || Number(newEmployee.commission) < 0)) {
+      showAddMessage('Please enter a valid Commission (%) for the Salesman.', 'error');
       return;
     }
 
     const fullEmail = `${newEmployee.emailPrefix.trim()}@gmail.com`;
-    const payloadObj = { ...newEmployee, email: fullEmail };
+    const payloadObj = {
+      ...newEmployee,
+      email: fullEmail,
+      commission: newEmployee.employeeType === 'Salesman' ? Number(newEmployee.commission) : 0
+    };
+
+    if (newEmployee.employeeType === 'Salesman') {
+      delete payloadObj.designation;
+    }
 
     const duplicateError = checkDuplicates(payloadObj);
     if (duplicateError) {
@@ -362,6 +379,7 @@ useEffect(() => {
     try {
       const token = localStorage.getItem('token');
       const { emailPrefix, ...finalPayload } = payloadObj;
+
       const res = await fetch(`${API_BASE_URL}/api/employees`, {
         method: 'POST',
         headers: {
@@ -373,6 +391,7 @@ useEffect(() => {
           status: 'Active'
         })
       });
+
       if (res.ok) {
         showAddMessage('Employee added successfully!', 'success');
         setTimeout(() => {
@@ -382,49 +401,40 @@ useEffect(() => {
           fetchEmployees();
         }, 500);
       } else {
-        const errorText = await res.text();
-        showAddMessage(`Error saving employee: ${errorText}`, 'error');
+        const errorData = await res.json();
+        showAddMessage(`Error: ${errorData.message || 'Server Error'}`, 'error');
       }
     } catch (error) {
       showAddMessage('Server error.', 'error');
     }
   };
 
-const handleUpdateEmployee = async () => {
-    if (!editEmployee.name || !editEmployee.designation) {
-      showEditMessage('Name and Designation are required!', 'error');
+  const handleUpdateEmployee = async () => {
+    if (!editEmployee.name) {
+      showEditMessage('Name is required!', 'error');
+      return;
+    }
+
+    if (editEmployee.employeeType === 'Employee' && !editEmployee.designation) {
+      showEditMessage('Designation is required for a regular employee.', 'error');
+      return;
+    }
+    if (editEmployee.employeeType === 'Salesman' && (editEmployee.commission === '' || Number(editEmployee.commission) < 0)) {
+      showEditMessage('Please enter a valid Commission (%) for the Salesman.', 'error');
       return;
     }
 
     const fullEmail = editEmployee.emailPrefix.trim() ? `${editEmployee.emailPrefix.trim()}@gmail.com` : '';
 
-    const originalEmployee = employees.find(e => e._id === editEmployeeId);
-    if (originalEmployee) {
-      let originalDesignationId = originalEmployee.designation;
-      if (typeof originalEmployee.designation === 'object' && originalEmployee.designation !== null) {
-        originalDesignationId = originalEmployee.designation._id;
-      }
+    const payload = {
+      ...editEmployee,
+      email: fullEmail,
+      commission: editEmployee.employeeType === 'Salesman' ? Number(editEmployee.commission) : 0
+    };
 
-      // 💡 Purani date ko proper format (YYYY-MM-DD) mein laane ke liye check
-      const originalDate = originalEmployee.joiningDate ? originalEmployee.joiningDate.split('T')[0] : '';
-      const newDate = editEmployee.joiningDate ? editEmployee.joiningDate.split('T')[0] : '';
-
-      const isSame =
-        originalEmployee.name === editEmployee.name &&
-        originalEmployee.phone === editEmployee.phone &&
-        originalEmployee.address === editEmployee.address &&
-        originalEmployee.cnic === editEmployee.cnic &&
-        originalEmployee.email === fullEmail &&
-        originalDesignationId === editEmployee.designation &&
-        originalDate === newDate; // 💡 Yahan joiningDate bhi compare hogi
-
-      if (isSame) {
-        showEditMessage('Nothing to update!', 'info');
-        return;
-      }
+    if (editEmployee.employeeType === 'Salesman') {
+      delete payload.designation;
     }
-
-    const payload = { ...editEmployee, email: fullEmail };
 
     const duplicateError = checkDuplicates(payload, editEmployeeId);
     if (duplicateError) {
@@ -435,6 +445,7 @@ const handleUpdateEmployee = async () => {
     try {
       const token = localStorage.getItem('token');
       const { emailPrefix, ...finalPayload } = payload;
+
       const res = await fetch(`${API_BASE_URL}/api/employees/${editEmployeeId}`, {
         method: 'PUT',
         headers: {
@@ -443,6 +454,7 @@ const handleUpdateEmployee = async () => {
         },
         body: JSON.stringify(finalPayload)
       });
+
       if (res.ok) {
         showEditMessage('Employee updated successfully!', 'success');
         setTimeout(() => {
@@ -451,7 +463,8 @@ const handleUpdateEmployee = async () => {
           fetchEmployees();
         }, 500);
       } else {
-        showEditMessage('Update failed. Server responded with an error.', 'error');
+        const errorData = await res.json();
+        showEditMessage(`Update failed: ${errorData.message || 'Server Error'}`, 'error');
       }
     } catch (error) {
       showEditMessage('Update failed. Cannot reach server.', 'error');
@@ -485,7 +498,7 @@ const handleUpdateEmployee = async () => {
     }
   };
 
-const startEdit = (employee) => {
+  const startEdit = (employee) => {
     setEditMessage({ text: '', type: '' });
     setImageUploadMessage({ text: '', type: '' });
     setEditEmployeeId(employee._id);
@@ -508,8 +521,9 @@ const startEdit = (employee) => {
       address: employee.address || '',
       pic: employee.pic || '',
       designation: designationId || '',
-      // 💡 Yeh line lazmi honi chahiye taake date load ho
-      joiningDate: employee.joiningDate ? employee.joiningDate.split('T')[0] : new Date().toISOString().split('T')[0]
+      joiningDate: employee.joiningDate ? employee.joiningDate.split('T')[0] : new Date().toISOString().split('T')[0],
+      employeeType: employee.employeeType || 'Employee',
+      commission: employee.commission || ''
     });
   };
 
@@ -561,15 +575,43 @@ const startEdit = (employee) => {
                     >
                       <td style={{ ...tableStyles.td, textAlign: 'left', color: 'var(--text-muted)', fontWeight: 500 }}>{serialNumber}</td>
                       <td style={{ ...tableStyles.td, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <div style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '12px',
+                          borderRadius: '6px',
+                          padding: '4px 8px',
+                          backgroundColor: 'white',
+                          width: 'max-content',
+                          justifyContent: 'flex-start'
+                        }}>
                           <AvatarImage pic={emp.pic} name={emp.name} size={32} />
-                          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', fontWeight: 600, color: 'var(--text-main)' }}>{emp.name}</span>
+                          <span style={{ 
+                            overflow: 'hidden', 
+                            textOverflow: 'ellipsis', 
+                            fontWeight: 600, 
+                            color: 'var(--text-main)',
+                            paddingRight: '4px' 
+                          }}>
+                            {emp.name}
+                          </span>
                         </div>
                       </td>
                       <td style={{ ...tableStyles.td, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{emp.email || 'N/A'}</td>
+
                       <td style={{ ...tableStyles.td, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {emp.designation ? (typeof emp.designation === 'object' ? emp.designation.designation : emp.designation) : 'N/A'}
+                        {emp.employeeType === 'Salesman' ? (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span style={{ color: 'var(--text-main)' }}>Salesman</span>
+                            <span style={{ fontSize: '10px', background: '#f8fcfb', color: 'var(--primary)', padding: '2px 8px', borderRadius: '12px', fontWeight: '500', border: '1px solid var(--primary-light)' }}>
+                              {emp.commission || 0}% Comm
+                            </span>
+                          </div>
+                        ) : (
+                          emp.designation ? (typeof emp.designation === 'object' ? emp.designation.designation : emp.designation) : 'N/A'
+                        )}
                       </td>
+
                       <td style={{ ...tableStyles.td, textAlign: 'center' }}>
                         <div style={styles.actionGroup}>
                           {/* View Button */}
@@ -672,6 +714,7 @@ const startEdit = (employee) => {
                   <label className="form-label">Full Name *</label>
                   <input
                     className="form-input"
+                    style={{ border: '1px solid #cbd5e1', borderRadius: '6px', padding: '10px' }}
                     value={newEmployee.name}
                     onChange={(e) => setNewEmployee({ ...newEmployee, name: e.target.value })}
                     onKeyDown={(e) => handleInputKeyDown(e, handleAddEmployee)}
@@ -679,13 +722,12 @@ const startEdit = (employee) => {
                   />
                 </div>
 
-                {/* Email with suffix */}
                 <div className="form-group" style={{ marginBottom: 0 }}>
                   <label className="form-label">Email Address *</label>
                   <div style={{ position: 'relative', width: '100%', display: 'flex', alignItems: 'center' }}>
                     <input
                       className="form-input"
-                      style={{ paddingRight: '85px' }}
+                      style={{ paddingRight: '85px', border: '1px solid #cbd5e1', borderRadius: '6px', padding: '10px', width: '100%' }}
                       value={newEmployee.emailPrefix}
                       onChange={(e) => setNewEmployee({ ...newEmployee, emailPrefix: e.target.value.replace(/@.*/, '') })}
                       onKeyDown={(e) => handleInputKeyDown(e, handleAddEmployee)}
@@ -701,6 +743,7 @@ const startEdit = (employee) => {
                   <label className="form-label">Phone Number</label>
                   <input
                     className="form-input"
+                    style={{ border: '1px solid #cbd5e1', borderRadius: '6px', padding: '10px' }}
                     value={newEmployee.phone}
                     onChange={(e) => setNewEmployee({ ...newEmployee, phone: formatContact(e.target.value) })}
                     onKeyDown={(e) => handleInputKeyDown(e, handleAddEmployee)}
@@ -712,6 +755,7 @@ const startEdit = (employee) => {
                   <label className="form-label">CNIC</label>
                   <input
                     className="form-input"
+                    style={{ border: '1px solid #cbd5e1', borderRadius: '6px', padding: '10px' }}
                     value={newEmployee.cnic}
                     maxLength={15}
                     onChange={(e) => setNewEmployee({ ...newEmployee, cnic: formatCNIC(e.target.value) })}
@@ -720,64 +764,154 @@ const startEdit = (employee) => {
                   />
                 </div>
 
+                {/* Employee Role Field */}
+                <div className="form-group" style={{ gridColumn: 'span 2', marginBottom: 0 }}>
+                  <label className="form-label">Employee Role *</label>
+                  <div style={{ display: 'flex', gap: '24px', alignItems: 'center', marginTop: '4px', padding: '8px', backgroundColor: '#f8fafc', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                    <label style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-main)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <input
+                        type="radio"
+                        name="employeeType_add"
+                        checked={newEmployee.employeeType === 'Employee'}
+                        onChange={() => setNewEmployee({ ...newEmployee, employeeType: 'Employee', commission: '' })}
+                        style={{
+                          appearance: 'none', WebkitAppearance: 'none', width: '12px', height: '12px', borderRadius: '50%', margin: 0, cursor: 'pointer',
+                          backgroundColor: newEmployee.employeeType === 'Employee' ? 'var(--primary)' : '#fff',
+                          border: newEmployee.employeeType === 'Employee' ? '2px solid #fff' : '1px solid #ccc',
+                          boxShadow: newEmployee.employeeType === 'Employee' ? '0 0 0 1px var(--primary)' : 'none'
+                        }}
+                      />
+                      Employee
+                    </label>
+                    <label style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-main)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <input
+                        type="radio"
+                        name="employeeType_add"
+                        checked={newEmployee.employeeType === 'Salesman'}
+                        onChange={() => setNewEmployee({ ...newEmployee, employeeType: 'Salesman', designation: '' })}
+                        style={{
+                          appearance: 'none', WebkitAppearance: 'none', width: '12px', height: '12px', borderRadius: '50%', margin: 0, cursor: 'pointer',
+                          backgroundColor: newEmployee.employeeType === 'Salesman' ? 'var(--primary)' : '#fff',
+                          border: newEmployee.employeeType === 'Salesman' ? '2px solid #fff' : '1px solid #ccc',
+                          boxShadow: newEmployee.employeeType === 'Salesman' ? '0 0 0 1px var(--primary)' : 'none'
+                        }}
+                      />
+                      Salesman
+                    </label>
+                  </div>
+                </div>
+
+                {/* Conditionally show Designation OR Commission */}
+                {newEmployee.employeeType === 'Employee' ? (
+                  <div className="form-group" style={{ marginBottom: 0 }}>
+                    <label className="form-label">Designation *</label>
+                    <select
+                      className="form-input"
+                      style={{ border: '1px solid #cbd5e1', borderRadius: '6px', padding: '10px' }}
+                      value={newEmployee.designation}
+                      onChange={(e) => setNewEmployee({ ...newEmployee, designation: e.target.value })}
+                    >
+                      <option value="">-- Select Designation * --</option>
+                      {designations.map(desig => (
+                        <option key={desig._id} value={desig._id}>
+                          {desig.designation}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                ) : (
+                  <div className="form-group" style={{ marginBottom: 0 }}>
+                    <label className="form-label">Commission Percentage (%) *</label>
+                    <input
+                      type="number"
+                      min="0"
+                      max="100"
+                      className="form-input"
+                      style={{ border: '1px solid #cbd5e1', borderRadius: '6px', padding: '10px' }}
+                      value={newEmployee.commission}
+                      onChange={(e) => setNewEmployee({ ...newEmployee, commission: e.target.value })}
+                      placeholder="e.g., 5"
+                    />
+                  </div>
+                )}
+
                 <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label className="form-label">Designation *</label>
-                  <select
+                  <label className="form-label">Joining Date *</label>
+                  <input
+                    type="date"
                     className="form-input"
-                    value={newEmployee.designation}
-                    onChange={(e) => setNewEmployee({ ...newEmployee, designation: e.target.value })}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        handleAddEmployee();
-                      }
-                    }}
-                  >
-                    <option value="">-- Select Designation * --</option>
-                    {designations.map(desig => (
-                      <option key={desig._id} value={desig._id}>
-                        {desig.designation}
-                      </option>
-                    ))}
-                  </select>
+                    style={{ border: '1px solid #cbd5e1', borderRadius: '6px', padding: '10px' }}
+                    value={newEmployee.joiningDate}
+                    onChange={(e) => setNewEmployee({ ...newEmployee, joiningDate: e.target.value })}
+                  />
                 </div>
 
                 <div className="form-group" style={{ gridColumn: 'span 2', marginBottom: 0 }}>
                   <label className="form-label">Address</label>
                   <textarea
                     className="form-input"
-                    style={{ minHeight: '80px', resize: 'vertical' }}
+                    style={{ minHeight: '80px', resize: 'vertical', border: '1px solid #cbd5e1', borderRadius: '6px', padding: '10px' }}
                     value={newEmployee.address}
                     onChange={(e) => setNewEmployee({ ...newEmployee, address: e.target.value })}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' && e.ctrlKey) {
-                        e.preventDefault();
-                        handleAddEmployee();
-                      }
-                    }}
-                  />
-                </div>
-                <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label className="form-label">Joining Date *</label>
-                  <input
-                    type="date"
-                    className="form-input"
-                    value={newEmployee.joiningDate}
-                    onChange={(e) => setNewEmployee({ ...newEmployee, joiningDate: e.target.value })}
                   />
                 </div>
 
-                <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gridColumn: 'span 2', marginBottom: 0 }}>
-                  <label className="form-label">Upload Image</label>
-                  <input type="file" accept="image/*" onChange={(e) => handleImageUpload(e, false)} disabled={uploading.add} style={{ fontSize: '13px' }} />
-                  {uploading.add && (
-                    <span style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: 'var(--space-xs)' }}>Uploading image…</span>
-                  )}
-                  {!uploading.add && newEmployee.pic && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-sm)', marginTop: 'var(--space-sm)' }}>
-                      <AvatarImage pic={newEmployee.pic} name={newEmployee.name} size={40} />
-                      <span style={{ fontSize: '13px', color: 'var(--success)' }}>✓ Image ready — will be saved with this employee</span>
-                    </div>
+                {/* --- UPLOAD IMAGE ADD MODAL --- */}
+                <div className="form-group" style={{ gridColumn: 'span 2', marginBottom: 0 }}>
+                  <label className="form-label" style={{ display: 'block', marginBottom: '6px' }}>Upload Image</label>
+                  
+                  <div style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: '12px', 
+                    border: '1px solid #cbd5e1', 
+                    borderRadius: '6px', 
+                    padding: '8px 12px',
+                    backgroundColor: 'white',
+                    width: '100%',
+                    justifyContent: 'flex-start'
+                  }}>
+                    <label style={{
+                      backgroundColor: 'var(--primary)',
+                      color: 'white',
+                      padding: '6px 14px',
+                      borderRadius: '4px',
+                      cursor: uploading.add ? 'not-allowed' : 'pointer',
+                      fontSize: '13px',
+                      fontWeight: '500',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      margin: 0,
+                      border: 'none',
+                      transition: 'opacity 0.2s'
+                    }}
+                    onMouseOver={(e) => e.currentTarget.style.opacity = '0.9'}
+                    onMouseOut={(e) => e.currentTarget.style.opacity = '1'}
+                    >
+                      Choose File
+                      <input 
+                        type="file" 
+                        accept="image/*" 
+                        onChange={(e) => handleImageUpload(e, false)} 
+                        disabled={uploading.add} 
+                        style={{ display: 'none' }} 
+                      />
+                    </label>
+                    <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
+                      {newEmployee.pic ? 'File selected' : 'No file chosen'}
+                    </span>
+                  </div>
+
+                  {uploading.add ? (
+                    <span style={{ fontSize: '13px', color: 'var(--text-muted)', display: 'block', marginTop: '8px' }}>Uploading image…</span>
+                  ) : (
+                    newEmployee.pic && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-sm)', marginTop: 'var(--space-sm)' }}>
+                        <AvatarImage pic={newEmployee.pic} name={newEmployee.name} size={40} />
+                        <span style={{ fontSize: '13px', color: 'var(--success)' }}>✓ Image ready — will be saved with this employee</span>
+                      </div>
+                    )
                   )}
                 </div>
               </div>
@@ -820,6 +954,7 @@ const startEdit = (employee) => {
                   <label className="form-label">Full Name *</label>
                   <input
                     className="form-input"
+                    style={{ border: '1px solid #cbd5e1', borderRadius: '6px', padding: '10px' }}
                     value={editEmployee.name}
                     onChange={(e) => setEditEmployee({ ...editEmployee, name: e.target.value })}
                     onKeyDown={(e) => handleInputKeyDown(e, handleUpdateEmployee)}
@@ -827,13 +962,12 @@ const startEdit = (employee) => {
                   />
                 </div>
 
-                {/* Email with suffix */}
                 <div className="form-group" style={{ marginBottom: 0 }}>
                   <label className="form-label">Email Address *</label>
                   <div style={{ position: 'relative', width: '100%', display: 'flex', alignItems: 'center' }}>
                     <input
                       className="form-input"
-                      style={{ paddingRight: '85px' }}
+                      style={{ paddingRight: '85px', border: '1px solid #cbd5e1', borderRadius: '6px', padding: '10px', width: '100%' }}
                       value={editEmployee.emailPrefix}
                       onChange={(e) => setEditEmployee({ ...editEmployee, emailPrefix: e.target.value.replace(/@.*/, '') })}
                       onKeyDown={(e) => handleInputKeyDown(e, handleUpdateEmployee)}
@@ -849,6 +983,7 @@ const startEdit = (employee) => {
                   <label className="form-label">Phone Number</label>
                   <input
                     className="form-input"
+                    style={{ border: '1px solid #cbd5e1', borderRadius: '6px', padding: '10px' }}
                     value={editEmployee.phone}
                     onChange={(e) => setEditEmployee({ ...editEmployee, phone: formatContact(e.target.value) })}
                     onKeyDown={(e) => handleInputKeyDown(e, handleUpdateEmployee)}
@@ -859,6 +994,7 @@ const startEdit = (employee) => {
                   <label className="form-label">CNIC</label>
                   <input
                     className="form-input"
+                    style={{ border: '1px solid #cbd5e1', borderRadius: '6px', padding: '10px' }}
                     value={editEmployee.cnic || ''}
                     maxLength={15}
                     onChange={(e) => setEditEmployee({ ...editEmployee, cnic: formatCNIC(e.target.value) })}
@@ -867,58 +1003,147 @@ const startEdit = (employee) => {
                   />
                 </div>
 
+                {/* Employee Role Field */}
+                <div className="form-group" style={{ gridColumn: 'span 2', marginBottom: 0 }}>
+                  <label className="form-label">Employee Role *</label>
+                  <div style={{ display: 'flex', gap: '24px', alignItems: 'center', marginTop: '4px', padding: '8px', backgroundColor: '#f8fafc', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                    <label style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-main)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <input
+                        type="radio"
+                        name="employeeType_edit"
+                        checked={editEmployee.employeeType === 'Employee'}
+                        onChange={() => setEditEmployee({ ...editEmployee, employeeType: 'Employee', commission: '' })}
+                        style={{
+                          appearance: 'none', WebkitAppearance: 'none', width: '12px', height: '12px', borderRadius: '50%', margin: 0, cursor: 'pointer',
+                          backgroundColor: editEmployee.employeeType === 'Employee' ? 'var(--primary)' : '#fff',
+                          border: editEmployee.employeeType === 'Employee' ? '2px solid #fff' : '1px solid #ccc',
+                          boxShadow: editEmployee.employeeType === 'Employee' ? '0 0 0 1px var(--primary)' : 'none'
+                        }}
+                      />
+                      Employee
+                    </label>
+                    <label style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-main)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <input
+                        type="radio"
+                        name="employeeType_edit"
+                        checked={editEmployee.employeeType === 'Salesman'}
+                        onChange={() => setEditEmployee({ ...editEmployee, employeeType: 'Salesman', designation: '' })}
+                        style={{
+                          appearance: 'none', WebkitAppearance: 'none', width: '12px', height: '12px', borderRadius: '50%', margin: 0, cursor: 'pointer',
+                          backgroundColor: editEmployee.employeeType === 'Salesman' ? 'var(--primary)' : '#fff',
+                          border: editEmployee.employeeType === 'Salesman' ? '2px solid #fff' : '1px solid #ccc',
+                          boxShadow: editEmployee.employeeType === 'Salesman' ? '0 0 0 1px var(--primary)' : 'none'
+                        }}
+                      />
+                      Salesman
+                    </label>
+                  </div>
+                </div>
+
+                {/* Conditionally show Designation OR Commission */}
+                {editEmployee.employeeType === 'Employee' ? (
+                  <div className="form-group" style={{ marginBottom: 0 }}>
+                    <label className="form-label">Designation *</label>
+                    <select
+                      className="form-input"
+                      style={{ border: '1px solid #cbd5e1', borderRadius: '6px', padding: '10px' }}
+                      value={editEmployee.designation}
+                      onChange={(e) => setEditEmployee({ ...editEmployee, designation: e.target.value })}
+                    >
+                      <option value="">-- Select Designation * --</option>
+                      {designations.map(desig => (
+                        <option key={desig._id} value={desig._id}>
+                          {desig.designation}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                ) : (
+                  <div className="form-group" style={{ marginBottom: 0 }}>
+                    <label className="form-label">Commission Percentage (%) *</label>
+                    <input
+                      type="number"
+                      min="0"
+                      max="100"
+                      className="form-input"
+                      style={{ border: '1px solid #cbd5e1', borderRadius: '6px', padding: '10px' }}
+                      value={editEmployee.commission}
+                      onChange={(e) => setEditEmployee({ ...editEmployee, commission: e.target.value })}
+                      placeholder="e.g., 5"
+                    />
+                  </div>
+                )}
+
                 <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label className="form-label">Designation *</label>
-                  <select
+                  <label className="form-label">Joining Date *</label>
+                  <input
+                    type="date"
                     className="form-input"
-                    value={editEmployee.designation}
-                    onChange={(e) => setEditEmployee({ ...editEmployee, designation: e.target.value })}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        handleUpdateEmployee();
-                      }
-                    }}
-                  >
-                    <option value="">-- Select Designation * --</option>
-                    {designations.map(desig => (
-                      <option key={desig._id} value={desig._id}>
-                        {desig.designation}
-                      </option>
-                    ))}
-                  </select>
+                    style={{ border: '1px solid #cbd5e1', borderRadius: '6px', padding: '10px' }}
+                    value={editEmployee.joiningDate || ''}
+                    onChange={(e) => setEditEmployee({ ...editEmployee, joiningDate: e.target.value })}
+                  />
                 </div>
 
                 <div className="form-group" style={{ gridColumn: 'span 2', marginBottom: 0 }}>
                   <label className="form-label">Address</label>
                   <textarea
                     className="form-input"
-                    style={{ minHeight: '80px', resize: 'vertical' }}
+                    style={{ minHeight: '80px', resize: 'vertical', border: '1px solid #cbd5e1', borderRadius: '6px', padding: '10px' }}
                     value={editEmployee.address}
                     onChange={(e) => setEditEmployee({ ...editEmployee, address: e.target.value })}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' && e.ctrlKey) {
-                        e.preventDefault();
-                        handleUpdateEmployee();
-                      }
-                    }}
-                  />
-                </div>
-                <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label className="form-label">Joining Date *</label>
-                  <input 
-                    type="date"
-                    className="form-input"
-                    value={editEmployee.joiningDate || ''}
-                    onChange={(e) => setEditEmployee({ ...editEmployee, joiningDate: e.target.value })}
                   />
                 </div>
 
-                <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gridColumn: 'span 2', marginBottom: 0 }}>
-                  <label className="form-label">Update Image</label>
-                  <input type="file" accept="image/*" onChange={(e) => handleImageUpload(e, true)} disabled={uploading.edit} style={{ fontSize: '13px' }} />
+                {/* --- UPDATE IMAGE EDIT MODAL --- */}
+                <div className="form-group" style={{ gridColumn: 'span 2', marginBottom: 0 }}>
+                  <label className="form-label" style={{ display: 'block', marginBottom: '6px' }}>Update Image</label>
+                  
+                  <div style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: '12px', 
+                    border: '1px solid #cbd5e1', 
+                    borderRadius: '6px', 
+                    padding: '8px 12px',
+                    backgroundColor: 'white',
+                    width: '100%',
+                    justifyContent: 'flex-start'
+                  }}>
+                    <label style={{
+                      backgroundColor: 'var(--primary)',
+                      color: 'white',
+                      padding: '6px 14px',
+                      borderRadius: '4px',
+                      cursor: uploading.edit ? 'not-allowed' : 'pointer',
+                      fontSize: '13px',
+                      fontWeight: '500',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      margin: 0,
+                      border: 'none',
+                      transition: 'opacity 0.2s'
+                    }}
+                    onMouseOver={(e) => e.currentTarget.style.opacity = '0.9'}
+                    onMouseOut={(e) => e.currentTarget.style.opacity = '1'}
+                    >
+                      Choose File
+                      <input 
+                        type="file" 
+                        accept="image/*" 
+                        onChange={(e) => handleImageUpload(e, true)} 
+                        disabled={uploading.edit} 
+                        style={{ display: 'none' }} 
+                      />
+                    </label>
+                    <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
+                      {editEmployee.pic ? 'File selected' : 'No file chosen'}
+                    </span>
+                  </div>
+
                   {uploading.edit ? (
-                    <span style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: 'var(--space-xs)' }}>Uploading image…</span>
+                    <span style={{ fontSize: '13px', color: 'var(--text-muted)', display: 'block', marginTop: '8px' }}>Uploading image…</span>
                   ) : (
                     <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-sm)', marginTop: 'var(--space-sm)' }}>
                       <AvatarImage pic={editEmployee.pic} name={editEmployee.name} size={40} />
@@ -939,25 +1164,33 @@ const startEdit = (employee) => {
         </div>
       )}
 
-   {/* VIEW MODAL */}
+      {/* VIEW MODAL */}
       {viewEmployee && (
         <div className="modal-overlay" onClick={() => setViewEmployee(null)}>
           <div className="modal-container" style={{ maxWidth: '580px', width: '90%', padding: 0, overflow: 'hidden', borderRadius: '16px', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)' }} onClick={(e) => e.stopPropagation()}>
-            
-            {/* Header Section with Gradient/Primary BG */}
-            <div style={{ backgroundColor: 'var(--primary)', padding: '28px 20px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px', position: 'relative' }}>
-              <div style={{ padding: '3px', background: 'rgba(255,255,255,0.2)', borderRadius: '50%' }}>
-                <AvatarImage pic={viewEmployee.pic} name={viewEmployee.name} size={84} />
+
+            <div style={{ backgroundColor: 'var(--primary-other)', padding: '12px 16px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', position: 'relative' }}>
+              <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                <AvatarImage pic={viewEmployee.pic} name={viewEmployee.name} size={64} />
               </div>
-              <h3 style={{ color: 'white', margin: 0, fontSize: '20px', fontWeight: '700', letterSpacing: '0.5px' }}>{viewEmployee.name}</h3>
-              <span style={{ fontSize: '12px', background: 'rgba(255,255,255,0.15)', color: '#fff', padding: '3px 12px', borderRadius: '20px', fontWeight: '500' }}>
-                {viewEmployee.designation ? (typeof viewEmployee.designation === 'object' ? viewEmployee.designation.designation : viewEmployee.designation) : 'Staff'}
-              </span>
+              <h3 style={{ color: 'white', margin: 0, fontSize: '18px', fontWeight: '700', letterSpacing: '0.5px' }}>{viewEmployee.name}</h3>
+              <div style={{ display: 'flex', gap: '6px' }}>
+
+                {viewEmployee.employeeType === 'Employee' && (
+                  <span style={{ fontSize: '11px', background: 'rgba(255,255,255,0.15)', color: '#fff', padding: '2px 10px', borderRadius: '20px', fontWeight: '500' }}>
+                    {viewEmployee.designation ? (typeof viewEmployee.designation === 'object' ? viewEmployee.designation.designation : viewEmployee.designation) : 'Staff'}
+                  </span>
+                )}
+
+                <span style={{ fontSize: '11px', background: viewEmployee.employeeType === 'Salesman' ? '#e0fffc' : '#577470', color: viewEmployee.employeeType === 'Salesman' ? '#465e59' : '#ceeee6', padding: '2px 10px', borderRadius: '20px', fontWeight: '600' }}>
+                  {viewEmployee.employeeType === 'Salesman' ? 'Salesman' : 'Employee'}
+                </span>
+
+              </div>
             </div>
 
-            {/* Body Details (Compact Grid Layout) */}
             <div className="modal-body" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px', padding: '20px', backgroundColor: '#f8fafc' }}>
-              
+
               <div style={compactCardStyle}>
                 <span style={compactLabelStyle}>Email Address</span>
                 <span style={compactValueStyle}>{viewEmployee.email || 'N/A'}</span>
@@ -980,6 +1213,13 @@ const startEdit = (employee) => {
                 </span>
               </div>
 
+              {viewEmployee.employeeType === 'Salesman' && (
+                <div style={{ display: 'flex', alignItems: 'center', gridColumn: 'span 2', padding: '8px 4px', borderBottom: '1px solid #e2e8f0' }}>
+                  <span style={compactLabelStyle}>Sales Commission</span>
+                  <span style={{ fontSize: '13px', color: 'var(--primary)', textAlign: 'center', marginLeft: '28px', fontWeight: '700' }}>{viewEmployee.commission}%</span>
+                </div>
+              )}
+
               <div style={{ ...compactCardStyle, gridColumn: 'span 2' }}>
                 <span style={compactLabelStyle}>Address</span>
                 <span style={compactValueStyle}>{viewEmployee.address || 'N/A'}</span>
@@ -987,7 +1227,6 @@ const startEdit = (employee) => {
 
             </div>
 
-            {/* Footer */}
             <div className="modal-footer" style={{ padding: '12px 20px', backgroundColor: '#fff', borderTop: '1px solid var(--border-color)', display: 'flex', justifyContent: 'flex-end' }}>
               <button className="btn btn-secondary" onClick={() => setViewEmployee(null)} style={{ padding: '8px 24px', fontWeight: '600' }}>Close</button>
             </div>

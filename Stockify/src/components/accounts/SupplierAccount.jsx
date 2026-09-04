@@ -35,7 +35,7 @@ function SupplierAccount() {
       setRows([]);
       setClosingBalance(0);
     }
-    setCurrentPage(1); // Reset to page 1 on filter change
+    setCurrentPage(1); 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedSupplierId, fromDate, toDate]);
 
@@ -82,7 +82,7 @@ function SupplierAccount() {
           const dateB = new Date(b.date).setHours(0, 0, 0, 0);
           
           if (dateA !== dateB) {
-            return dateA - dateB; // Alag din hain toh date wise
+            return dateA - dateB; 
           }
           
           if (a._id && b._id) {
@@ -92,14 +92,14 @@ function SupplierAccount() {
           return 0;
         });
 
-        // 2. RECALCULATE RUNNING BALANCE (Taake math theek rahay)
         let runningBal = 0;
         fetchedRows = fetchedRows.map((row, index) => {
           const rowDebit = Number(row.debit) || 0;
           const rowCredit = Number(row.credit) || 0;
           const prevBal = runningBal;
           
-          runningBal = runningBal + rowDebit - rowCredit;
+          // 💡 Supplier is a Liability (Payable): Balance = Credit - Debit
+          runningBal = runningBal + rowCredit - rowDebit;
           
           return {
             ...row,
@@ -175,8 +175,10 @@ function SupplierAccount() {
   
   // ================= FORMAT BALANCE TEXT =================
   const formatBalanceText = (amount) => {
-    if (amount > 0) return ` ${amount.toFixed(2)}`;
-    if (amount < 0) return ` ${Math.abs(amount).toFixed(2)}`;
+    const safeAmt = Number(amount) || 0;
+    const absVal = Math.abs(safeAmt).toFixed(2);
+    if (safeAmt > 0) return `Rs. ${absVal} (Cr) — Payable`;
+    if (safeAmt < 0) return `Rs. ${absVal} (Dr) — Advance`;
     return `Settled: Rs. 0.00`;
   };
 
@@ -299,8 +301,8 @@ function SupplierAccount() {
     <div className="dashboard-wrapper">
       {/* ==================== FILTER BAR ==================== */}
       <div className="card">
-        <div style={{ display: 'flex', gap: 'var(--space-md)', alignItems: 'flex-end', flexWrap: 'wrap',width:'100%' }}>
-          <div className="form-group" style={{ flex: 1, marginBottom: 0,width:'20%' }}>
+        <div style={{ display: 'flex', gap: 'var(--space-md)', alignItems: 'flex-end', flexWrap: 'wrap', width: '100%' }}>
+          <div className="form-group" style={{ flex: 1, marginBottom: 0, width: '20%' }}>
             <label className="form-label">Supplier</label>
             <select
               className="form-input"
@@ -314,12 +316,12 @@ function SupplierAccount() {
             </select>
           </div>
 
-          <div className="form-group" style={{ marginBottom: 0,width:'21%' }}>
+          <div className="form-group" style={{ marginBottom: 0, width: '21%' }}>
             <label className="form-label">From</label>
             <input type="date" className="form-input" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
           </div>
 
-          <div className="form-group" style={{ marginBottom: 0,width:'21%' }}>
+          <div className="form-group" style={{ marginBottom: 0, width: '21%' }}>
             <label className="form-label">To</label>
             <input type="date" className="form-input" value={toDate} onChange={(e) => setToDate(e.target.value)} />
           </div>
@@ -341,13 +343,13 @@ function SupplierAccount() {
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr>
-                <th style={{padding: '12px 16px', backgroundColor: 'var(--header)', color: 'white', textAlign: 'left', fontSize: '13px', fontWeight: '600' }}>Sr#</th>
-                <th style={{padding: '12px 16px', backgroundColor: 'var(--header)', color: 'white', textAlign: 'left', fontSize: '13px', fontWeight: '600' }}>Date</th>
-                <th style={{padding: '12px 16px', backgroundColor: 'var(--header)', color: 'white', textAlign: 'left', fontSize: '13px', fontWeight: '600' }}>Invoice</th>
+                <th style={{ padding: '12px 16px', backgroundColor: 'var(--header)', color: 'white', textAlign: 'left', fontSize: '13px', fontWeight: '600' }}>Sr#</th>
+                <th style={{ padding: '12px 16px', backgroundColor: 'var(--header)', color: 'white', textAlign: 'left', fontSize: '13px', fontWeight: '600' }}>Date</th>
+                <th style={{ padding: '12px 16px', backgroundColor: 'var(--header)', color: 'white', textAlign: 'left', fontSize: '13px', fontWeight: '600' }}>Invoice</th>
                 <th style={{ padding: '12px 16px', backgroundColor: 'var(--header)', color: 'white', textAlign: 'left', fontSize: '13px', fontWeight: '600' }}>Debit</th>
                 <th style={{ padding: '12px 16px', backgroundColor: 'var(--header)', color: 'white', textAlign: 'left', fontSize: '13px', fontWeight: '600' }}>Credit</th>
                 <th style={{ padding: '12px 16px', backgroundColor: 'var(--header)', color: 'white', textAlign: 'left', fontSize: '13px', fontWeight: '600' }}>Previous Balance</th>
-                <th style={{ padding: '12px 16px', backgroundColor: 'var(--header)', color: 'white', textAlign: 'left', fontSize: '13px', fontWeight: '600' }}>Net</th>
+                <th style={{ padding: '12px 16px', backgroundColor: 'var(--header)', color: 'white', textAlign: 'left', fontSize: '13px', fontWeight: '600', width: '15%' }}>Net (Cr / Dr)</th>
               </tr>
             </thead>
             <tbody>
@@ -358,35 +360,43 @@ function SupplierAccount() {
               ) : currentRows.length === 0 ? (
                 <tr><td colSpan="7" style={tableStyles.emptyCell}>No transactions found for the selected filters.</td></tr>
               ) : (
-                currentRows.map(row => (
-                  <tr key={row._id || Math.random()}>
-                    <td style={tableStyles.td}>{row.srNo}</td>
-                    <td style={tableStyles.td}>{new Date(row.date).toLocaleDateString()}</td>
-                    <td style={tableStyles.td}>{row.invoiceNumber || '-'}</td>
-                    <td style={{ ...tableStyles.td, textAlign: 'left', color: 'var(--danger)' }}>
-                      {row.debit > 0 ? row.debit.toFixed(2) : '0'}
-                    </td>
-                    <td style={{ ...tableStyles.td, textAlign: 'left', color: 'var(--success)' }}>
-                      {row.credit > 0 ? row.credit.toFixed(2) : '0'}
-                    </td>
-                    <td style={{ ...tableStyles.td, textAlign: 'left' }}>{(row.previousBalance || 0).toFixed(2)}</td>
-                    <td style={{ ...tableStyles.td, textAlign: 'left', fontWeight: 700 }}>{(row.net || 0).toFixed(2)}</td>
-                  </tr>
-                ))
+                currentRows.map(row => {
+                  const netVal = row.net || 0;
+                  const netColor = netVal > 0 ? 'var(--danger)' : (netVal < 0 ? 'var(--success)' : 'var(--text-main)');
+                  const netTag = netVal > 0 ? ' (Cr)' : (netVal < 0 ? ' (Dr)' : '');
+
+                  return (
+                    <tr key={row._id || Math.random()}>
+                      <td style={tableStyles.td}>{row.srNo}</td>
+                      <td style={tableStyles.td}>{new Date(row.date).toLocaleDateString()}</td>
+                      <td style={tableStyles.td}>{row.invoiceNumber || '-'}</td>
+                      <td style={{ ...tableStyles.td, textAlign: 'left', color: 'var(--danger)' }}>
+                        {row.debit > 0 ? row.debit.toFixed(2) : '0'}
+                      </td>
+                      <td style={{ ...tableStyles.td, textAlign: 'left', color: 'var(--success)' }}>
+                        {row.credit > 0 ? row.credit.toFixed(2) : '0'}
+                      </td>
+                      <td style={{ ...tableStyles.td, textAlign: 'left' }}>{(row.previousBalance || 0).toFixed(2)}</td>
+                      <td style={{ ...tableStyles.td, textAlign: 'left', color: netColor, fontWeight: 700 }}>
+                        {Math.abs(netVal).toFixed(2)}{netTag}
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
 
             {/* ==================== IN-TABLE SUMMARY ==================== */}
             {rows.length > 0 && (
                 <tfoot>
-                    <tr style={{ borderTop: '2px solid var(--border-color)' }}>
-                        <td></td>
-                        <td style={{ ...tableStyles.td, fontWeight: 700, color: 'var(--text-main)',background:'none' }}>Total</td>
-                        <td></td>
+                    <tr style={{ borderTop: '2px solid var(--border-color)', backgroundColor: 'var(--bg-app)' }}>
+                        <td style={tableStyles.td}></td>
+                        <td style={{ ...tableStyles.td, fontWeight: 700, color: 'var(--text-main)', background: 'none' }}>Total</td>
+                        <td style={tableStyles.td}></td>
                         <td style={{ ...tableStyles.td, fontWeight: 700, color: 'var(--danger)' }}>{totalDebit.toFixed(2)}</td>
                         <td style={{ ...tableStyles.td, fontWeight: 700, color: 'var(--success)' }}>{totalCredit.toFixed(2)}</td>
-                        <td></td>
-                        <td style={{ ...tableStyles.td, fontWeight: 700, color: closingBalance > 0 ? 'var(--success)' : (closingBalance < 0 ? 'var(--danger)' : 'var(--text-muted)') }}>
+                        <td style={tableStyles.td}></td>
+                        <td style={{ ...tableStyles.td, fontWeight: 700, color: closingBalance > 0 ? 'var(--danger)' : (closingBalance < 0 ? 'var(--success)' : 'var(--text-main)') }}>
                           {formatBalanceText(closingBalance)}
                         </td>
                     </tr>
@@ -514,7 +524,6 @@ function SupplierAccount() {
   );
 }
 
-// Minimal table inline styles kept to pull strictly from CSS variables 
 const tableStyles = {
   th: { 
     textAlign: 'left', 

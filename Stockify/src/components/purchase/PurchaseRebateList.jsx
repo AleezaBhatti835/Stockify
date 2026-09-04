@@ -162,7 +162,7 @@ function PurchaseRebateList() {
                 </head>
                 <body>
                     <div class="header-info">
-                        <h2>CAPOBIZ</h2>
+                        <h2>Stockify</h2>
                         <h4>PURCHASE REBATE RECEIPT</h4>
                     </div>
                     
@@ -365,7 +365,7 @@ function PurchaseRebateList() {
                     <div className="modal-container" style={{ width: '860px', padding: 0, overflow: 'hidden' }} onClick={(e) => e.stopPropagation()}>
                         
                         <div className="modal-header">
-                            <h3 className="modal-title" style={{ color: '#000' }}>CAPOBIZ</h3>
+                            <h3 className="modal-title" style={{ color: '#000' }}>Stockify</h3>
                             <div style={{ display: 'flex', gap: 'var(--space-sm)' }}>
                                 <button className="btn btn-primary" onClick={handlePrintRebate}>🖨️ Print</button>
                                 <button className="btn btn-secondary" onClick={() => { setViewRebate(null); setViewDetails([]); }}>✕ Close</button>
@@ -384,7 +384,7 @@ function PurchaseRebateList() {
                             <div style={{ borderTop: '2px dashed #000', margin: '20px 0' }}></div>
 
                             <table style={{ width: '100%', tableLayout: 'fixed', borderCollapse: 'collapse', marginBottom: '12px' }}>
-                                <thead>
+                                <thead style={{borderBottom: '1px solid #5f9382'}}>
                                     <tr>
                                         <th style={{ ...styles.receiptTh, width: '20%' }}>Product Name</th>
                                         <th style={{ ...styles.receiptTh, textAlign: 'center', width: '20%' }}>Qty</th>
@@ -467,7 +467,7 @@ const actionStyles = {
 };
 
 const styles = {
-    receiptTh: { textAlign: 'left', padding: '10px 8px', backgroundColor: 'var(--header)', fontSize: '12px', fontWeight: 600, color: '#ffffff', textTransform: 'uppercase' },
+    receiptTh: { textAlign: 'left', padding: '10px 8px', backgroundColor: 'var(--primary-light)', fontSize: '12px', fontWeight: 600, color: 'var(--primary)', textTransform: 'uppercase' },
     receiptTd: { textAlign: 'left', padding: '10px 8px', borderBottom: '1px solid #ccc', fontSize: '13px', color: '#000' }
 };
 

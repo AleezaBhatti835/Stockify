@@ -21,13 +21,18 @@ const cashRegisterSchema = new mongoose.Schema({
     type: Number,
     default: 0
   },
-  // NEW: cash paid out to suppliers for purchases during this session — reduces
-  // expected cash in the drawer, same way totalReturn does.
   purchaseAmount: {
     type: Number,
     default: 0
   },
-  purchaseReturnAmount: { type: Number, default: 0 },
+  purchaseReturnAmount: { 
+    type: Number, 
+    default: 0 
+  },
+  expenseAmount: {
+    type: Number,
+    default: 0
+  },
   closingAmount: {
     type: Number,
     default: null

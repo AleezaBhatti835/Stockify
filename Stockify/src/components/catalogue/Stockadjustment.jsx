@@ -417,7 +417,7 @@ const StockAdjustment = () => {
         <div className="modal-container" style={{ width:'900px', padding: 0, display: 'flex', flexDirection: 'column', maxHeight: '90vh' }} onClick={(e) => e.stopPropagation()}>
           
           <div className="modal-header" style={{ backgroundColor: 'var(--bg-app)' }}>
-            <h3 style={{ margin: 0, color: 'var(--text-main)' }}>CAPOBIZ</h3>
+            <h3 style={{ margin: 0, color: 'var(--text-main)' }}>Stockify</h3>
             <button className="modal-close" onClick={() => setViewModalData(null)}>×</button>
           </div>
 

@@ -51,15 +51,15 @@ function MessagePopup({ message, onClose }) {
   const isError = message.type === 'error';
 
   return (
-    <div className="modal-overlay" onClick={onClose} style={{ zIndex: 999999 }}>
-      <div 
-        className="card" 
-        onClick={(e) => e.stopPropagation()} 
+    <div className="modal-overlay" onClick={onClose} style={{ zIndex: 999999, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div
+        className="card"
+        onClick={(e) => e.stopPropagation()}
         style={{
           minWidth: '320px', maxWidth: '90%', padding: 'var(--space-md)',
           borderLeft: `4px solid ${isError ? 'var(--danger)' : 'var(--success)'}`,
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          gap: 'var(--space-md)', boxShadow: 'var(--shadow-modal)'
+          gap: 'var(--space-md)', boxShadow: 'var(--shadow-modal)', animation: 'popIn 0.2s ease-out'
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-sm)' }}>
@@ -83,15 +83,15 @@ function ToastPopup({ toast, onClose }) {
   const isError = toast.type === 'error';
 
   return (
-    <div className="modal-overlay" onClick={onClose} style={{ zIndex: 999999 }}>
-      <div 
-        className="card" 
-        onClick={(e) => e.stopPropagation()} 
+    <div className="modal-overlay" onClick={onClose} style={{ zIndex: 999999, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div
+        className="card"
+        onClick={(e) => e.stopPropagation()}
         style={{
           minWidth: '320px', maxWidth: '90%', padding: 'var(--space-md)',
           borderLeft: `4px solid ${isError ? 'var(--danger)' : 'var(--success)'}`,
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          gap: 'var(--space-md)', boxShadow: 'var(--shadow-modal)'
+          gap: 'var(--space-md)', boxShadow: 'var(--shadow-modal)', animation: 'popIn 0.2s ease-out'
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-sm)' }}>
@@ -112,12 +112,12 @@ function ToastPopup({ toast, onClose }) {
 const getPaperConfig = (paperSize) => {
   switch (paperSize) {
     case 'Thermal58':
-      return { maxWidth: '320px', bodyPadding: '14px', fontSize: '12px', mono: true, narrow: true };
+      return { maxWidth: '320px', bodyPadding: '20px', fontSize: '12px', mono: true, narrow: true };
     case 'A5':
-      return { maxWidth: '460px', bodyPadding: '20px', fontSize: '13px', mono: false, narrow: false };
+      return { maxWidth: '500px', bodyPadding: '30px', fontSize: '13px', mono: false, narrow: false };
     case 'A4':
     default:
-      return { maxWidth: '800px', bodyPadding: '24px', fontSize: '14px', mono: false, narrow: false };
+      return { maxWidth: '800px', bodyPadding: '40px', fontSize: '14px', mono: false, narrow: false };
   }
 };
 
@@ -128,6 +128,9 @@ function POS({ onExit, initialOpenRegister = false }) {
   const [customers, setCustomers] = useState([]);
   const [categories, setCategories] = useState([]);
   const [uoms, setUoms] = useState([]);
+  const [transporters, setTransporters] = useState([]);
+  const [labourList, setLabourList] = useState([]);
+  const [employees, setEmployees] = useState([]);
   const [newcode, setNewcode] = useState('');
 
   const [focusedIndex, setFocusedIndex] = useState(-1);
@@ -139,14 +142,23 @@ function POS({ onExit, initialOpenRegister = false }) {
   const [entryDiscount, setEntryDiscount] = useState(0);
 
   const [customerId, setCustomerId] = useState('');
+  const [transporterId, setTransporterId] = useState('');
+  const [labourId, setLabourId] = useState('');
+  const [salesmanId, setSalesmanId] = useState('');
+
+  const [freightAmount, setFreightAmount] = useState('');
+  const [freightPaidBy, setFreightPaidBy] = useState('Customer');
+  const [labourCharges, setLabourCharges] = useState('');
+  const [labourPaidBy, setLabourPaidBy] = useState('Customer');
+  const [discountValue, setDiscountValue] = useState('');
+  const [paidAmount, setPaidAmount] = useState('');
+
   const [saleDate, setSaleDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [notes, setNotes] = useState('');
 
   const [cart, setCart] = useState([]);
 
-  const [discountType, setDiscountType] = useState('percent'); 
-  const [discountValue, setDiscountValue] = useState(0);
-  const [paidAmount, setPaidAmount] = useState(0);
+  const [discountType, setDiscountType] = useState('percent');
 
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState(null);
@@ -226,9 +238,9 @@ function POS({ onExit, initialOpenRegister = false }) {
 
   useEffect(() => {
     fetchAllData();
-    checkRegisterStatus(); 
+    checkRegisterStatus();
   }, []);
-  
+
   useEffect(() => {
     if (initialOpenRegister) {
       handleShowRegisterDetails();
@@ -239,7 +251,7 @@ function POS({ onExit, initialOpenRegister = false }) {
     setHoldListLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch('http://localhost:5000/api/sales/hold', {
+      const res = await fetch(`${API_BASE_URL}/api/sales/hold`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
@@ -254,7 +266,7 @@ function POS({ onExit, initialOpenRegister = false }) {
   const checkRegisterStatus = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch('http://localhost:5000/api/cash-register/status', {
+      const res = await fetch(`${API_BASE_URL}/api/cash-register/status`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
 
@@ -289,7 +301,7 @@ function POS({ onExit, initialOpenRegister = false }) {
   const handleShowRegisterDetails = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch('http://localhost:5000/api/cash-register/status', {
+      const res = await fetch(`${API_BASE_URL}/api/cash-register/status`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {
@@ -322,7 +334,7 @@ function POS({ onExit, initialOpenRegister = false }) {
     setRegisterLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch('http://localhost:5000/api/cash-register/open', {
+      const res = await fetch(`${API_BASE_URL}/api/cash-register/open`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -358,7 +370,7 @@ function POS({ onExit, initialOpenRegister = false }) {
     setRegisterLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch('http://localhost:5000/api/cash-register/close', {
+      const res = await fetch(`${API_BASE_URL}/api/cash-register/close`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -393,35 +405,40 @@ function POS({ onExit, initialOpenRegister = false }) {
       fetchProducts(headers),
       fetchCustomers(headers),
       fetchCategories(headers),
-      fetchUoms(headers)
+      fetchUoms(headers),
+      fetchTransporters(headers),
+      fetchLabour(headers),
+      fetchEmployees(headers)
     ]);
   };
 
   const fetchProducts = async (headers) => {
     try {
-      const res = await fetch('http://localhost:5000/api/products', { headers });
+      const res = await fetch(`${API_BASE_URL}/api/products`, { headers });
       const data = await res.json();
-      setProducts(data);
+      setProducts(Array.isArray(data) ? data : (data.data || data.products || []));
     } catch (err) {
       console.error('Error fetching products:', err);
+      setProducts([]);
     }
   };
 
   const fetchCustomers = async (headers) => {
     try {
-      const res = await fetch('http://localhost:5000/api/customers', { headers });
+      const res = await fetch(`${API_BASE_URL}/api/customers`, { headers });
       const data = await res.json();
-      setCustomers(data);
+      setCustomers(Array.isArray(data) ? data : (data.data || []));
     } catch (err) {
       console.error('Error fetching customers:', err);
+      setCustomers([]);
     }
   };
 
   const fetchCategories = async (headers) => {
     try {
-      const res = await fetch('http://localhost:5000/api/categories', { headers });
+      const res = await fetch(`${API_BASE_URL}/api/categories`, { headers });
       const data = await res.json();
-      setCategories(Array.isArray(data) ? data : []);
+      setCategories(Array.isArray(data) ? data : (data.data || []));
     } catch (err) {
       console.error('Error fetching categories:', err);
       setCategories([]);
@@ -430,10 +447,10 @@ function POS({ onExit, initialOpenRegister = false }) {
 
   const fetchUoms = async (headers) => {
     try {
-      let res = await fetch('http://localhost:5000/api/uoms', { headers });
+      let res = await fetch(`${API_BASE_URL}/api/uoms`, { headers });
       let data = [];
       if (!res.ok) {
-        res = await fetch('http://localhost:5000/api/uom', { headers });
+        res = await fetch(`${API_BASE_URL}/api/uom`, { headers });
         if (!res.ok) {
           setUoms([]);
           return;
@@ -442,10 +459,44 @@ function POS({ onExit, initialOpenRegister = false }) {
       } else {
         data = await res.json();
       }
-      setUoms(Array.isArray(data) ? data : []);
+      setUoms(Array.isArray(data) ? data : (data.data || []));
     } catch (err) {
       console.error('Error fetching uoms:', err);
       setUoms([]);
+    }
+  };
+
+  const fetchTransporters = async (headers) => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/transporters`, { headers });
+      const data = await res.json();
+      setTransporters(Array.isArray(data) ? data : (data.data || []));
+    } catch (err) {
+      console.error('Error fetching transporters:', err);
+      setTransporters([]);
+    }
+  };
+
+  const fetchLabour = async (headers) => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/labour`, { headers });
+      const data = await res.json();
+      setLabourList(Array.isArray(data) ? data : (data.data || []));
+    } catch (err) {
+      console.error('Error fetching labour:', err);
+      setLabourList([]);
+    }
+  };
+
+  const fetchEmployees = async (headers) => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/employees`, { headers });
+      const data = await res.json();
+      const allEmployees = Array.isArray(data) ? data : (data.data || data.employees || []);
+      setEmployees(allEmployees.filter(e => e.employeeType === 'Salesman' && e.status === 'Active'));
+    } catch (err) {
+      console.error('Error fetching employees:', err);
+      setEmployees([]);
     }
   };
 
@@ -457,7 +508,7 @@ function POS({ onExit, initialOpenRegister = false }) {
 
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch('http://localhost:5000/api/sales/hold', {
+      const res = await fetch(`${API_BASE_URL}/api/sales/hold`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -465,6 +516,13 @@ function POS({ onExit, initialOpenRegister = false }) {
         },
         body: JSON.stringify({
           customerId: customerId || null,
+          transporterId: transporterId || null,
+          labourId: labourId || null,
+          salesmanId: salesmanId || null,
+          freightAmount: Number(freightAmount) || 0,
+          freightPaidBy: freightPaidBy,
+          labourCharges: Number(labourCharges) || 0,
+          labourPaidBy: labourPaidBy,
           saleDate,
           items: cart.map(c => ({
             product: c.productId,
@@ -482,19 +540,7 @@ function POS({ onExit, initialOpenRegister = false }) {
       const data = await res.json();
 
       if (data.success) {
-        setCart([]);
-        setCustomerId('');
-        setDiscountType('percent');
-        setDiscountValue(0);
-        setPaidAmount(0);
-        setNotes('');
-        setSaleDate(new Date().toISOString().slice(0, 10));
-        setSelectedProductId('');
-        setSearchTerm('');
-        setEntryPrice('');
-        setEntryQty(1);
-        setEntryDiscount(0);
-
+        resetSale();
         fetchHoldList();
         showToast(`Sale has been held successfully (${data.sale.saleNumber})`, 'success');
       } else {
@@ -508,7 +554,7 @@ function POS({ onExit, initialOpenRegister = false }) {
   const handleResumeHold = async (holdMongoId) => {
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`http://localhost:5000/api/sales/${holdMongoId}`, {
+      const res = await fetch(`${API_BASE_URL}/api/sales/${holdMongoId}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
@@ -529,18 +575,27 @@ function POS({ onExit, initialOpenRegister = false }) {
         discount: it.discount || 0
       })));
       setCustomerId(sale.customer?._id || sale.customer || '');
+      setTransporterId(sale.transporter?._id || sale.transporter || '');
+      setLabourId(sale.labour?._id || sale.labour || '');
+      setSalesmanId(sale.salesman?._id || sale.salesman || '');
+
+      setFreightAmount(sale.freightAmount || '');
+      setFreightPaidBy(sale.freightPaidBy || 'Customer');
+      setLabourCharges(sale.labourCharges || '');
+      setLabourPaidBy(sale.labourPaidBy || 'Customer');
+
       setSaleDate(sale.saleDate ? new Date(sale.saleDate).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10));
       setNotes(sale.notes || '');
       setDiscountType(sale.discountType || 'percent');
-      setDiscountValue(sale.discountValue || 0);
-      setPaidAmount(sale.paidAmount || 0);
+      setDiscountValue(sale.discountValue || '');
+      setPaidAmount(sale.paidAmount || '');
 
-      const deleteRes = await fetch(`http://localhost:5000/api/sales/${holdMongoId}/hold`, {
+      const deleteRes = await fetch(`${API_BASE_URL}/api/sales/${holdMongoId}/hold`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       });
       await deleteRes.json();
-      
+
       setHoldList(prev => prev.filter(h => h._id !== holdMongoId));
       setIsHoldListModalOpen(false);
       showToast(`Held sale (${sale.saleNumber}) has been resumed.`, 'success');
@@ -552,7 +607,7 @@ function POS({ onExit, initialOpenRegister = false }) {
   const handleDeleteHold = async (holdMongoId) => {
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`http://localhost:5000/api/sales/${holdMongoId}/hold`, {
+      const res = await fetch(`${API_BASE_URL}/api/sales/${holdMongoId}/hold`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -568,16 +623,37 @@ function POS({ onExit, initialOpenRegister = false }) {
     }
   };
 
+  const subtotal = cart.reduce((sum, c) => sum + (c.quantity * c.unitPrice - (Number(c.discount) || 0)), 0);
+
+  const discountAmount = discountType === 'percent'
+    ? (subtotal * (Number(discountValue) || 0)) / 100
+    : Math.min(Number(discountValue) || 0, subtotal > 0 ? subtotal : 0);
+
+  const freight = Number(freightAmount) || 0;
+  const labour = Number(labourCharges) || 0;
+
+  const customerFreight = freightPaidBy === 'Customer' ? freight : 0;
+  const customerLabour = labourPaidBy === 'Customer' ? labour : 0;
+
+  const totalAmount = subtotal - discountAmount + customerFreight + customerLabour;
+  const balanceAmount = totalAmount - (Number(paidAmount) || 0);
+
   const handleConfirmSale = async () => {
     if (cart.length === 0) {
       showToast('Please add at least one product.', 'error');
       return;
     }
+    // 💡 Must select a customer before finalizing sale
+    if (!customerId) {
+      showToast('Please select a Customer before completing the sale.', 'error');
+      return;
+    }
+
     const paid = Number(paidAmount) || 0;
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch('http://localhost:5000/api/sales', {
+      const res = await fetch(`${API_BASE_URL}/api/sales`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -585,6 +661,13 @@ function POS({ onExit, initialOpenRegister = false }) {
         },
         body: JSON.stringify({
           customerId: customerId || null,
+          transporterId: transporterId || null,
+          labourId: labourId || null,
+          salesmanId: salesmanId || null,
+          freightAmount: freight,
+          freightPaidBy: freightPaidBy,
+          labourCharges: labour,
+          labourPaidBy: labourPaidBy,
           saleDate,
           items: cart.map(c => ({
             product: c.productId,
@@ -607,6 +690,13 @@ function POS({ onExit, initialOpenRegister = false }) {
           ...data.sale,
           items: cart,
           customer: customers.find(c => c._id === customerId),
+          transporter: transporters.find(t => t._id === transporterId),
+          labour: labourList.find(l => l._id === labourId),
+          salesman: employees.find(e => e._id === salesmanId),
+          freightAmount: freight,
+          freightPaidBy: freightPaidBy,
+          labourCharges: labour,
+          labourPaidBy: labourPaidBy,
           discountType,
           discountValue: Number(discountValue) || 0,
           discountAmount: discountAmount,
@@ -631,7 +721,7 @@ function POS({ onExit, initialOpenRegister = false }) {
     }
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch('http://localhost:5000/api/categories', {
+      const res = await fetch(`${API_BASE_URL}/api/categories`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -661,7 +751,7 @@ function POS({ onExit, initialOpenRegister = false }) {
     }
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch('http://localhost:5000/api/uoms', {
+      const res = await fetch(`${API_BASE_URL}/api/uoms`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -699,7 +789,7 @@ function POS({ onExit, initialOpenRegister = false }) {
 
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch('http://localhost:5000/api/upload', {
+      const res = await fetch(`${API_BASE_URL}/api/upload`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` },
         body: formData
@@ -740,7 +830,7 @@ function POS({ onExit, initialOpenRegister = false }) {
 
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch('http://localhost:5000/api/products', {
+      const res = await fetch(`${API_BASE_URL}/api/products`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -774,7 +864,7 @@ function POS({ onExit, initialOpenRegister = false }) {
     setInvoiceSearchLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch('http://localhost:5000/api/sales', {
+      const res = await fetch(`${API_BASE_URL}/api/sales`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
@@ -791,7 +881,7 @@ function POS({ onExit, initialOpenRegister = false }) {
       setInvoiceSearchLoading(true);
       try {
         const token = localStorage.getItem('token');
-        const res = await fetch(`http://localhost:5000/api/sales/${selectedInvoice._id}`, {
+        const res = await fetch(`${API_BASE_URL}/api/sales/${selectedInvoice._id}`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         const data = await res.json();
@@ -837,7 +927,7 @@ function POS({ onExit, initialOpenRegister = false }) {
       );
 
       if (found) {
-        const res = await fetch(`http://localhost:5000/api/sales/${found._id}`, {
+        const res = await fetch(`${API_BASE_URL}/api/sales/${found._id}`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         const data = await res.json();
@@ -871,21 +961,12 @@ function POS({ onExit, initialOpenRegister = false }) {
       setInvoiceSearchLoading(false);
     }
   };
-  
+
   const filteredProducts = products.filter(p =>
     p.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const selectedProduct = products.find(p => p._id === selectedProductId);
-
-  const getCategoryName = () => {
-    if (!selectedProduct) return '—';
-    const catId = selectedProduct.categoryId;
-    if (!catId) return '—';
-    if (typeof catId === 'object' && catId.name) return catId.name;
-    const found = categories.find(c => c._id === catId || c.id === catId);
-    return found ? found.name : catId;
-  };
 
   const getname = () => {
     if (!selectedProduct) return '—';
@@ -982,6 +1063,8 @@ function POS({ onExit, initialOpenRegister = false }) {
   };
 
   const handleAddToCart = () => {
+    // 💡 REMOVED `!customerId` check so items can be added first.
+
     if (!selectedProductId) {
       showToast('Please select a product.', 'error');
       return;
@@ -1030,7 +1113,7 @@ function POS({ onExit, initialOpenRegister = false }) {
     setSelectedProductId('');
     setEntryPrice('');
     setEntryQty(1);
-    setEntryDiscount(0);
+    setEntryDiscount('');
 
     setTimeout(() => {
       if (searchInputRef.current) searchInputRef.current.focus();
@@ -1053,21 +1136,19 @@ function POS({ onExit, initialOpenRegister = false }) {
     setCart(cart.filter(c => c.productId !== productId));
   };
 
-  const subtotal = cart.reduce((sum, c) => sum + (c.quantity * c.unitPrice - (Number(c.discount) || 0)), 0);
-
-  const discountAmount = discountType === 'percent'
-    ? (subtotal * (Number(discountValue) || 0)) / 100
-    : Math.min(Number(discountValue) || 0, subtotal > 0 ? subtotal : 0);
-
-  const totalAmount = subtotal - discountAmount;
-  const balanceAmount = totalAmount - (Number(paidAmount) || 0);
-
   const resetSale = () => {
     setCart([]);
     setCustomerId('');
+    setTransporterId('');
+    setLabourId('');
+    setSalesmanId('');
+    setFreightAmount('');
+    setFreightPaidBy('Customer');
+    setLabourCharges('');
+    setLabourPaidBy('Customer');
     setDiscountType('percent');
-    setDiscountValue(0);
-    setPaidAmount(0);
+    setDiscountValue('');
+    setPaidAmount('');
     setNotes('');
     setSaleDate(new Date().toISOString().slice(0, 10));
     setSelectedProductId('');
@@ -1150,11 +1231,18 @@ function POS({ onExit, initialOpenRegister = false }) {
     }
   };
 
-  const ReceiptModal = ({ sale }) => {
+  // ==================== RENDERING RECEIPT MODAL (AS FUNCTION) ====================
+  const renderReceipt = (sale) => {
+    if (!sale) return null;
     const paperConfig = getPaperConfig(printSettings?.paperSize);
 
-    const finalTotal = sale.totalAmount ?? totalAmount;
-    const finalPaid = sale.paidAmount ?? (Number(paidAmount) || 0);
+    const itemsTotal = sale.items.reduce((sum, item) => sum + (item.quantity * item.unitPrice - (Number(item.discount) || 0)), 0);
+    const fAmt = Number(sale.freightAmount) || 0;
+    const lAmt = Number(sale.labourCharges) || 0;
+    const dAmt = Number(sale.discountAmount || sale.discount) || 0;
+
+    const finalTotal = Number(sale.totalAmount) || 0;
+    const finalPaid = Number(sale.paidAmount) || 0;
     const balance = finalTotal - finalPaid;
 
     const getItemName = (item) => {
@@ -1169,22 +1257,20 @@ function POS({ onExit, initialOpenRegister = false }) {
     const getLineTotal = (item) => (getItemQty(item) * getUnitPrice(item)) - getDiscount(item);
 
     return (
-      <div className="modal-overlay" onClick={handleCloseReceipt}>
-        <div className="modal-container" style={{ maxWidth: paperConfig.maxWidth, padding: 0, overflow: 'hidden' }} onClick={(e) => e.stopPropagation()}>
-          <div className="modal-header" style={{ flexDirection: paperConfig.narrow ? 'column' : 'row', gap: paperConfig.narrow ? 'var(--space-md)' : '0' }}>
-            <h3 className="modal-title" style={{ color: '#000' }}>CAPOBIZ</h3>
+      <div className="modal-overlay" onClick={handleCloseReceipt} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999999 }}>
+        <div className="card" style={{ width: '800px', maxWidth: '95%', maxHeight: '90vh', display: 'flex', flexDirection: 'column', padding: 0, overflow: 'hidden' }} onClick={(e) => e.stopPropagation()}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', padding: '16px 24px', borderBottom: '1px solid var(--border-color)', background: '#fff' }}>
+            <h3 style={{ margin: 0, color: '#000', fontSize: '20px', fontWeight: 'bold' }}>Stockify</h3>
 
-            <div style={{ display: 'flex', gap: 'var(--space-sm)', width: paperConfig.narrow ? '100%' : 'auto' }}>
+            <div style={{ display: 'flex', gap: '8px' }}>
               <button
                 className="btn btn-primary"
-                style={paperConfig.narrow ? { flex: 1 } : {}}
                 onClick={handlePrint}
               >
                 🖨️ Print
               </button>
               <button
                 className="btn btn-secondary"
-                style={paperConfig.narrow ? { flex: 1 } : {}}
                 onClick={handleCloseReceipt}
               >
                 ✕ Close
@@ -1192,103 +1278,143 @@ function POS({ onExit, initialOpenRegister = false }) {
             </div>
           </div>
 
-          <div
-            className="modal-body"
-            style={{
-              padding: paperConfig.bodyPadding,
-              fontSize: paperConfig.fontSize,
-              fontFamily: paperConfig.mono ? "'Courier New', monospace" : 'inherit'
-            }}
-            id="receipt-content"
-          >
-            <div style={{ textAlign: 'left', marginBottom: '16px' }}>
-              <p style={{ margin: '4px 0', color: '#333' }}>Invoice: {sale.saleNumber}</p>
-              <p style={{ margin: '4px 0', color: '#333' }}>Date: {new Date(sale.saleDate || sale.createdAt).toLocaleDateString()}</p>
-              <p style={{ margin: '4px 0', color: '#333' }}>
-                Customer: {sale.customer?.name || sale.customer?.customerName || 'Walk-in Customer'}
-              </p>
-            </div>
-            <div style={{ borderTop: '2px dashed #000', margin: '14px 0' }}></div>
+          <div style={{ flex: 1, overflowY: 'auto', background: '#f1f5f9', padding: '24px' }}>
+            <div id="receipt-content" style={{
+              margin: '0 auto', background: '#fff', padding: paperConfig.bodyPadding,
+              maxWidth: paperConfig.maxWidth, fontSize: paperConfig.fontSize,
+              fontFamily: paperConfig.mono ? "'Courier New', monospace" : 'inherit',
+              boxShadow: '0 4px 6px rgba(0,0,0,0.1)', minHeight: '400px'
+            }}>
+              <div style={{ textAlign: 'left', marginBottom: '16px' }}>
+                <h4 style={{ margin: '4px 0', textAlign: 'center', fontSize: '16px' }}>Sales Invoice</h4>
 
-            {paperConfig.mono ? (
-              <div>
-                {(sale.items || []).map((item, idx) => {
-                  const lineTotal = getLineTotal(item);
-                  const itemName = getItemName(item);
-                  const qty = getItemQty(item);
-                  const price = getUnitPrice(item);
-                  const disc = getDiscount(item);
-                  return (
-                    <div key={idx} style={{ borderBottom: '1px dashed #000', padding: '6px 0' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 700, fontSize: '1em', color: '#000' }}>
-                        <span>{itemName}</span>
-                        <span>x{qty}</span>
-                      </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85em', color: '#000', marginTop: '2px' }}>
-                        <span>
-                          @{price.toFixed(2)}
-                          {disc > 0 ? ` −${disc.toFixed(2)}` : ''}
-                        </span>
-                        <span style={{ fontWeight: 700 }}>{lineTotal.toFixed(2)}</span>
-                      </div>
-                    </div>
-                  );
-                })}
+                <p style={{ margin: '4px 0', color: '#333' }}>Invoice: <strong>{sale.saleNumber}</strong></p>
+                <p style={{ margin: '4px 0', color: '#333' }}>Date: <strong>{new Date(sale.saleDate || sale.createdAt).toLocaleDateString()}</strong></p>
+                <p style={{ margin: '4px 0', color: '#333' }}>
+                  Customer: <strong>{sale.customer?.name || sale.customer?.customerName || 'Walk-in Customer'}</strong>
+                </p>
+
+                {/* 💡 Display Salesman */}
+                {sale.salesman && (
+                  <p style={{ margin: '4px 0', color: '#333' }}>
+                    Salesman: <strong>{sale.salesman.name}</strong>
+                  </p>
+                )}
+
+                {sale.transporter && (
+                  <p style={{ margin: '4px 0', color: '#333' }}>
+                    Transporter: <strong>{sale.transporter?.name || 'Included'}</strong>
+                  </p>
+                )}
+                {sale.labour && (
+                  <p style={{ margin: '4px 0', color: '#333' }}>
+                    Labour: <strong>{sale.labour?.name || 'Included'}</strong>
+                  </p>
+                )}
+
+                {sale.status === 'Cancelled' && (
+                  <p style={{ margin: '4px 0', color: 'var(--danger)', fontWeight: 'bold', textAlign: 'center' }}>[ CANCELLED ]</p>
+                )}
               </div>
-            ) : (
-              <table style={{ width: '100%', tableLayout: 'fixed', borderCollapse: 'collapse', marginBottom: '12px' }}>
-                <thead>
-                  <tr>
-                    <th style={{ ...tableStyles.th, width: '32%' }}>Product</th>
-                    <th style={{ ...tableStyles.th, textAlign: 'left', width: '14%' }}>Qty</th>
-                    <th style={{ ...tableStyles.th, width: '18%' }}>Price</th>
-                    <th style={{ ...tableStyles.th, width: '16%' }}>Disc</th>
-                    <th style={{ ...tableStyles.th, width: '20%' }}>SubTotal</th>
-                  </tr>
-                </thead>
-                <tbody>
+              <div style={{ borderTop: '2px dashed #000', margin: '14px 0' }}></div>
+
+              {paperConfig.mono ? (
+                <div>
                   {(sale.items || []).map((item, idx) => {
-                    const price = getUnitPrice(item);
-                    const qty = getItemQty(item);
-                    const disc = getDiscount(item);
                     const lineTotal = getLineTotal(item);
                     const itemName = getItemName(item);
+                    const qty = getItemQty(item);
+                    const price = getUnitPrice(item);
+                    const disc = getDiscount(item);
                     return (
-                      <tr key={idx} style={{ borderBottom: '1px solid var(--border-color)' }}>
-                        <td style={{ padding: '6px 8px', fontSize: '13px', color: '#000', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{itemName}</td>
-                        <td style={{ padding: '6px 8px', fontSize: '13px', color: '#000', textAlign: 'left' }}>{qty}</td>
-                        <td style={{ padding: '6px 8px', fontSize: '13px', color: '#000' }}>{price.toFixed(2)}</td>
-                        <td style={{ padding: '6px 8px', fontSize: '13px', color: '#000' }}>{disc > 0 ? disc.toFixed(2) : '0.00'}</td>
-                        <td style={{ padding: '6px 8px', fontSize: '13px', color: '#000', fontWeight: 600 }}>{lineTotal.toFixed(2)}</td>
-                      </tr>
+                      <div key={idx} style={{ borderBottom: '1px dashed #000', padding: '6px 0' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 700, fontSize: '1em', color: '#000' }}>
+                          <span>{itemName}</span>
+                          <span>x{qty}</span>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85em', color: '#000', marginTop: '2px' }}>
+                          <span>
+                            @{price.toFixed(2)}
+                            {disc > 0 ? ` −${disc.toFixed(2)}` : ''}
+                          </span>
+                          <span style={{ fontWeight: 700 }}>{lineTotal.toFixed(2)}</span>
+                        </div>
+                      </div>
                     );
                   })}
-                </tbody>
-              </table>
-            )}
+                </div>
+              ) : (
+                <table style={{ width: '100%', tableLayout: 'fixed', borderCollapse: 'collapse', marginBottom: '12px' }}>
+                  <thead>
+                    <tr>
+                      <th style={{ textAlign: 'left', padding: '6px 8px', backgroundColor: '#e2e8f0', borderBottom: '1px solid #000', fontSize: '12px', fontWeight: 600, color: '#000', textTransform: 'uppercase', width: '32%' }}>Product</th>
+                      <th style={{ textAlign: 'left', padding: '6px 8px', backgroundColor: '#e2e8f0', borderBottom: '1px solid #000', fontSize: '12px', fontWeight: 600, color: '#000', textTransform: 'uppercase', width: '14%' }}>Qty</th>
+                      <th style={{ textAlign: 'left', padding: '6px 8px', backgroundColor: '#e2e8f0', borderBottom: '1px solid #000', fontSize: '12px', fontWeight: 600, color: '#000', textTransform: 'uppercase', width: '18%' }}>Price</th>
+                      <th style={{ textAlign: 'left', padding: '6px 8px', backgroundColor: '#e2e8f0', borderBottom: '1px solid #000', fontSize: '12px', fontWeight: 600, color: '#000', textTransform: 'uppercase', width: '16%' }}>Disc</th>
+                      <th style={{ textAlign: 'left', padding: '6px 8px', backgroundColor: '#e2e8f0', borderBottom: '1px solid #000', fontSize: '12px', fontWeight: 600, color: '#000', textTransform: 'uppercase', width: '20%' }}>Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(sale.items || []).map((item, idx) => {
+                      const price = getUnitPrice(item);
+                      const qty = getItemQty(item);
+                      const disc = getDiscount(item);
+                      const lineTotal = item.lineTotal !== undefined ? item.lineTotal : (qty * price - disc);
+                      const itemName = getItemName(item);
+                      return (
+                        <tr key={idx} style={{ borderBottom: '1px solid #ccc' }}>
+                          <td style={{ padding: '6px 8px', textAlign: 'left', fontSize: '13px', color: '#000', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{itemName}</td>
+                          <td style={{ padding: '6px 8px', textAlign: 'left', fontSize: '13px', color: '#000', textAlign: 'left' }}>{qty}</td>
+                          <td style={{ padding: '6px 8px', fontSize: '13px', textAlign: 'left', color: '#000' }}>{price.toFixed(2)}</td>
+                          <td style={{ padding: '6px 8px', textAlign: 'left', fontSize: '13px', color: '#000' }}>{disc > 0 ? disc.toFixed(2) : '0.00'}</td>
+                          <td style={{ padding: '6px 8px', textAlign: 'left', fontSize: '13px', color: '#000', fontWeight: 600 }}>{lineTotal.toFixed(2)}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              )}
 
-            <div style={{ borderTop: '2px dashed #000', margin: '14px 0' }}></div>
-            <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', fontSize: '13px', color: '#000' }}>
-                <span>Order total</span>
-                <span>Rs. {sale.subtotal?.toFixed(2) || (sale.totalAmount + (sale.discountAmount || 0)).toFixed(2)}</span>
+              <div style={{ borderTop: '2px dashed #000', margin: '14px 0' }}></div>
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', fontSize: '13px', color: '#000' }}>
+                  <span>Items Total</span>
+                  <span>Rs. {itemsTotal.toFixed(2)}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', fontSize: '13px', color: '#000' }}>
+                  <span>Discount {sale.discountType === 'cash' ? '(Fixed)' : sale.discountValue ? `(${sale.discountValue}%)` : ''}</span>
+                  <span>Rs. {dAmt.toFixed(2)}</span>
+                </div>
+
+                {/* 💡 Show Payment Party info in receipt */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', fontSize: '13px', color: '#000' }}>
+                  <span>Freight Amount</span>
+                  <span>Rs. {fAmt.toFixed(2)} {sale.freightPaidBy === 'Company' ? '(Company Paid)' : ''}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', fontSize: '13px', color: '#000' }}>
+                  <span>Labour Charges</span>
+                  <span>Rs. {lAmt.toFixed(2)} {sale.labourPaidBy === 'Company' ? '(Company Paid)' : ''}</span>
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', fontSize: '1.15em', color: '#000', fontWeight: 700, borderTop: '2px solid #000', paddingTop: '10px' }}>
+                  <span>Grand Total</span>
+                  <span>Rs. {finalTotal.toFixed(2)}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', fontSize: '13px', color: '#000' }}>
+                  <span>Paid</span>
+                  <span>Rs. {finalPaid.toFixed(2)}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', fontSize: '13px', color: '#000', fontWeight: 700 }}>
+                  <span>Balance Due</span>
+                  <span>Rs. {balance.toFixed(2)}</span>
+                </div>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', fontSize: '13px', color: '#000' }}>
-                <span>Discount {sale.discountType === 'cash' ? '(Fixed)' : `(${sale.discountValue || 0}%)`}</span>
-                <span>Rs. {sale.discountAmount?.toFixed(2) || discountAmount.toFixed(2)}</span>
+
+              <div style={{ borderTop: '2px dashed #000', margin: '16px 0' }}></div>
+              <div style={{ textAlign: 'center', color: '#555', fontSize: '13px' }}>
+                <p>System Generated Receipt</p>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', fontSize: '13px', color: '#000', fontWeight: 700, fontSize: '1.15em', borderTop: '2px solid #000', paddingTop: '10px' }}>
-                <span>Grand Total</span>
-                <span>Rs. {finalTotal.toFixed(2)}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', fontSize: '13px', color: '#000' }}>
-                <span>Paid</span>
-                <span>Rs. {finalPaid.toFixed(2)}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', fontSize: '13px', color: '#000', fontWeight: 700 }}>
-                <span>Balance</span>
-                <span>Rs. {balance.toFixed(2)} {balance > 0 ? '(Due)' : '(Paid)'}</span>
-              </div>
+
             </div>
           </div>
         </div>
@@ -1296,40 +1422,45 @@ function POS({ onExit, initialOpenRegister = false }) {
     );
   };
 
-  const HoldListModal = () => (
-    <div className="modal-overlay" onClick={() => setIsHoldListModalOpen(false)}>
-      <div className="modal-container modal-container-wide" onClick={(e) => e.stopPropagation()}>
-        <div className="modal-header">
-          <h3 className="modal-title">Hold List</h3>
-          <button className="modal-close" onClick={() => setIsHoldListModalOpen(false)}>&times;</button>
+  // ==================== RENDERING HOLD LIST MODAL (AS FUNCTION) ====================
+  const renderHoldListModal = () => (
+    <div style={{
+      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 999999,
+      display: 'flex', alignItems: 'center', justifyContent: 'center'
+    }} onClick={() => setIsHoldListModalOpen(false)}>
+      <div className="card" onClick={(e) => e.stopPropagation()} style={{ width: '850px', maxWidth: '95%', height: '550px', display: 'flex', flexDirection: 'column', padding: 0, margin: 0, boxShadow: '0 10px 25px rgba(0,0,0,0.2)' }}>
+
+        <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
+          <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: 'var(--text-main)' }}>Hold List</h3>
+          <button onClick={() => setIsHoldListModalOpen(false)} style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', color: 'var(--text-muted)' }}>&times;</button>
         </div>
 
-        <div className="modal-body">
+        <div style={{ padding: '16px', overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', boxSizing: 'border-box' }}>
           {holdListLoading ? (
-            <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-muted)', fontSize: '14px' }}>Loading...</div>
+            <div style={{ textAlign: 'center', margin: 'auto', color: 'var(--text-muted)', fontSize: '14px' }}>Loading...</div>
           ) : holdList.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '50px 0', color: 'var(--text-light)' }}>
+            <div style={{ textAlign: 'center', margin: 'auto', color: 'var(--text-light)' }}>
               <div style={{ fontSize: '42px', marginBottom: '10px' }}>📋</div>
               <div style={{ fontSize: '14px', fontWeight: 500 }}>No held sales available.</div>
             </div>
           ) : (
-            <div style={{ border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                <thead>
+            <div style={{ border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', overflow: 'hidden', flex: 1 }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+                <thead style={{ position: 'sticky', top: 0, zIndex: 5, background: 'var(--bg-surface)' }}>
                   <tr>
-                    <th style={tableStyles.th}>Hold #</th>
-                    <th style={tableStyles.th}>Customer</th>
-                    <th style={{ ...tableStyles.th, textAlign: 'center' }}>Items</th>
-                    <th style={{ ...tableStyles.th, textAlign: 'right' }}>Total</th>
-                    <th style={{ ...tableStyles.th, textAlign: 'center' }}>Status</th>
-                    <th style={{ ...tableStyles.th, textAlign: 'center' }}>Actions</th>
+                    <th style={{ ...tableStyles.th, width: '18%' }}>Hold #</th>
+                    <th style={{ ...tableStyles.th, width: '25%' }}>Customer</th>
+                    <th style={{ ...tableStyles.th, textAlign: 'center', width: '12%' }}>Items</th>
+                    <th style={{ ...tableStyles.th, textAlign: 'right', width: '18%' }}>Total</th>
+                    <th style={{ ...tableStyles.th, textAlign: 'center', width: '12%' }}>Status</th>
+                    <th style={{ ...tableStyles.th, textAlign: 'center', width: '15%' }}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {holdList.map(h => (
                     <tr key={h._id} style={{ borderBottom: '1px solid var(--border-color)' }}>
-                      <td style={{ ...tableStyles.td, fontWeight: 700, color: 'var(--text-main)' }}>{h.saleNumber}</td>
-                      <td style={tableStyles.td}>{h.customer?.name || h.customer?.customerName || 'Walk-in Customer'}</td>
+                      <td style={{ ...tableStyles.td, fontWeight: 700, color: 'var(--text-main)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{h.saleNumber}</td>
+                      <td style={{ ...tableStyles.td, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{h.customer?.name || h.customer?.customerName || 'Walk-in Customer'}</td>
                       <td style={{ ...tableStyles.td, textAlign: 'center' }}>{h.itemsCount ?? '—'}</td>
                       <td style={{ ...tableStyles.td, textAlign: 'right', fontWeight: 600 }}>
                         Rs. {Number(h.totalAmount || 0).toFixed(2)}
@@ -1347,14 +1478,16 @@ function POS({ onExit, initialOpenRegister = false }) {
                           <button
                             className="btn btn-primary"
                             onClick={() => handleResumeHold(h._id)}
-                            style={{ padding: '6px 12px', fontSize: '12px' }}
+                            style={{ padding: '4px 10px', fontSize: '12px' }}
+                            title="Resume Sale"
                           >
                             ▶
                           </button>
                           <button
                             className="btn btn-danger"
                             onClick={() => handleDeleteHold(h._id)}
-                            style={{ padding: '6px 12px', fontSize: '14px' }}
+                            style={{ padding: '4px 10px', fontSize: '12px' }}
+                            title="Delete Held Sale"
                           >
                             ✕
                           </button>
@@ -1371,7 +1504,7 @@ function POS({ onExit, initialOpenRegister = false }) {
     </div>
   );
 
-  // ==================== MAIN RENDER ====================
+ // ==================== MAIN RENDER ====================
   if (showRegisterPage) {
     return (
       <div style={{
@@ -1382,15 +1515,15 @@ function POS({ onExit, initialOpenRegister = false }) {
         <ToastPopup toast={toast} onClose={clearToast} />
 
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div className="card" style={{ width: '100%', maxWidth: '500px', padding: 0, overflow: 'hidden' }}>
-            
+          <div className="card" style={{ width: '100%', maxWidth: '520px', padding: 0, overflow: 'hidden' }}>
+
             <div style={{
-              padding: '24px',
+              padding: '14px',
               borderBottom: '1px solid var(--border-color)',
               display: 'flex', alignItems: 'center', gap: '14px'
             }}>
               <div style={{
-                width: '50px', height: '50px', borderRadius: '12px',
+                width: '40px', height: '40px', borderRadius: '12px',
                 background: isRegisterOpen ? 'var(--success-bg)' : 'var(--danger-bg)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px'
               }}>
@@ -1400,9 +1533,7 @@ function POS({ onExit, initialOpenRegister = false }) {
                 <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 700, color: 'var(--text-main)' }}>
                   {isRegisterOpen ? 'Register is Open' : 'Register is Closed'}
                 </h3>
-                <p style={{ margin: '4px 0 0 0', fontSize: '13px', color: 'var(--text-muted)' }}>
-                  {isRegisterOpen ? 'Ready for transactions' : 'Open the register to start using POS'}
-                </p>
+                
               </div>
             </div>
 
@@ -1410,29 +1541,41 @@ function POS({ onExit, initialOpenRegister = false }) {
               {isRegisterOpen && registerData ? (
                 <div>
                   <div style={{ margin: '0 0 20px 0', display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '14px', color: 'var(--text-main)' }}>
+                    
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                       <span>Opening Amount:</span> <strong>Rs. {registerData.openingAmount || 0}</strong>
                     </div>
+                    
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span>Sales Amount:</span> <strong style={{ color: 'var(--success)' }}>+ Rs. {registerData.salesAmount || 0}</strong>
+                      <span>Sales Amount :</span> <strong style={{ color: 'var(--success)' }}>+ Rs. {registerData.salesAmount || 0}</strong>
                     </div>
+
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span>Total Returns:</span> <strong style={{ color: 'var(--danger)' }}>- Rs. {registerData.totalReturn || 0}</strong>
+                      <span>Purchase Returns :</span> <strong style={{ color: 'var(--success)' }}>+ Rs. {registerData.purchaseReturnAmount || 0}</strong>
                     </div>
+
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span>Purchases (Cash Paid):</span> <strong style={{ color: 'var(--danger)' }}>- Rs. {registerData.purchaseAmount || 0}</strong>
+                      <span>Sales Returns :</span> <strong style={{ color: 'var(--danger)' }}>- Rs. {registerData.totalReturn || 0}</strong>
                     </div>
+
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span>Purchase Returns:</span> <strong style={{ color: 'var(--success)' }}>+ Rs. {registerData.purchaseReturnAmount || 0}</strong>
+                      <span>Purchases & Payments:</span> <strong style={{ color: 'var(--danger)' }}>- Rs. {registerData.purchaseAmount || 0}</strong>
                     </div>
+
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span>Expenses Paid:</span> <strong style={{ color: 'var(--danger)' }}>- Rs. {registerData.expenseAmount || 0}</strong>
+                    </div>
+
                     <hr style={{ borderTop: '1px dashed var(--border-color)', margin: '6px 0' }} />
+                    
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '16px' }}>
-                      <span>Closing Amount:</span>
+                      <span>Expected Closing Cash:</span>
                       <strong>
                         Rs. {
                           ((registerData.openingAmount || 0) + (registerData.salesAmount || 0) + (registerData.purchaseReturnAmount || 0))
                           - (registerData.totalReturn || 0)
                           - (registerData.purchaseAmount || 0)
+                          - (registerData.expenseAmount || 0)
                         }
                       </strong>
                     </div>
@@ -1499,8 +1642,9 @@ function POS({ onExit, initialOpenRegister = false }) {
     }}>
       <ToastPopup toast={toast} onClose={clearToast} />
 
-      {(showReceipt || showHistoryReceipt) && <ReceiptModal sale={showReceipt || showHistoryReceipt} />}
-      {isHoldListModalOpen && <HoldListModal />}
+      {(showReceipt || showHistoryReceipt) && renderReceipt(showReceipt || showHistoryReceipt)}
+
+      {isHoldListModalOpen && renderHoldListModal()}
 
       {/* ==================== SEARCH INVOICES MODAL ==================== */}
       {isInvoiceModalOpen && (
@@ -1684,14 +1828,14 @@ function POS({ onExit, initialOpenRegister = false }) {
         />
       )}
 
-      {/* Header - Buttons made larger and properly padded */}
+      {/* Header */}
       <div style={{
         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-        padding: '14px 28px', background: 'var(--primary)', color: '#fff', flexShrink: 0,
+        padding: '14px 28px', background: 'var(--primary-other)', color: '#fff', flexShrink: 0,
         boxShadow: 'var(--shadow-sm)', zIndex: 50
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <span style={{ fontSize: '22px' }}>🛒</span>
+            <FontAwesomeIcon icon={faCartShopping} style={{ marginRight: '6px' }} />
           <h2 style={{ margin: 0, fontSize: '20px', fontWeight: 700, color: 'white' }}>Point of Sale</h2>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -1724,19 +1868,18 @@ function POS({ onExit, initialOpenRegister = false }) {
       {/* Body: Split Layout */}
       <div style={{ display: 'flex', flex: 1, gap: '16px', padding: '16px', overflow: 'hidden', boxSizing: 'border-box' }}>
 
-        {/* ==================== LEFT COLUMN (35% Width): Product & Customer Forms ==================== */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', flex: '0 0 35%', height: '100%', overflowY: 'auto' }}>
+        {/* ==================== LEFT COLUMN (35% Width) ==================== */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', flex: '0 0 35%', height: '100%', overflowY: 'auto', paddingRight: '4px' }}>
 
-          {/* Product Section */}
+          {/* 1. Product Section (MOVED UP) */}
           <div className="card" style={{ display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>
               <span style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--primary)', fontWeight: 700, fontSize: '13px', textTransform: 'uppercase' }}>
-                <span>📦</span> Search / Add Product
+                <span>📦</span> Search Product
               </span>
               <button className="btn btn-primary" onClick={() => setIsAddProductModalOpen(true)} style={{ padding: '2px 8px', fontSize: '14px' }}>+</button>
             </div>
 
-            {/* Search Field */}
             <div className="form-group" style={{ position: 'relative', marginBottom: selectedProductId ? '12px' : 0 }} ref={searchRef}>
               <label className="form-label">Search</label>
               <input
@@ -1783,7 +1926,6 @@ function POS({ onExit, initialOpenRegister = false }) {
               )}
             </div>
 
-            {/* Selected Product Details */}
             {selectedProduct && (
               <div style={{ display: 'flex', flexDirection: 'column' }}>
                 <div style={{
@@ -1819,40 +1961,71 @@ function POS({ onExit, initialOpenRegister = false }) {
                     />
                   </div>
                 </div>
-
-                <button
-                  className="btn btn-primary"
-                  style={{ marginTop: '16px', width: '100%' }}
-                  onClick={handleAddToCart}
-                >
-                  🛒 Add to Cart
-                </button>
               </div>
             )}
 
-            {!selectedProduct && (
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '30px 0', color: 'var(--text-muted)' }}>
-                <span style={{ fontSize: '32px', marginBottom: '8px' }}>🔍</span>
-                <span style={{ fontSize: '13px', fontWeight: 500 }}>Search and select a product to add</span>
-              </div>
-            )}
+         
+
+            <button
+              className="btn btn-primary"
+              style={{
+                padding: '10px', alignItems: 'center', marginLeft: '35%', fontSize: '16px', fontWeight: 'bold', width: '30%',
+                boxShadow: '0 4px 6px rgba(0,0,0,0.1)', flexShrink: 0, marginTop: '16px'
+              }}
+              onClick={handleAddToCart}
+            >
+              Add to Cart
+            </button>
           </div>
 
-          {/* Customer Section */}
           <div className="card" style={{ display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>
               <span style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--primary)', fontWeight: 700, fontSize: '13px', textTransform: 'uppercase' }}>
-                <span>👤</span> Customer
+                <span>👤</span> Customer & Delivery
               </span>
               <button className="btn btn-primary" onClick={() => setIsAddCustomerModalOpen(true)} style={{ padding: '2px 8px', fontSize: '14px' }}>+</button>
             </div>
 
             <div className="form-group">
-              <label className="form-label">Select</label>
+              <label className="form-label">Customer</label>
               <select value={customerId} onChange={(e) => setCustomerId(e.target.value)} className="form-input">
                 <option value="">Select a Customer</option>
                 {customers.map(c => (
                   <option key={c._id} value={c._id}>{c.name || c.customerName}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">
+                Salesman (Optional)
+              </label>
+              <select value={salesmanId} onChange={(e) => setSalesmanId(e.target.value)} className="form-input">
+                <option value="">-- None --</option>
+                {employees.map(e => <option key={e._id} value={e._id}>{e.name}</option>)}
+              </select>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">
+                Transporter (Optional)
+              </label>
+              <select value={transporterId} onChange={(e) => setTransporterId(e.target.value)} className="form-input">
+                <option value="">-- None --</option>
+                {transporters.map(t => (
+                  <option key={t._id} value={t._id}>{t.name} {t.companyName ? `(${t.companyName})` : ''}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">
+                Labour (Optional)
+              </label>
+              <select value={labourId} onChange={(e) => setLabourId(e.target.value)} className="form-input">
+                <option value="">-- None --</option>
+                {labourList.map(l => (
+                  <option key={l._id} value={l._id}>{l.name}</option>
                 ))}
               </select>
             </div>
@@ -1876,19 +2049,19 @@ function POS({ onExit, initialOpenRegister = false }) {
 
         </div>
 
-        {/* ==================== RIGHT COLUMN (65% Width): Table, Billing Form & Complete Button ==================== */}
+        {/* ==================== RIGHT COLUMN (65% Width) ==================== */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', flex: '1', minWidth: 0, height: '100%', overflowY: 'auto' }}>
 
           {/* Cart Table */}
-          <div className="card" style={{ padding: 0, overflow: 'hidden', flexShrink: 0, maxHeight: '300px', display: 'flex', flexDirection: 'column' }}>
+          <div className="card" style={{ padding: 0, overflow: 'hidden', flexShrink: 0, maxHeight: '250px', display: 'flex', flexDirection: 'column' }}>
             <div style={{ overflowY: 'auto', flex: 1 }}>
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead style={{ position: 'sticky', top: 0, zIndex: 10 }}>
                   <tr>
-                    <th style={{ ...tableStyles.th, paddingLeft: '20px', width: '35%' }}>Item Name</th>
-                    <th style={{ ...tableStyles.th, textAlign: 'center', width: '15%' }}>QTY</th>
-                    <th style={{ ...tableStyles.th, textAlign: 'right', width: '18%' }}>Price</th>
-                    <th style={{ ...tableStyles.th, textAlign: 'right', width: '18%' }}>SubTotal</th>
+                    <th style={{ ...tableStyles.th, textAlign: 'left', paddingLeft: '20px', width: '15%' }}>Item Name</th>
+                    <th style={{ ...tableStyles.th, textAlign: 'left', width: '15%' }}>QTY</th>
+                    <th style={{ ...tableStyles.th, textAlign: 'left', width: '18%' }}>Price</th>
+                    <th style={{ ...tableStyles.th, textAlign: 'left', width: '18%' }}>SubTotal</th>
                     <th style={{ ...tableStyles.th, textAlign: 'center', width: '14%' }}>Action</th>
                   </tr>
                 </thead>
@@ -1897,26 +2070,26 @@ function POS({ onExit, initialOpenRegister = false }) {
                     <tr>
                       <td colSpan="5">
                         <div style={{ padding: '40px 0', textAlign: 'center', color: 'var(--text-muted)' }}>
-                          <div style={{ fontSize: '16px', fontWeight: 600 }}>🛒 No items in cart!</div>
+                          <div style={{ fontSize: '13px', fontWeight: 600 }}>🛒 No items in cart!</div>
                         </div>
                       </td>
                     </tr>
                   ) : (
                     cart.map((item) => (
                       <tr key={item.productId} style={{ borderBottom: '1px solid var(--border-color)' }}>
-                        <td style={{ padding: '10px 16px', paddingLeft: '20px', fontWeight: 600, color: 'var(--text-main)', fontSize: '13px' }}>
+                        <td style={{ padding: '10px 16px', textAlign: 'left', paddingLeft: '20px', fontWeight: 600, color: 'var(--text-main)', fontSize: '13px' }}>
                           {item.name}
                         </td>
-                        <td style={{ padding: '10px 16px', textAlign: 'center' }}>
+                        <td style={{ padding: '10px 16px', textAlign: 'left' }}>
                           <input
                             type="number" min="1" max={item.availableQty}
                             value={item.quantity} onChange={(e) => updateCartQty(item.productId, e.target.value)}
                             className="form-input"
-                            style={{ width: '60px', padding: '4px 6px', textAlign: 'center', margin: '0 auto' }}
+                            style={{ width: '60px', padding: '4px 6px', textAlign: 'left', margin: '0 auto' }}
                           />
                         </td>
-                        <td style={{ padding: '10px 16px', textAlign: 'right', fontSize: '13px', color: 'var(--text-main)' }}>{item.unitPrice.toFixed(2)}</td>
-                        <td style={{ padding: '10px 16px', textAlign: 'right', fontSize: '13px', fontWeight: 600, color: 'var(--text-main)' }}>
+                        <td style={{ padding: '10px 16px', textAlign: 'left', fontSize: '13px', color: 'var(--text-main)' }}>{item.unitPrice.toFixed(2)}</td>
+                        <td style={{ padding: '10px 16px', textAlign: 'left', fontSize: '13px', fontWeight: 600, color: 'var(--text-main)' }}>
                           {(item.quantity * item.unitPrice - (Number(item.discount) || 0)).toFixed(2)}
                         </td>
                         <td style={{ padding: '10px 16px', textAlign: 'center' }}>
@@ -1930,17 +2103,17 @@ function POS({ onExit, initialOpenRegister = false }) {
             </div>
           </div>
 
-          {/* ==================== BILLING FORM (Fixed Alignment & Inputs) ==================== */}
+          {/* ==================== BILLING FORM ==================== */}
           <div className="card" style={{ padding: '18px 24px', flexShrink: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--primary)', fontWeight: 700, fontSize: '13px', textTransform: 'uppercase', marginBottom: '14px', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>
-              <span>🧮</span> Billing
+              Billing
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
 
               {/* Order Total */}
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Order Total</span>
+                <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Items SubTotal</span>
                 <input
                   type="text" readOnly value={`Rs. ${subtotal.toFixed(2)}`}
                   className="form-input"
@@ -1948,36 +2121,152 @@ function POS({ onExit, initialOpenRegister = false }) {
                 />
               </div>
 
-              {/* Discount Type */}
+              {/* Discount Type & Value */}
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Discount Type</span>
-                <div style={{ display: 'flex', gap: '24px', alignItems: 'center', maxWidth: '240px', width: '100%', paddingRight: '12px', boxSizing: 'border-box' }}>
-                  <label style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text-main)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <input type="radio" name="discountType" checked={discountType === 'percent'} onChange={() => setDiscountType('percent')} style={{ accentColor: 'var(--primary)' }} /> Percentage 
-                  </label>
-                  <label style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text-main)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <input type="radio" name="discountType" checked={discountType === 'cash'} onChange={() => setDiscountType('cash')} style={{ accentColor: 'var(--primary)' }} /> Cash 
-                  </label>
-                </div>
-              </div>
-
-              {/* Disc % / Rs */}
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase' }}>{discountType === 'percent' ? 'Disc %' : 'Disc Rs.'}</span>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', maxWidth: '240px', width: '100%' }}>
+                <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Discount</span>
+                <div style={{ display: 'flex', gap: '10px', alignItems: 'center', maxWidth: '240px', width: '100%' }}>
+                  <select
+                    className="form-input"
+                    value={discountType}
+                    onChange={(e) => setDiscountType(e.target.value)}
+                    style={{ padding: '6px', fontSize: '12px' }}
+                  >
+                    <option value="percent">% Percent</option>
+                    <option value="cash">Rs. Fixed</option>
+                  </select>
                   <input
-                    type="number" min="0" max={discountType === 'percent' ? 100 : undefined}
-                    value={discountValue} onChange={(e) => setDiscountValue(e.target.value)}
+                    type="number" min="0"
+                    value={discountValue}
+                    onChange={(e) => setDiscountValue(e.target.value)}
                     className="form-input"
                     style={{ textAlign: 'right' }}
-                    placeholder={discountType === 'percent' ? '0' : '0'}
+                    placeholder="0"
                   />
                 </div>
               </div>
 
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 0', borderTop: '1px dashed var(--border-color)' }}>
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  <span style={{ fontSize: '11px', fontWeight: 600, textAlign: 'left', color: 'var(--text-main)', textTransform: 'uppercase' }}>Freight </span>
+                  <div style={{ display: 'flex', gap: '10px', marginTop: '4px' }}>
+                    <label
+                      style={{
+                        fontSize: '11px',
+                        cursor: 'pointer',
+                        textAlign: 'left',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        color: 'var(--text-muted)'
+                      }}
+                    >
+                      <input
+                        type="radio"
+                        checked={freightPaidBy === 'Customer'}
+                        onChange={() => setFreightPaidBy('Customer')}
+                        style={{
+                          appearance: 'none',
+                          WebkitAppearance: 'none',
+                          width: '12px',
+                          height: '12px',
+                          borderRadius: '50%',
+                          margin: 0,
+                          cursor: 'pointer',
+                          backgroundColor: freightPaidBy === 'Customer' ? 'var(--primary)' : '#fff',
+                          border: freightPaidBy === 'Customer' ? '2px solid #fff' : '1px solid #ccc',
+                          boxShadow: freightPaidBy === 'Customer' ? '0 0 0 1px var(--primary)' : 'none',
+                        }}
+                      />
+                      Bill to Customer
+                    </label>
+                    <label style={{ fontSize: '11px', cursor: 'pointer', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--text-muted)' }}>
+                      <input
+                        type="radio"
+                        checked={freightPaidBy === 'Company'}
+                        onChange={() => setFreightPaidBy('Company')}
+                        style={{
+                          appearance: 'none',
+                          WebkitAppearance: 'none',
+                          width: '12px',
+                          height: '12px',
+                          borderRadius: '50%',
+                          margin: 0,
+                          cursor: 'pointer',
+                          backgroundColor: freightPaidBy === 'Company' ? 'var(--primary)' : '#fff',
+                          border: freightPaidBy === 'Company' ? '2px solid #fff' : '1px solid #ccc',
+                          boxShadow: freightPaidBy === 'Company' ? '0 0 0 1px var(--primary)' : 'none'
+                        }}
+                      />
+                      We Pay
+                    </label>
+                  </div>
+                </div>
+                <input
+                  type="number" min="0" value={freightAmount} onChange={(e) => setFreightAmount(e.target.value)}
+                  className="form-input"
+                  style={{ maxWidth: '240px', width: '100%', textAlign: 'right', border: freightPaidBy === 'Company' ? '1px solid var(--danger)' : '1px solid var(--border-color)' }}
+                  placeholder="0"
+                />
+              </div>
+
+              {/* 💡 Labour Settings */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px dashed var(--border-color)' }}>
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-main)', textAlign: 'left', textTransform: 'uppercase' }}>Labour Charges</span>
+                  <div style={{ display: 'flex', gap: '10px', marginTop: '4px' }}>
+                    <label style={{ fontSize: '11px', cursor: 'pointer', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--text-muted)' }}>
+                      <input
+                        type="radio"
+                        checked={labourPaidBy === 'Customer'}
+                        onChange={() => setLabourPaidBy('Customer')}
+                        style={{
+                          appearance: 'none',
+                          WebkitAppearance: 'none',
+                          width: '12px',
+                          height: '12px',
+                          borderRadius: '50%',
+                          margin: 0,
+                          cursor: 'pointer',
+                          backgroundColor: labourPaidBy === 'Customer' ? 'var(--primary)' : '#fff',
+                          border: labourPaidBy === 'Customer' ? '2px solid #fff' : '1px solid #ccc',
+                          boxShadow: labourPaidBy === 'Customer' ? '0 0 0 1px var(--primary)' : 'none'
+                        }}
+                      />
+                      Bill to Customer
+                    </label>
+                    <label style={{ fontSize: '11px', cursor: 'pointer', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--text-muted)' }}>
+                      <input
+                        type="radio"
+                        checked={labourPaidBy === 'Company'}
+                        onChange={() => setLabourPaidBy('Company')}
+                        style={{
+                          appearance: 'none',
+                          WebkitAppearance: 'none',
+                          width: '12px',
+                          height: '12px',
+                          borderRadius: '50%',
+                          margin: 0,
+                          cursor: 'pointer',
+                          backgroundColor: labourPaidBy === 'Company' ? 'var(--primary)' : '#fff',
+                          border: labourPaidBy === 'Company' ? '2px solid #fff' : '1px solid #ccc',
+                          boxShadow: labourPaidBy === 'Company' ? '0 0 0 1px var(--primary)' : 'none'
+                        }}
+                      />
+                      We Pay
+                    </label>
+                  </div>
+                </div>
+                <input
+                  type="number" min="0" value={labourCharges} onChange={(e) => setLabourCharges(e.target.value)}
+                  className="form-input"
+                  style={{ maxWidth: '240px', width: '100%', textAlign: 'right', border: labourPaidBy === 'Company' ? '1px solid var(--danger)' : '1px solid var(--border-color)' }}
+                  placeholder="0"
+                />
+              </div>
+
               {/* Net Payable */}
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-main)', textTransform: 'uppercase' }}>Net Payable</span>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '6px' }}>
+                <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-main)', textTransform: 'uppercase' }}>Net Payable (By Customer)</span>
                 <input
                   type="text" readOnly value={`Rs. ${totalAmount.toFixed(2)}`}
                   className="form-input"
@@ -1987,17 +2276,18 @@ function POS({ onExit, initialOpenRegister = false }) {
 
               {/* Paid */}
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Paid</span>
+                <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Paid</span>
                 <input
                   type="number" min="0" value={paidAmount} onChange={(e) => setPaidAmount(e.target.value)}
                   className="form-input"
                   style={{ maxWidth: '240px', width: '100%', textAlign: 'right', fontWeight: 600 }}
+                  placeholder="0"
                 />
               </div>
 
               {/* Balance */}
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-main)', textTransform: 'uppercase' }}>Balance</span>
+                <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-main)', textTransform: 'uppercase' }}>Balance</span>
                 <input
                   type="text" readOnly value={`Rs. ${balanceAmount.toFixed(2)}`}
                   className="form-input"
@@ -2107,7 +2397,7 @@ const styles = {
   receiptDivider: { borderTop: '2px dashed #000', margin: '14px 0' },
   receiptTable: { width: '100%', tableLayout: 'fixed', borderCollapse: 'collapse', marginBottom: '12px' },
   receiptTh: { textAlign: 'left', padding: '6px 8px', backgroundColor: '#1c3951', borderBottom: '2px solid #000', fontSize: '12px', fontWeight: 600, color: '#ffffff', textTransform: 'uppercase', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
-  receiptTd: { padding: '6px 8px', borderBottom: '1px solid #ccc', fontSize: '13px', color: '#000' },
+  receiptTd: { padding: '6px 8px', textAlign: 'left', borderBottom: '1px solid #ccc', fontSize: '13px', color: '#000' },
   receiptTdName: { padding: '6px 8px', borderBottom: '1px solid #ccc', fontSize: '13px', color: '#000', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
   receiptTotals: { marginTop: '14px' },
   receiptTotalRow: { display: 'flex', justifyContent: 'space-between', padding: '5px 0', fontSize: '13px', color: '#000' },
@@ -2118,8 +2408,7 @@ const styles = {
 
 const styleSheet = document.createElement("style");
 styleSheet.textContent = `
-  @keyframes popIn { from { transform: scale(0.8) translateY(20px); opacity: 0; } to { transform: scale(1) translateY(0); opacity: 1; } }
-  @keyframes shakeIn { from { transform: translateX(-10px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+  /* 💡 Animations Hata di gai hain taake Modal screen par freeze rahay */
   ::-webkit-scrollbar { width: 8px; }
   ::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 4px; }
   ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }

@@ -4,6 +4,28 @@ import { faFilePdf, faPrint, faEye } from '@fortawesome/free-solid-svg-icons';
 
 const API_BASE_URL = 'http://localhost:5000';
 
+const getImageUrl = (pic) => {
+    if (!pic) return null;
+    const normalizedPic = pic.replace(/\\/g, '/');
+    if (normalizedPic.startsWith('http://') || normalizedPic.startsWith('https://')) return normalizedPic;
+    return `${API_BASE_URL}${normalizedPic.startsWith('/') ? '' : '/'}${normalizedPic}`;
+};
+
+const getInitials = (name = '') => name.trim().split(/\s+/).slice(0, 2).map(w => w[0]).join('').toUpperCase();
+
+function AvatarImage({ pic, name, size }) {
+    const [failed, setFailed] = useState(false);
+    const url = getImageUrl(pic);
+    if (url && !failed) {
+        return <img src={url} alt={name} onError={() => setFailed(true)} style={{ width: size, height: size, borderRadius: '50%', objectFit: 'cover', border: '1px solid var(--border-color)', flexShrink: 0 }} />;
+    }
+    return (
+        <div style={{ width: size, height: size, borderRadius: '50%', backgroundColor: 'var(--primary)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: `${size * 0.35}px`, fontWeight: 600, flexShrink: 0 }}>
+            {getInitials(name)}
+        </div>
+    );
+}
+
 function SalaryReport() {
     const [selectedMonth, setSelectedMonth] = useState(() => {
         const date = new Date();
@@ -17,6 +39,10 @@ function SalaryReport() {
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState({ text: '', type: '' });
 
+    // 💡 Pagination States Added
+    const [currentPage, setCurrentPage] = useState(1);
+    const [itemsPerPage] = useState(10);
+
     useEffect(() => {
         fetchEmployees();
     }, []);
@@ -26,6 +52,11 @@ function SalaryReport() {
             fetchReportData();
         }
     }, [selectedMonth]);
+
+    // 💡 Reset pagination when filters change
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [selectedMonth, selectedEmployee]);
 
     const showMessage = (text, type) => {
         setMessage({ text, type });
@@ -74,7 +105,12 @@ function SalaryReport() {
         selectedEmployee === '' || (row.employee && row.employee._id === selectedEmployee)
     );
 
-    // Modal ke liye Net Position
+    // 💡 Pagination Calculations
+    const indexOfLastItem = currentPage * itemsPerPage;
+    const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+    const currentItems = filteredData.slice(indexOfFirstItem, indexOfLastItem);
+    const totalPages = Math.ceil(filteredData.length / itemsPerPage);
+
     const viewEarned = viewDetails ? ((viewDetails.grossSalary || 0) - (viewDetails.attendanceDeduction || 0)) : 0;
     const viewOutstanding = viewDetails ? (viewDetails.totalLoanOutstanding || 0) : 0;
     const viewNetPosition = viewDetails && viewDetails.currentBalance !== undefined ? viewDetails.currentBalance : (viewEarned - viewOutstanding);
@@ -95,13 +131,13 @@ function SalaryReport() {
                         className="form-input"
                         value={selectedMonth}
                         onChange={(e) => setSelectedMonth(e.target.value)}
-                        style={{ width: '180px', padding: '10px 12px', height: 'auto', fontSize: '13px', marginBottom: 0 }}
+                        style={{ width: '180px', padding: '10px 12px', height: 'auto', fontSize: '13px', marginBottom: 0, border: '1px solid #cbd5e1', borderRadius: '6px' }}
                     />
                     <select
                         className="form-input"
                         value={selectedEmployee}
                         onChange={(e) => setSelectedEmployee(e.target.value)}
-                        style={{ width: '220px', padding: '10px 12px', height: 'auto', fontSize: '13px', marginBottom: 0 }}
+                        style={{ width: '220px', padding: '10px 12px', height: 'auto', fontSize: '13px', marginBottom: 0, border: '1px solid #cbd5e1', borderRadius: '6px' }}
                     >
                         <option value="">All Employees</option>
                         {employees.map(emp => (
@@ -121,114 +157,148 @@ function SalaryReport() {
 
             {/* DATA TABLE */}
             <div className="card" style={{ padding: 0, overflow: 'hidden', border: 'none', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'auto' }}>
-                    <thead>
-                        <tr>
-                            <th style={tableStyles.th}>Employee</th>
-                            <th style={tableStyles.th}>Gross</th>
-                            <th style={tableStyles.th}>A / L / Hd</th>
-                            <th style={tableStyles.th}>Penalty</th>
-                            <th style={tableStyles.th}>Loan Taken</th>
-                            <th style={tableStyles.th}>Returned (Cash)</th>
-                            <th style={tableStyles.th}>Remaining Loan</th>
-                            <th style={tableStyles.th}>Payable</th>
-                            <th style={tableStyles.th}>Status</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {loading ? (
+                <div style={{ overflowX: 'auto', width: '100%' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'auto', minWidth: '900px' }}>
+                        <thead>
                             <tr>
-                                <td colSpan="10" style={{ textAlign: 'left', padding: '40px', color: 'var(--text-muted)' }}>Loading payroll data...</td>
+                                <th style={tableStyles.th}>Employee</th>
+                                <th style={tableStyles.th}>Gross</th>
+                                <th style={tableStyles.th}>A / L / Hd</th>
+                                <th style={tableStyles.th}>Penalty</th>
+                                <th style={tableStyles.th}>Loan Taken</th>
+                                <th style={tableStyles.th}>Returned (Cash)</th>
+                                <th style={tableStyles.th}>Remaining Loan</th>
+                                <th style={tableStyles.th}>Payable</th>
+                                <th style={tableStyles.th}>Status</th>
                             </tr>
-                        ) : filteredData.length === 0 ? (
-                            <tr>
-                                <td colSpan="10" style={{ textAlign: 'left', padding: '40px', color: 'var(--text-muted)' }}>No salary records found for {selectedMonth}.</td>
-                            </tr>
-                        ) : (
-                            filteredData.map((row) => {
-                                const remainingLoan = row.totalLoanOutstanding || 0;
-                                
-                                // 💡 THE FIX: Actual Live Balance from ledger!
-                                const netPosition = row.currentBalance !== undefined ? row.currentBalance : ((row.grossSalary || 0) - (row.attendanceDeduction || 0) - remainingLoan);
+                        </thead>
+                        <tbody>
+                            {loading ? (
+                                <tr>
+                                    <td colSpan="9" style={{ textAlign: 'left', padding: '40px', color: 'var(--text-muted)' }}>Loading payroll data...</td>
+                                </tr>
+                            ) : currentItems.length === 0 ? (
+                                <tr>
+                                    <td colSpan="9" style={{ textAlign: 'left', padding: '40px', color: 'var(--text-muted)' }}>No salary records found for {selectedMonth}.</td>
+                                </tr>
+                            ) : (
+                                currentItems.map((row) => {
+                                    const remainingLoan = row.totalLoanOutstanding || 0;
+                                    const netPosition = row.currentBalance !== undefined ? row.currentBalance : ((row.grossSalary || 0) - (row.attendanceDeduction || 0) - remainingLoan);
 
-                                // Dynamic Status Colors
-                                let statusBg = '#fef3c7';
-                                let statusColor = '#d97706';
-                                let statusBorder = '#fcd34d';
+                                    let statusBg = '#fef3c7';
+                                    let statusColor = '#d97706';
+                                    let statusBorder = '#fcd34d';
 
-                                if (row.status === 'Paid' || row.status === 'Settled') {
-                                    statusBg = 'var(--success-bg)';
-                                    statusColor = 'var(--success)';
-                                    statusBorder = 'var(--success)';
-                                } else if (row.status === 'Partial') {
-                                    statusBg = '#e0f2fe';
-                                    statusColor = '#0284c7';
-                                    statusBorder = '#7dd3fc';
-                                }
+                                    if (row.status === 'Paid' || row.status === 'Settled') {
+                                        statusBg = 'var(--success-bg)';
+                                        statusColor = 'var(--success)';
+                                        statusBorder = 'var(--success)';
+                                    } else if (row.status === 'Partial') {
+                                        statusBg = '#e0f2fe';
+                                        statusColor = '#0284c7';
+                                        statusBorder = '#7dd3fc';
+                                    }
 
-                                return (
-                                    <tr key={row._id} style={{ borderBottom: '1px solid var(--border-color)', transition: 'background-color 0.2s' }} onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--bg-app)'} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}>
-                                        <td style={tableStyles.td}>
-                                            <div style={{ fontWeight: 600, color: 'var(--text-main)', fontSize: '13px' }}>{row.employee?.name || 'Unknown'}</div>
-                                            <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>{row.employee?.designation || 'Staff'}</div>
-                                        </td>
-                                        <td style={{ ...tableStyles.td, fontWeight: 600 }}>
-                                            Rs. {(row.grossSalary || 0).toLocaleString()}
-                                        </td>
-                                        <td style={{ ...tableStyles.td, fontWeight: 600 }}>
-                                            <span style={{ color: '#ef4444' }} title="Absents">{row.attendanceStats?.absent || 0}A</span> /&nbsp;
-                                            <span style={{ color: '#3b82f6' }} title="Leaves">{row.attendanceStats?.leave || 0}L</span> /&nbsp;
-                                            <span style={{ color: '#f59e0b' }} title="Half Days">{row.attendanceStats?.halfDay || 0}Hd</span>
-                                        </td>
-                                        <td style={tableStyles.td}>
-                                            {(row.attendanceDeduction || 0) > 0 ? (
-                                                <span style={{ color: '#ef4444', fontWeight: 500 }}>- Rs. {row.attendanceDeduction.toLocaleString()}</span>
-                                            ) : <span style={{ color: 'var(--text-light)' }}>-</span>}
-                                        </td>
-                                        <td style={tableStyles.td}>
-                                            {(row.totalLoanTakenThisMonth || 0) > 0 ? (
-                                                <span style={{ color: '#3b82f6', fontWeight: 600 }}>+ Rs. {row.totalLoanTakenThisMonth.toLocaleString()}</span>
-                                            ) : <span style={{ color: 'var(--text-light)' }}>-</span>}
-                                        </td>
-                                        <td style={tableStyles.td}>
-                                            {(row.totalLoanReturnedThisMonth || 0) > 0 ? (
-                                                <span style={{ color: '#10b981', fontWeight: 600 }}>
-                                                    - Rs. {row.totalLoanReturnedThisMonth.toLocaleString()}
+                                    return (
+                                        <tr key={row._id} style={{ borderBottom: '1px solid var(--border-color)', transition: 'background-color 0.2s' }} onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--bg-app)'} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}>
+                                            <td style={tableStyles.td}>
+                                                <div style={{
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    gap: '10px',
+                                                    borderRadius: '6px',
+                                                    padding: '4px 8px',
+                                                    backgroundColor: 'white',
+                                                    width: 'max-content',
+                                                    justifyContent: 'flex-start'
+                                                }}>
+                                                    <div>
+                                                        <div style={{ fontWeight: 600, color: 'var(--text-main)', fontSize: '13px' }}>{row.employee?.name || 'Unknown'}</div>
+                                                        <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>{row.employee?.designation || 'Staff'}</div>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td style={{ ...tableStyles.td, fontWeight: 600 }}>
+                                                Rs. {(row.grossSalary || 0).toLocaleString()}
+                                            </td>
+                                            <td style={{ ...tableStyles.td, fontWeight: 600 }}>
+                                                <span style={{ color: '#ef4444' }} title="Absents">{row.attendanceStats?.absent || 0}A</span> /&nbsp;
+                                                <span style={{ color: '#3b82f6' }} title="Leaves">{row.attendanceStats?.leave || 0}L</span> /&nbsp;
+                                                <span style={{ color: '#f59e0b' }} title="Half Days">{row.attendanceStats?.halfDay || 0}Hd</span>
+                                            </td>
+                                            <td style={tableStyles.td}>
+                                                {(row.attendanceDeduction || 0) > 0 ? (
+                                                    <span style={{ color: '#ef4444', fontWeight: 500 }}>- Rs. {row.attendanceDeduction.toLocaleString()}</span>
+                                                ) : <span style={{ color: 'var(--text-light)' }}>-</span>}
+                                            </td>
+                                            <td style={tableStyles.td}>
+                                                {(row.totalLoanTakenThisMonth || 0) > 0 ? (
+                                                    <span style={{ color: '#3b82f6', fontWeight: 600 }}>+ Rs. {row.totalLoanTakenThisMonth.toLocaleString()}</span>
+                                                ) : <span style={{ color: 'var(--text-light)' }}>-</span>}
+                                            </td>
+                                            <td style={tableStyles.td}>
+                                                {(row.totalLoanReturnedThisMonth || 0) > 0 ? (
+                                                    <span style={{ color: '#10b981', fontWeight: 600 }}>
+                                                        - Rs. {row.totalLoanReturnedThisMonth.toLocaleString()}
+                                                    </span>
+                                                ) : <span style={{ color: 'var(--text-light)' }}>-</span>}
+                                            </td>
+                                            <td style={{ ...tableStyles.td, fontWeight: 600, color: remainingLoan > 0 ? '#ef4444' : 'var(--success)' }}>
+                                                Rs. {remainingLoan.toLocaleString()}
+                                            </td>
+                                            <td style={tableStyles.td}>
+                                                {netPosition > 0 ? (
+                                                    <span style={{ color: '#10b981', fontWeight: 800, fontSize: '14px' }}>Rs. {netPosition.toLocaleString()}</span>
+                                                ) : netPosition < 0 ? (
+                                                    <span style={{ color: '#ef4444', fontWeight: 800, fontSize: '14px' }}>- Rs. {Math.abs(netPosition).toLocaleString()}</span>
+                                                ) : (
+                                                    <span style={{ color: 'var(--text-muted)', fontWeight: 800, fontSize: '14px' }}>Rs. 0</span>
+                                                )}
+                                            </td>
+                                            <td style={tableStyles.td}>
+                                                <span style={{
+                                                    padding: '4px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: 600,
+                                                    backgroundColor: statusBg,
+                                                    color: statusColor,
+                                                    border: `1px solid ${statusBorder}`
+                                                }}>
+                                                    {row.status || 'Pending'}
                                                 </span>
-                                            ) : <span style={{ color: 'var(--text-light)' }}>-</span>}
-                                        </td>
-                                        <td style={{ ...tableStyles.td, fontWeight: 600, color: remainingLoan > 0 ? '#ef4444' : 'var(--success)' }}>
-                                            Rs. {remainingLoan.toLocaleString()}
-                                        </td>
-                                        <td style={tableStyles.td}>
-                                            {netPosition > 0 ? (
-                                                <span style={{ color: '#10b981', fontWeight: 800, fontSize: '14px' }}>Rs. {netPosition.toLocaleString()}</span>
-                                            ) : netPosition < 0 ? (
-                                                <span style={{ color: '#ef4444', fontWeight: 800, fontSize: '14px' }}>- Rs. {Math.abs(netPosition).toLocaleString()}</span>
-                                            ) : (
-                                                <span style={{ color: 'var(--text-muted)', fontWeight: 800, fontSize: '14px' }}>Rs. 0</span>
-                                            )}
-                                        </td>
-                                        <td style={tableStyles.td}>
-                                            <span style={{
-                                                padding: '4px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: 600,
-                                                backgroundColor: statusBg,
-                                                color: statusColor,
-                                                border: `1px solid ${statusBorder}`
-                                            }}>
-                                                {row.status || 'Pending'}
-                                            </span>
-                                        </td>
-                                        
-                                    </tr>
-                                );
-                            })
-                        )}
-                    </tbody>
-                </table>
-            </div>
+                                            </td>
+                                        </tr>
+                                    );
+                                })
+                            )}
+                        </tbody>
+                    </table>
+                </div>
 
-        
+                {/* 💡 PAGINATION CONTROLS */}
+                {!loading && filteredData.length > itemsPerPage && (
+                    <div style={{ display: 'flex', gap: '15px', justifyContent: 'center', alignItems: 'center', padding: '16px', borderTop: '1px solid var(--border-color)' }}>
+                        <button
+                            className="btn btn-secondary"
+                            disabled={currentPage === 1}
+                            onClick={() => setCurrentPage(prev => prev - 1)}
+                            style={{ padding: '6px 12px' }}
+                        >
+                            ←
+                        </button>
+                        <span style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-muted)' }}>
+                            Page {currentPage} of {totalPages || 1}
+                        </span>
+                        <button
+                            className="btn btn-secondary"
+                            disabled={currentPage >= totalPages}
+                            onClick={() => setCurrentPage(prev => prev + 1)}
+                            style={{ padding: '6px 12px' }}
+                        >
+                            →
+                        </button>
+                    </div>
+                )}
+            </div>
         </div>
     );
 }

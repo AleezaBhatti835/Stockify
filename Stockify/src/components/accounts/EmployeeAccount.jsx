@@ -16,6 +16,8 @@ function EmployeeAccount() {
   const [globalOutstandingLoan, setGlobalOutstandingLoan] = useState(0);
   const [loading, setLoading] = useState(false);
 
+  const [viewMode, setViewMode] = useState('simple'); 
+
   const [currentPage, setCurrentPage] = useState(1);
   const rowsPerPage = 10;
 
@@ -100,7 +102,7 @@ function EmployeeAccount() {
 
           if (rawNotes.includes('loan recovery') || rawNotes.includes('return')) {
             desc = 'Loan Return';
-            loanReturned = rowDebit; // Sirf manual cash return aaye gi yahan
+            loanReturned = rowDebit; 
           } else if (rawNotes.includes('loan') || rawNotes.includes('ln-')) {
             desc = 'Loan Issued';
             loanTaken = rowCredit;
@@ -111,6 +113,11 @@ function EmployeeAccount() {
             desc = 'Salary Generated';
           } else if (row.transactionType === 'Payment') {
             desc = 'Salary Paid';
+          } 
+          else if (row.transactionType === 'Commission (Sale)') {
+            desc = 'Commission Earned';
+          } else if (row.transactionType === 'Commission Payout') {
+            desc = 'Commission Paid';
           }
 
           let penalty = 0;
@@ -121,7 +128,6 @@ function EmployeeAccount() {
             if (match) penalty = Number(match[1]);
           }
 
-          // Ledger mein Remaining Loan hamesha net negative balance hota hai
           const remainingLoan = runningBal < 0 ? Math.abs(runningBal) : 0;
           
           return {
@@ -173,22 +179,6 @@ function EmployeeAccount() {
     setMessage({ text, type });
     setTimeout(() => setMessage({ text: '', type: '' }), 4000);
   };
-
-  let totalSalaryEarned = 0;
-  let totalLoanRecovered = 0;
-  let totalAdvanceGiven = 0;
-  let totalSalaryPaid = 0;
-
-  rows.forEach(r => {
-      totalAdvanceGiven += r.loanTaken;
-      totalLoanRecovered += r.loanReturned; 
-      
-      if (r.cleanDescription === 'Salary Generated') {
-          totalSalaryEarned += (Number(r.debit) || 0);
-      } else if (r.cleanDescription === 'Salary Paid') {
-          totalSalaryPaid += (Number(r.credit) || 0);
-      }
-  });
 
   const handleSaveEntry = async () => {
     if (!entryForm.employeeId) return showMessage('Please select an employee.', 'error');
@@ -256,10 +246,14 @@ function EmployeeAccount() {
 
   const formatBalanceText = (amount) => {
     const safeAmt = Number(amount) || 0;
-    if (safeAmt > 0) return `Rs. ${safeAmt.toLocaleString()} (Payable)`;
-    if (safeAmt < 0) return `Rs. ${Math.abs(safeAmt).toLocaleString()} (Advance)`;
+    const absVal = Math.abs(safeAmt).toFixed(2);
+    if (safeAmt > 0) return `Rs. ${absVal} (Dr) — Payable`;
+    if (safeAmt < 0) return `Rs. ${absVal} (Cr) — Advance`;
     return `Settled: Rs. 0.00`;
   };
+
+  const totalDebit = rows.reduce((sum, row) => sum + (Number(row.debit) || 0), 0);
+  const totalCredit = rows.reduce((sum, row) => sum + (Number(row.credit) || 0), 0);
 
   const handlePrint = () => {
     window.print();
@@ -298,106 +292,160 @@ function EmployeeAccount() {
         </div>
       </div>
 
-      {/* SUMMARY BOX */}
-      {selectedEmployeeId && (
-        <div style={{ display: 'flex', gap: '12px', marginBottom: '16px', flexWrap: 'wrap' }}>
-            <div style={summaryCardStyle}>
-                <span style={summaryTitleStyle}>Salary</span>
-                <span style={{...summaryValueStyle, color: 'var(--success)'}}>+ {(totalSalaryEarned || 0).toLocaleString()}</span>
-            </div>
-            <div style={summaryCardStyle}>
-                <span style={summaryTitleStyle}>Advance/Loan Given</span>
-                <span style={{...summaryValueStyle, color: 'var(--danger)'}}>- {(totalAdvanceGiven || 0).toLocaleString()}</span>
-            </div>
-            <div style={summaryCardStyle}>
-                <span style={summaryTitleStyle}>Loan Returned</span>
-                <span style={{...summaryValueStyle, color: 'var(--success)'}}>+ {(totalLoanRecovered || 0).toLocaleString()}</span>
-            </div>
-            <div style={summaryCardStyle}>
-                <span style={summaryTitleStyle}>Salary Paid</span>
-                <span style={{...summaryValueStyle, color: 'var(--danger)'}}>- {(totalSalaryPaid || 0).toLocaleString()}</span>
-            </div>
-            <div style={{...summaryCardStyle, backgroundColor: closingBalance < 0 ? '#fef2f2' : '#f0fdf4', border: closingBalance < 0 ? '1px solid #fecaca' : '1px solid #bbf7d0'}}>
-                <span style={{...summaryTitleStyle, color: closingBalance < 0 ? '#b91c1c' : '#15803d'}}>Net Balance</span>
-                <span style={{...summaryValueStyle, color: closingBalance < 0 ? '#b91c1c' : '#15803d', fontSize: '14px'}}>
-                    {formatBalanceText(closingBalance)}
-                </span>
-            </div>
-        </div>
-      )}
-
-      {/* CLEAN STRUCTURED LEDGER TABLE (No scroll, single line, left aligned) */}
+      {/* TABLE SECTION */}
       <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'auto' }}>
-          <thead>
-            <tr>
-              <th style={tableStyles.th}>Sr#</th>
-              <th style={tableStyles.th}>Date</th>
-              <th style={tableStyles.th}>Ref#</th>
-              <th style={tableStyles.th}>Description</th>
-              <th style={tableStyles.th}>Attendance</th>
-              <th style={tableStyles.th}>Penalty</th>
-              <th style={tableStyles.th}>Loan Taken</th>
-              <th style={tableStyles.th}>Loan Return</th>
-              <th style={tableStyles.th}>Remaining</th>
-              <th style={tableStyles.th}>Net Balance</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <tr><td colSpan="10" style={{ ...tableStyles.td, padding: '40px',textAlign:'center', color: 'var(--text-muted)' }}>Loading...</td></tr>
-            ) : !selectedEmployeeId ? (
-              <tr><td colSpan="10" style={{ ...tableStyles.td, padding: '40px',textAlign:'center', color: 'var(--text-muted)'}}>Please select an employee.</td></tr>
-            ) : currentRows.length === 0 ? (
-              <tr><td colSpan="10" style={{ ...tableStyles.td, padding: '40px',textAlign:'center', color: 'var(--text-muted)'}}>No transactions found.</td></tr>
-            ) : (
-              currentRows.map(row => (
-                <tr key={row._id} style={{ borderBottom: '1px solid var(--border-color)' }}>
-                  <td style={tableStyles.td}>{row.srNo}</td>
-                  <td style={tableStyles.td}>{new Date(row.date).toLocaleDateString('en-GB')}</td>
-                  <td style={{ ...tableStyles.td, fontWeight: '500' }}>{row.invoiceNumber || '-'}</td>
-                  
-                  <td style={{ ...tableStyles.td, fontWeight: 600 }}>{row.cleanDescription || '-'}</td>
-                  
-                  <td style={tableStyles.td}>
-                    {row.transactionType === 'Salary' && row.attendanceStats ? (
-                      <span>
-                        <span style={{ color: '#ef4444' }} title="Absents">{row.attendanceStats.absent}A</span> /&nbsp;
-                        <span style={{ color: '#3b82f6' }} title="Leaves">{row.attendanceStats.leave}L</span> /&nbsp;
-                        <span style={{ color: '#f59e0b' }} title="Half Days">{row.attendanceStats.halfDay}Hd</span>
-                      </span>
-                    ) : (
-                      <span style={{ color: 'var(--text-light)' }}>-</span>
-                    )}
-                  </td>
+        
+        <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'var(--bg-app)' }}>
+          <span style={{ fontSize: '14px', fontWeight: '700', color: 'var(--primary)' }}>Ledger Details</span>
+          <div style={{ display: 'flex', gap: '16px' }}>
+            <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', fontWeight: '600', color: viewMode === 'simple' ? 'var(--primary)' : 'var(--text-muted)' }}>
+              <input 
+                type="radio" 
+                checked={viewMode === 'simple'} 
+                onChange={() => setViewMode('simple')} 
+                style={{ appearance: 'none', WebkitAppearance: 'none', width: '12px', height: '12px', borderRadius: '50%', margin: 0, cursor: 'pointer', backgroundColor: viewMode === 'simple' ? 'var(--primary)' : '#fff', border: viewMode === 'simple' ? '2px solid #fff' : '1px solid #ccc', boxShadow: viewMode === 'simple' ? '0 0 0 1px var(--primary)' : 'none' }} 
+              /> 
+              Simple View
+            </label>
+            <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', fontWeight: '600', color: viewMode === 'detailed' ? 'var(--primary)' : 'var(--text-muted)' }}>
+              <input 
+                type="radio" 
+                checked={viewMode === 'detailed'} 
+                onChange={() => setViewMode('detailed')} 
+                style={{ appearance: 'none', WebkitAppearance: 'none', width: '12px', height: '12px', borderRadius: '50%', margin: 0, cursor: 'pointer', backgroundColor: viewMode === 'detailed' ? 'var(--primary)' : '#fff', border: viewMode === 'detailed' ? '2px solid #fff' : '1px solid #ccc', boxShadow: viewMode === 'detailed' ? '0 0 0 1px var(--primary)' : 'none' }} 
+              /> 
+              Detailed Breakdown
+            </label>
+          </div>
+        </div>
 
-                  <td style={{ ...tableStyles.td, color: (row.absencePenalty || 0) > 0 ? '#ef4444' : 'inherit' }}>
-                    {(row.absencePenalty || 0) > 0 ? `- Rs. ${(row.absencePenalty || 0).toLocaleString()}` : '-'}
-                  </td>
+        <div style={{ overflowX: 'auto', width: '100%' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: viewMode === 'detailed' ? '900px' : '600px' }}>
+            <thead>
+              <tr>
+                <th style={tableStyles.th}>Sr#</th>
+                <th style={tableStyles.th}>Date</th>
+                {viewMode === 'detailed' && <th style={tableStyles.th}>Ref#</th>}
+                <th style={tableStyles.th}>Description</th>
+                
+                {viewMode === 'detailed' && (
+                  <>
+                    <th style={tableStyles.th}>Attendance</th>
+                    <th style={tableStyles.th}>Penalty</th>
+                    <th style={tableStyles.th}>Loan Taken</th>
+                    <th style={tableStyles.th}>Loan Return</th>
+                    <th style={tableStyles.th}>Remaining Loan</th>
+                  </>
+                )}
 
-                  <td style={{ ...tableStyles.td, color: (row.loanTaken || 0) > 0 ? '#3b82f6' : 'inherit', fontWeight: (row.loanTaken || 0) > 0 ? '600' : 'normal' }}>
-                    {(row.loanTaken || 0) > 0 ? `+ Rs. ${(row.loanTaken || 0).toLocaleString()}` : '-'}
-                  </td>
+                {viewMode === 'simple' && (
+                  <>
+                    <th style={tableStyles.th}>Debit</th>
+                    <th style={tableStyles.th}>Credit</th>
+                  </>
+                )}
 
-                  <td style={{ ...tableStyles.td, color: (row.loanReturned || 0) > 0 ? '#10b981' : 'inherit', fontWeight: (row.loanReturned || 0) > 0 ? '600' : 'normal' }}>
-                    {(row.loanReturned || 0) > 0 ? `- Rs. ${(row.loanReturned || 0).toLocaleString()}` : '-'}
-                  </td>
+                <th style={tableStyles.th}>Net Balance</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr><td colSpan={viewMode === 'detailed' ? 10 : 6} style={{ ...tableStyles.td, padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>Loading...</td></tr>
+              ) : !selectedEmployeeId ? (
+                <tr><td colSpan={viewMode === 'detailed' ? 10 : 6} style={{ ...tableStyles.td, padding: '40px', textAlign: 'center', color: 'var(--text-muted)'}}>Please select an employee.</td></tr>
+              ) : currentRows.length === 0 ? (
+                <tr><td colSpan={viewMode === 'detailed' ? 10 : 6} style={{ ...tableStyles.td, padding: '40px', textAlign: 'center', color: 'var(--text-muted)'}}>No transactions found.</td></tr>
+              ) : (
+                currentRows.map(row => {
+                  const netVal = row.net || 0;
+                  const netColor = netVal > 0 ? 'var(--success)' : (netVal < 0 ? 'var(--danger)' : 'var(--text-main)');
+                  const netTag = netVal > 0 ? ' (Dr)' : (netVal < 0 ? ' (Cr)' : '');
 
-                  <td style={{ ...tableStyles.td, fontWeight: 600, color: (row.remainingLoan || 0) > 0 ? '#ef4444' : 'var(--success)' }}>
-                    Rs. {(row.remainingLoan || 0).toLocaleString()}
-                  </td>
-                  
-                  <td style={tableStyles.td}>
-                      <span style={{ fontWeight: 'bold', fontSize: '13px' }}>Rs. {Math.abs(row.net || 0).toLocaleString()}</span>
-                      <span style={{ fontSize: '11px', marginLeft: '6px', fontWeight: '600', color: row.net < 0 ? 'var(--danger)' : (row.net > 0 ? 'var(--success)' : 'var(--text-muted)') }}>
-                          {row.net < 0 ? '(Adv)' : (row.net > 0 ? '(Pay)' : 'Settled')}
-                      </span>
+                  return (
+                    <tr key={row._id} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                      <td style={tableStyles.td}>{row.srNo}</td>
+                      <td style={tableStyles.td}>{new Date(row.date).toLocaleDateString('en-GB')}</td>
+                      {viewMode === 'detailed' && <td style={{ ...tableStyles.td, fontWeight: '500' }}>{row.invoiceNumber || '-'}</td>}
+                      
+                      <td style={{ ...tableStyles.td, fontWeight: 600 }}>
+                        {row.cleanDescription || '-'}
+                      </td>
+                      
+                      {viewMode === 'detailed' && (
+                        <>
+                          <td style={tableStyles.td}>
+                            {row.transactionType === 'Salary' && row.attendanceStats ? (
+                              <span>
+                                <span style={{ color: '#ef4444' }} title="Absents">{row.attendanceStats.absent}A</span> /&nbsp;
+                                <span style={{ color: '#3b82f6' }} title="Leaves">{row.attendanceStats.leave}L</span> /&nbsp;
+                                <span style={{ color: '#f59e0b' }} title="Half Days">{row.attendanceStats.halfDay}Hd</span>
+                              </span>
+                            ) : <span style={{ color: 'var(--text-light)' }}>-</span>}
+                          </td>
+                          <td style={{ ...tableStyles.td, color: (row.absencePenalty || 0) > 0 ? '#ef4444' : 'inherit' }}>
+                            {(row.absencePenalty || 0) > 0 ? `- Rs. ${(row.absencePenalty || 0).toLocaleString()}` : '0'}
+                          </td>
+                          <td style={{ ...tableStyles.td, color: (row.loanTaken || 0) > 0 ? '#3b82f6' : 'inherit', fontWeight: (row.loanTaken || 0) > 0 ? '600' : 'normal' }}>
+                            {(row.loanTaken || 0) > 0 ? `+ Rs. ${(row.loanTaken || 0).toLocaleString()}` : '0'}
+                          </td>
+                          <td style={{ ...tableStyles.td, color: (row.loanReturned || 0) > 0 ? '#10b981' : 'inherit', fontWeight: (row.loanReturned || 0) > 0 ? '600' : 'normal' }}>
+                            {(row.loanReturned || 0) > 0 ? `- Rs. ${(row.loanReturned || 0).toLocaleString()}` : '0'}
+                          </td>
+                          <td style={{ ...tableStyles.td, fontWeight: 600, color: (row.remainingLoan || 0) > 0 ? '#ef4444' : 'var(--success)' }}>
+                            Rs. {(row.remainingLoan || 0).toLocaleString()}
+                          </td>
+                        </>
+                      )}
+
+                      {viewMode === 'simple' && (
+                        <>
+                          <td style={{ ...tableStyles.td, color: 'var(--success)', fontWeight: '600' }}>
+                            {(row.debit || 0) > 0 ? `+ Rs. ${row.debit.toLocaleString()}` : '0'}
+                          </td>
+                          <td style={{ ...tableStyles.td, color: 'var(--danger)', fontWeight: '600' }}>
+                            {(row.credit || 0) > 0 ? `- Rs. ${row.credit.toLocaleString()}` : '0'}
+                          </td>
+                        </>
+                      )}
+                      
+                      <td style={{ ...tableStyles.td, color: netColor, fontWeight: '700' }}>
+                          <span style={{ fontSize: '13px' }}>Rs. {Math.abs(netVal).toLocaleString()}</span>
+                          <span style={{ fontSize: '11px', fontWeight: '600' }}>
+                              {netTag}
+                          </span>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+            {rows.length > 0 && (
+              <tfoot>
+                <tr style={{ backgroundColor: 'var(--bg-app)', borderTop: '2px solid var(--border-color)' }}>
+                  <td colSpan={viewMode === 'detailed' ? 3 : 1} style={{ padding: '12px 10px', fontSize: '14px', fontWeight: '700', color: 'var(--text-main)' }}>Total</td>
+                  <td style={{ padding: '12px 10px', fontSize: '13px', fontWeight: '700', color: 'var(--text-main)' }}></td>
+                  {viewMode === 'detailed' && (
+                    <>
+                      <td colSpan="5"></td>
+                    </>
+                  )}
+                  {viewMode === 'simple' && (
+                    
+                    <>
+                                          <td colSpan="1"></td>
+
+                      <td style={{ padding: '12px 10px',textAlign:'left', fontSize: '14px', fontWeight: '700', color: 'var(--success)' }}>{totalDebit.toFixed(2)}</td>
+                      <td style={{ padding: '12px 10px', textAlign:'left', fontSize: '14px', fontWeight: '700', color: 'var(--danger)' }}>{totalCredit.toFixed(2)}</td>
+                    </>
+                  )}
+                  <td style={{ padding: '8px 1px', textAlign:'left', fontSize: '13px', fontWeight: '700', color: closingBalance > 0 ? 'var(--success)' : (closingBalance < 0 ? 'var(--danger)' : 'var(--text-main)') }}>
+                    {formatBalanceText(closingBalance)}
                   </td>
                 </tr>
-              ))
+              </tfoot>
             )}
-          </tbody>
-        </table>
+          </table>
+        </div>
 
         {rows.length > rowsPerPage && (
           <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '16px', padding: '16px' }}>
@@ -426,7 +474,7 @@ function EmployeeAccount() {
 
               {entryForm.category === 'Loan Return' && entryForm.employeeId === selectedEmployeeId && (
                  <div style={{ marginBottom: '16px', padding: '10px 15px', borderRadius: '6px', backgroundColor: '#fef2f2', border: '1px solid #fecaca', color: '#b91c1c', fontSize: '13px', fontWeight: '600' }}>
-                   ⚠️ Outstanding Advance / Loan: PKR {globalOutstandingLoan.toFixed(2)}
+                    ⚠️ Outstanding Advance / Loan: PKR {globalOutstandingLoan.toFixed(2)}
                  </div>
               )}
 
@@ -454,9 +502,10 @@ function EmployeeAccount() {
                         <option value="Loan Return">Loan Return</option>
                     </optgroup>
                     <optgroup style={{fontSize:'12px'}} label="Deduct from Account (-)">
+                        <option value="Payment">Pay Salary</option>
+                        <option value="Commission Payout">Pay Commission</option>
                         <option value="Advance">Give Advance</option>
                         <option value="Loan">Give Loan</option>
-                        <option value="Payment">Pay Salary</option>
                     </optgroup>
                   </select>
                 </div>
@@ -485,14 +534,9 @@ function EmployeeAccount() {
   );
 }
 
-// 💡 THE FIX: Sab Left-Align hai aur single line (nowrap) mein fix ho gaya hai.
 const tableStyles = {
   th: { padding: '12px 10px', backgroundColor: 'var(--header)', color: '#ffffff', fontWeight: '600', fontSize: '12px', textAlign: 'left', letterSpacing: '0.2px', whiteSpace: 'nowrap' },
-  td: { padding: '12px 10px', color: 'var(--text-main)', fontSize: '12px', textAlign: 'left', whiteSpace: 'nowrap' }
+  td: { padding: '8px 10px', color: 'var(--text-main)', fontSize: '12px', textAlign: 'left', whiteSpace: 'nowrap' }
 };
-
-const summaryCardStyle = { flex: '1', backgroundColor: '#fff', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: '6px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' };
-const summaryTitleStyle = { fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: '600' };
-const summaryValueStyle = { fontSize: '16px', fontWeight: 'bold' };
 
 export default EmployeeAccount;

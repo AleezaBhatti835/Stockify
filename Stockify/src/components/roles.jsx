@@ -112,7 +112,6 @@ function Roles() {
     setCurrentPage(1);
   }, [roles]);
 
-  // CORE ARCHITECTURE: Synchronous fetching of system roles and user assignments on mount to validate dependency constraints.
   useEffect(() => {
     fetchRoles();
     fetchUsers();
@@ -181,6 +180,22 @@ function Roles() {
       setNewRolePermissions(prev => 
         prev.includes(permId) ? prev.filter(p => p !== permId) : [...prev, permId]
       );
+    }
+  };
+
+  const handleSelectAll = (isEditing = false) => {
+    if (isEditing) {
+      if (editRolePermissions.length === SYSTEM_PERMISSIONS.length) {
+        setEditRolePermissions([]);
+      } else {
+        setEditRolePermissions(SYSTEM_PERMISSIONS.map(p => p.id));
+      }
+    } else {
+      if (newRolePermissions.length === SYSTEM_PERMISSIONS.length) {
+        setNewRolePermissions([]);
+      } else {
+        setNewRolePermissions(SYSTEM_PERMISSIONS.map(p => p.id));
+      }
     }
   };
 
@@ -362,13 +377,19 @@ function Roles() {
 
   return (
     <div className="dashboard-wrapper">
+      <style>{`
+        .custom-wide-modal {
+          width: 850px !important;
+          max-width: 95vw !important;
+        }
+      `}</style>
+
       <MessagePopup message={message} onClose={clearMessage} />
 
       {/* HEADER SECTION */}
       <div className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
         <div>
-          <h2 style={{ color: 'var(--text-main)', fontSize: '20px', fontWeight: '600', margin: '0 0 4px 0' }}>Roles Management</h2>
-          <p style={{ color: 'var(--text-muted)', fontSize: '13px', margin: 0 }}>Configure system roles and assign granular permissions.</p>
+          <h2 style={{ color: 'var(--text-main)', fontSize: '18px', fontWeight: '600', margin: '0 0 4px 0' }}>Roles Management</h2>
         </div>
         <button className="btn btn-primary" onClick={() => { clearMessage(); setIsAddModalOpen(true); }}>
           + Add Role
@@ -377,12 +398,6 @@ function Roles() {
 
       {/* TABLE SECTION */}
       <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-        <div style={{ padding: '16px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'flex-end' }}>
-          <span style={{ fontSize: '13px', color: 'var(--text-muted)', fontWeight: '600' }}>
-            Showing {currentItems.length} of {filteredRoles.length} roles
-          </span>
-        </div>
-
         <div style={{ overflowX: 'auto', width: '100%' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '700px', tableLayout: 'fixed' }}>
             <thead>
@@ -462,7 +477,7 @@ function Roles() {
       {/* ADD ROLE MODAL */}
       {isAddModalOpen && (
         <div className="modal-overlay" onClick={() => setIsAddModalOpen(false)}>
-          <div className="modal-container" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '650px', padding: 0 }}>
+          <div className="modal-container custom-wide-modal" onClick={(e) => e.stopPropagation()} style={{ padding: 0 }}>
             <div className="modal-header" style={{ backgroundColor: 'var(--bg-app)', borderBottom: '1px solid var(--border-color)' }}>
               <h3 className="modal-title" style={{ fontSize: '18px', color: 'var(--text-main)' }}>Add New Role</h3>
               <button className="modal-close" onClick={() => setIsAddModalOpen(false)}>✕</button>
@@ -482,19 +497,80 @@ function Roles() {
               </div>
 
               <div className="form-group" style={{ marginBottom: 0 }}>
-                <label className="form-label">Assign System Permissions</label>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', padding: '16px', backgroundColor: 'var(--bg-app)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)', maxHeight: '320px', overflowY: 'auto' }}>
-                  {SYSTEM_PERMISSIONS.map(perm => (
-                    <label key={perm.id} style={{ display: 'flex', alignItems: 'center', fontSize: '13px', cursor: 'pointer', color: 'var(--text-main)', fontWeight: '500' }}>
-                      <input
-                        type="checkbox"
-                        checked={newRolePermissions.includes(perm.id)}
-                        onChange={() => togglePermission(perm.id, false)}
-                        style={{ marginRight: '10px', width: '16px', height: '16px', cursor: 'pointer' }}
-                      />
-                      {perm.label}
-                    </label>
-                  ))}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                  <label className="form-label" style={{ margin: 0 }}>Assign System Permissions ({newRolePermissions.length}/{SYSTEM_PERMISSIONS.length})</label>
+                  <div 
+                    onClick={() => handleSelectAll(false)}
+                    style={{ display: 'flex', alignItems: 'center', fontSize: '13px', cursor: 'pointer', fontWeight: '600', color: 'var(--success)' }}
+                  >
+                    <div style={{
+                      width: '16px',
+                      height: '16px',
+                      borderRadius: '4px',
+                      border: `2px solid ${newRolePermissions.length === SYSTEM_PERMISSIONS.length ? 'var(--success)' : 'var(--border-color)'}`,
+                      backgroundColor: newRolePermissions.length === SYSTEM_PERMISSIONS.length ? 'var(--success)' : '#ffffff',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      marginRight: '6px'
+                    }}>
+                      {newRolePermissions.length === SYSTEM_PERMISSIONS.length && (
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="20 6 9 17 4 12"></polyline>
+                        </svg>
+                      )}
+                    </div>
+                    Select All
+                  </div>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', padding: '16px', backgroundColor: 'var(--bg-app)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)', maxHeight: '350px', overflowY: 'auto' }}>
+                  {SYSTEM_PERMISSIONS.map(perm => {
+                    const isChecked = newRolePermissions.includes(perm.id);
+                    return (
+                      <div 
+                        key={perm.id} 
+                        onClick={() => togglePermission(perm.id, false)}
+                        style={{ 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          fontSize: '13px', 
+                          cursor: 'pointer', 
+                          color: 'var(--text-main)', 
+                          fontWeight: '500',
+                          padding: '10px 14px',
+                          backgroundColor: isChecked ? 'rgba(22, 163, 74, 0.08)' : '#ffffff',
+                          border: `1px solid ${isChecked ? 'var(--success)' : 'var(--border-color)'}`,
+                          borderRadius: '6px',
+                          transition: 'all 0.2s ease',
+                          whiteSpace: 'nowrap',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          userSelect: 'none'
+                        }}
+                      >
+                        <div style={{
+                          width: '18px',
+                          height: '18px',
+                          borderRadius: '4px',
+                          border: `2px solid ${isChecked ? 'var(--success)' : 'var(--border-color)'}`,
+                          backgroundColor: isChecked ? 'var(--success)' : '#ffffff',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          marginRight: '10px',
+                          flexShrink: 0,
+                          transition: 'all 0.2s ease'
+                        }}>
+                          {isChecked && (
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                              <polyline points="20 6 9 17 4 12"></polyline>
+                            </svg>
+                          )}
+                        </div>
+                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{perm.label}</span>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             </div>
@@ -510,7 +586,7 @@ function Roles() {
       {/* EDIT ROLE MODAL */}
       {editRoleId && (
         <div className="modal-overlay" onClick={handleCancelEdit}>
-          <div className="modal-container" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '650px', padding: 0 }}>
+          <div className="modal-container custom-wide-modal" onClick={(e) => e.stopPropagation()} style={{ padding: 0 }}>
             <div className="modal-header" style={{ backgroundColor: 'var(--bg-app)', borderBottom: '1px solid var(--border-color)' }}>
               <h3 className="modal-title" style={{ fontSize: '18px', color: 'var(--text-main)' }}>Edit Role</h3>
               <button className="modal-close" onClick={handleCancelEdit}>✕</button>
@@ -529,19 +605,80 @@ function Roles() {
               </div>
 
               <div className="form-group" style={{ marginBottom: 0 }}>
-                <label className="form-label">Update Permissions</label>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', padding: '16px', backgroundColor: 'var(--bg-app)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)', maxHeight: '320px', overflowY: 'auto' }}>
-                  {SYSTEM_PERMISSIONS.map(perm => (
-                    <label key={perm.id} style={{ display: 'flex', alignItems: 'center', fontSize: '13px', cursor: 'pointer', color: 'var(--text-main)', fontWeight: '500' }}>
-                      <input
-                        type="checkbox"
-                        checked={editRolePermissions.includes(perm.id)}
-                        onChange={() => togglePermission(perm.id, true)}
-                        style={{ marginRight: '10px', width: '16px', height: '16px', cursor: 'pointer' }}
-                      />
-                      {perm.label}
-                    </label>
-                  ))}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                  <label className="form-label" style={{ margin: 0 }}>Update Permissions ({editRolePermissions.length}/{SYSTEM_PERMISSIONS.length})</label>
+                  <div 
+                    onClick={() => handleSelectAll(true)}
+                    style={{ display: 'flex', alignItems: 'center', fontSize: '13px', cursor: 'pointer', fontWeight: '600', color: 'var(--success)' }}
+                  >
+                    <div style={{
+                      width: '16px',
+                      height: '16px',
+                      borderRadius: '4px',
+                      border: `2px solid ${editRolePermissions.length === SYSTEM_PERMISSIONS.length ? 'var(--success)' : 'var(--border-color)'}`,
+                      backgroundColor: editRolePermissions.length === SYSTEM_PERMISSIONS.length ? 'var(--success)' : '#ffffff',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      marginRight: '6px'
+                    }}>
+                      {editRolePermissions.length === SYSTEM_PERMISSIONS.length && (
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="20 6 9 17 4 12"></polyline>
+                        </svg>
+                      )}
+                    </div>
+                    Select All
+                  </div>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', padding: '16px', backgroundColor: 'var(--bg-app)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)', maxHeight: '350px', overflowY: 'auto' }}>
+                  {SYSTEM_PERMISSIONS.map(perm => {
+                    const isChecked = editRolePermissions.includes(perm.id);
+                    return (
+                      <div 
+                        key={perm.id} 
+                        onClick={() => togglePermission(perm.id, true)}
+                        style={{ 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          fontSize: '13px', 
+                          cursor: 'pointer', 
+                          color: 'var(--text-main)', 
+                          fontWeight: '500',
+                          padding: '10px 14px',
+                          backgroundColor: isChecked ? 'rgba(22, 163, 74, 0.08)' : '#ffffff',
+                          border: `1px solid ${isChecked ? 'var(--success)' : 'var(--border-color)'}`,
+                          borderRadius: '6px',
+                          transition: 'all 0.2s ease',
+                          whiteSpace: 'nowrap',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          userSelect: 'none'
+                        }}
+                      >
+                        <div style={{
+                          width: '18px',
+                          height: '18px',
+                          borderRadius: '4px',
+                          border: `2px solid ${isChecked ? 'var(--success)' : 'var(--border-color)'}`,
+                          backgroundColor: isChecked ? 'var(--success)' : '#ffffff',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          marginRight: '10px',
+                          flexShrink: 0,
+                          transition: 'all 0.2s ease'
+                        }}>
+                          {isChecked && (
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                              <polyline points="20 6 9 17 4 12"></polyline>
+                            </svg>
+                          )}
+                        </div>
+                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{perm.label}</span>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             </div>
@@ -577,7 +714,7 @@ function Roles() {
                       </li>
                     ))}
                   </ul>
-                  <p style={{ color: 'var(--text-muted)', fontSize: '13px', marginTop: '12px', marginBotto: 0 }}>
+                  <p style={{ color: 'var(--text-muted)', fontSize: '13px', marginTop: '12px', marginBottom: 0 }}>
                     Please reassign or delete these users before deleting this role.
                   </p>
                 </div>

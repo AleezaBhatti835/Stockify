@@ -314,9 +314,7 @@ function CatalogueReport() {
       {/* ==================== TABLE SECTION ==================== */}
       <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
         
-        <div style={{ padding: 'var(--space-sm) var(--space-md)', textAlign: 'right', fontSize: '13px', color: 'var(--text-muted)', borderBottom: '1px solid var(--border-color)' }}>
-          Showing {currentRows.length} of {filtered.length} record(s)
-        </div>
+     
 
         <div style={{ overflowX: 'auto', width: '100%' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '800px' }}>

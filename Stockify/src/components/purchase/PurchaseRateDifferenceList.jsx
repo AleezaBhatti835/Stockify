@@ -259,7 +259,7 @@ const PurchaseRateDifferenceList = () => {
                 <div className="modal-container" style={{ maxWidth: paperConfig.maxWidth, width: '100%', padding: 0, overflow: 'hidden' }} onClick={(e) => e.stopPropagation()}>
 
                     <div className="modal-header" style={{ flexDirection: paperConfig.narrow ? 'column' : 'row', gap: paperConfig.narrow ? 'var(--space-md)' : '0' }}>
-                        <h3 className="modal-title" style={{ color: 'var(--text-main)', fontSize: '18px' }}>CAPOBIZ</h3>
+                        <h3 className="modal-title" style={{ color: 'var(--text-main)', fontSize: '18px' }}>Stockify</h3>
 
                         <div style={{ display: 'flex', gap: 'var(--space-sm)', width: paperConfig.narrow ? '100%' : 'auto' }}>
                             <button
@@ -319,7 +319,7 @@ const PurchaseRateDifferenceList = () => {
                             </div>
                         ) : (
                             <table style={styles.receiptTable}>
-                                <thead>
+                                <thead style={{borderBottom: '1px solid #5f9382'}}>
                                     <tr>
                                         <th style={{ ...styles.receiptTh, width: '20%' }}>Product Name</th>
                                         <th style={{ ...styles.receiptTh, textAlign: 'left', width: '15%' }}>Qty</th>
@@ -560,7 +560,7 @@ const styles = {
     receiptHeaderInfo: { textAlign: 'left', marginBottom: '16px' },
     receiptDivider: { borderTop: '2px dashed var(--border-color)', margin: '14px 0' },
     receiptTable: { width: '100%', tableLayout: 'fixed', borderCollapse: 'collapse', marginBottom: '12px' },
-    receiptTh: { textAlign: 'left', padding: '8px 12px', backgroundColor: 'var(--header)', borderBottom: '2px solid var(--border-color)', fontSize: '12px', fontWeight: 600, color: '#ffffff', textTransform: 'uppercase', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
+    receiptTh: { textAlign: 'left', padding: '8px 12px', backgroundColor: 'var(--primary-light)', borderBottom: '2px solid var(--border-color)', fontSize: '12px', fontWeight: 600, color: 'var(--primary)', textTransform: 'uppercase', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
     receiptTd: { padding: '8px 12px', borderBottom: '1px solid var(--border-color)', fontSize: '13px', color: 'var(--text-main)' },
     receiptTdName: { padding: '8px 12px', borderBottom: '1px solid var(--border-color)', fontSize: '13px', color: 'var(--text-main)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textAlign: 'left' },
     receiptTotals: { marginTop: '14px' },

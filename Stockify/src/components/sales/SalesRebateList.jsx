@@ -233,7 +233,7 @@ function SalesRebateList() {
         <div className="modal-container" style={{ width:'850px', padding: 0, display: 'flex', flexDirection: 'column', maxHeight: '90vh' }} onClick={(e) => e.stopPropagation()}>
           
           <div className="modal-header" style={{ backgroundColor: 'var(--bg-app)', borderBottom: '1px solid var(--border-color)' }}>
-            <h3 style={{ margin: 0, color: 'var(--text-main)' }}>CAPOBIZ</h3>
+            <h3 style={{ margin: 0, color: 'var(--text-main)' }}>Stockify</h3>
             <div style={{ display: 'flex', gap: '8px' }}>
               <button className="btn btn-primary" onClick={handlePrint}>🖨️ Print</button>
               <button className="btn btn-secondary" onClick={closeModal}>✕ Close</button>
@@ -277,12 +277,12 @@ function SalesRebateList() {
               </div>
             ) : (
               <table style={{ width: '100%', tableLayout: 'fixed', borderCollapse: 'collapse', marginBottom: '12px' }}>
-                <thead>
+                <thead style={{borderBottom: '1px solid #5f9382'}}>
                   <tr>
-                    <th style={{ textAlign: 'left', padding: '6px 8px', backgroundColor: 'var(--header)', fontSize: '12px', fontWeight: 600, color: '#fbfbfb', textTransform: 'uppercase', width: '30%' }}>Product Name</th>
-                    <th style={{ textAlign: 'left', padding: '6px 8px', backgroundColor: 'var(--header)', fontSize: '12px', fontWeight: 600, color: '#fbfbfb', textTransform: 'uppercase', width: '20%' }}>Qty</th>
-                    <th style={{ textAlign: 'left', padding: '6px 8px', backgroundColor: 'var(--header)', fontSize: '12px', fontWeight: 600, color: '#fbfbfb', textTransform: 'uppercase', width: '30%' }}>Unit Price</th>
-                    <th style={{ textAlign: 'left', padding: '6px 8px', backgroundColor: 'var(--header)', fontSize: '12px', fontWeight: 600, color: '#fbfbfb', textTransform: 'uppercase', width: '20%' }}>Total</th>
+                    <th style={{ textAlign: 'left', padding: '6px 8px', backgroundColor: 'var(--primary-light)', fontSize: '12px', fontWeight: 600, color: 'var(--primary)', textTransform: 'uppercase', width: '30%' }}>Product Name</th>
+                    <th style={{ textAlign: 'left', padding: '6px 8px', backgroundColor: 'var(--primary-light)', fontSize: '12px', fontWeight: 600, color: 'var(--primary)', textTransform: 'uppercase', width: '20%' }}>Qty</th>
+                    <th style={{ textAlign: 'left', padding: '6px 8px', backgroundColor: 'var(--primary-light)', fontSize: '12px', fontWeight: 600, color: 'var(--primary)', textTransform: 'uppercase', width: '30%' }}>Unit Price</th>
+                    <th style={{ textAlign: 'left', padding: '6px 8px', backgroundColor: 'var(--primary-light)', fontSize: '12px', fontWeight: 600, color: 'var(--primary)', textTransform: 'uppercase', width: '20%' }}>Total</th>
                   </tr>
                 </thead>
                 <tbody>

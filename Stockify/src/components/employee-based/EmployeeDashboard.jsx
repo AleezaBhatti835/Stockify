@@ -105,7 +105,6 @@ function EmployeeDashboard() {
   ];
   const COLORS = ['#10b981', '#ef4444', '#f59e0b'];
 
-  // 💡 Check if Admin has manually locked the attendance (Absent or Leave)
   const isAdminLocked = todayRecord && (todayRecord.status === 'Absent' || todayRecord.status === 'Leave');
 
   return (
@@ -113,8 +112,8 @@ function EmployeeDashboard() {
       
       <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', background: '#fff', padding: '24px 32px', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
         <div>
-          <h2 style={{ margin: '0 0 8px 0', fontSize: '24px',textAlign:'left', fontWeight: '700', color: '#0f172a' }}>My Workspace</h2>
-          <p style={{ margin: 0, color: '#64748b',textAlign:'left', fontSize: '14px' }}>Mark your attendance and review your monthly progress.</p>
+          <h2 style={{ margin: '0 0 8px 0', fontSize: '18px',textAlign:'left', fontWeight: '700', color: '#0f172a' }}>My Workspace</h2>
+          <p style={{ margin: 0, color: '#64748b',textAlign:'left', fontSize: '12px' }}>Mark your attendance and review your monthly progress.</p>
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '24px', marginTop: '10px' }}>
@@ -122,14 +121,13 @@ function EmployeeDashboard() {
             <div style={{ fontSize: '12px', color: '#64748b', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '1px' }}>
               {currentTime.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
             </div>
-            <div style={{ fontSize: '20px', fontWeight: 'bold', fontFamily: 'monospace', color: 'var(--primary)' }}>
+            <div style={{ fontSize: '16px', fontWeight: 'bold', fontFamily: 'monospace', color: 'var(--primary)' }}>
               {currentTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
             </div>
           </div>
 
           <div style={{ width: '1px', height: '40px', background: '#e2e8f0' }}></div>
 
-          {/* 💡 CLOCK IN/OUT BUTTONS WITH LOCK CHECK */}
           <div style={{ minWidth: '150px' }}>
             {isAdminLocked ? (
               <div style={{ background: '#fef2f2', padding: '10px', borderRadius: '8px', textAlign: 'center', fontSize: '12px', border: '1px solid #fca5a5' }}>
@@ -138,8 +136,8 @@ function EmployeeDashboard() {
               </div>
             ) : !todayRecord?.clockIn ? (
               <button disabled={isActionLoading} onClick={() => handleClockAction('in')} 
-                style={{ width: '100%', padding: '12px', background: 'var(--primary)', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-                <FontAwesomeIcon icon={faUserCheck} /> Clock In Now
+                style={{ width: '70%', padding: '12px 1px', background: 'var(--primary-other)', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                <FontAwesomeIcon icon={faUserCheck} /> Clock In 
               </button>
             ) : !todayRecord?.clockOut ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
@@ -163,25 +161,25 @@ function EmployeeDashboard() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px', marginBottom: '24px' }}>
         <div style={cardStyle}>
           <div style={{ ...iconWrapper, background: '#f0fdf4', color: '#16a34a' }}><FontAwesomeIcon icon={faWallet} /></div>
-          <div><p style={cardLabel}>Net Balance</p><h3 style={cardValue}>Rs. {Math.abs(closingBalance).toLocaleString()}</h3></div>
+          <div><p style={cardLabel}>Net Balance</p><h4 style={cardValue}>Rs. {Math.abs(closingBalance).toLocaleString()}</h4></div>
         </div>
         <div style={cardStyle}>
           <div style={{ ...iconWrapper, background: '#fef2f2', color: '#dc2626' }}><FontAwesomeIcon icon={faHandHoldingDollar} /></div>
-          <div><p style={cardLabel}>Loan Due</p><h3 style={cardValue}>Rs. {outstandingLoan.toLocaleString()}</h3></div>
+          <div><p style={cardLabel}>Loan Due</p><h4 style={cardValue}>Rs. {outstandingLoan.toLocaleString()}</h4></div>
         </div>
         <div style={cardStyle}>
           <div style={{ ...iconWrapper, background: '#e0f2fe', color: '#0284c7' }}><FontAwesomeIcon icon={faCalendarCheck} /></div>
-          <div><p style={cardLabel}>Presents (Month)</p><h3 style={cardValue}>{presentDays} Days</h3></div>
+          <div><p style={cardLabel}>Presents (Month)</p><h4 style={cardValue}>{presentDays} Days</h4></div>
         </div>
         <div style={cardStyle}>
           <div style={{ ...iconWrapper, background: '#fff7ed', color: '#d97706' }}><FontAwesomeIcon icon={faBan} /></div>
-          <div><p style={cardLabel}>Absents (Month)</p><h3 style={cardValue}>{absentDays} Days</h3></div>
+          <div><p style={cardLabel}>Absents (Month)</p><h4 style={cardValue}>{absentDays} Days</h4></div>
         </div>
       </div>
 
       <div style={{ display: 'flex', justifyContent: 'center' }}>
         <div style={{ width: '100%', maxWidth: '700px', background: '#fff', padding: '24px', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
-          <h3 style={{ margin: '0 0 16px 0', color: '#0f172a', fontSize: '16px', textAlign: 'center', textTransform: 'uppercase', letterSpacing: '1px' }}>Attendance Overview</h3>
+          <h4 style={{ margin: '0 0 16px 0', color: '#0f172a', fontSize: '14px', textAlign: 'center', textTransform: 'uppercase', letterSpacing: '1px' }}>Attendance Overview</h4>
           <ResponsiveContainer width="100%" height={260}>
             <PieChart>
               <Pie data={pieData} cx="50%" cy="50%" innerRadius={75} outerRadius={105} paddingAngle={4} dataKey="value" stroke="none">
@@ -201,6 +199,6 @@ function EmployeeDashboard() {
 const cardStyle = { background: '#fff', padding: '20px', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 2px 4px rgba(0,0,0,0.02)', display: 'flex', alignItems: 'center', gap: '16px' };
 const iconWrapper = { width: '50px', height: '50px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px' };
 const cardLabel = { margin: 0, fontSize: '12px', color: '#64748b', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.5px' };
-const cardValue = { margin: '4px 0 0 0', color: '#0f172a', fontSize: '22px', fontWeight: 'bold' };
+const cardValue = { margin: '4px 0 0 0', color: '#0f172a', fontSize: '14px', fontWeight: 'bold' };
 
 export default EmployeeDashboard;

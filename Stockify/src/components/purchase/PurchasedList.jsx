@@ -42,7 +42,7 @@ const PurchasedList = () => {
   const [products, setProducts] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
-const todayDateStr = new Date().toISOString().split('T')[0];
+  const todayDateStr = new Date().toISOString().split('T')[0];
   const { settings: printSettings } = usePrintSettings();
 
   const getTodayDate = () => {
@@ -294,12 +294,19 @@ const todayDateStr = new Date().toISOString().split('T')[0];
     if (!selectedPurchase) return null;
     const paperConfig = getPaperConfig(printSettings?.paperSize);
 
+    // 💡 Freight Calculation
+    const freightAmt = selectedPurchase.freightAmount || 0;
+    const grandTotal = selectedPurchase.totalAmount || 0;
+    const itemsTotal = grandTotal - freightAmt;
+    const paidAmt = selectedPurchase.paidAmount || 0;
+    const balanceDue = grandTotal - paidAmt;
+
     return (
       <div className="modal-overlay" onClick={closeModal}>
         <div className="modal-container" style={{ width:'70%', padding: 0, display: 'flex', flexDirection: 'column', maxHeight: '90vh' }} onClick={(e) => e.stopPropagation()}>
           
           <div className="modal-header" style={{ backgroundColor: 'var(--bg-app)', borderBottom: '1px solid var(--border-color)' }}>
-            <h3 style={{ margin: 0, color: 'var(--text-main)' }}>CAPOBIZ</h3>
+            <h3 style={{ margin: 0, color: 'var(--text-main)' }}>Stockify</h3>
             <div style={{ display: 'flex', gap: '8px' }}>
               <button className="btn btn-primary" onClick={handlePrint}>🖨️ Print</button>
               <button className="btn btn-secondary" onClick={closeModal}>✕ Close</button>
@@ -310,9 +317,16 @@ const todayDateStr = new Date().toISOString().split('T')[0];
             <div style={{ textAlign: 'center', marginBottom: '16px' }}>
               <h4 style={{ margin: '4px 0',fontSize:'16px' }}>PURCHASE INVOICE</h4>
               <p style={{ textAlign: 'left', margin: '4px 0', color: '#333' }}>Invoice #: <strong>{selectedPurchase.invoiceNumber || 'N/A'}</strong></p>
-              <p style={{ textAlign: 'left', margin: '4px 0', color: '#333' }}>Purchase ID: <strong>{selectedPurchase.purchaseNumber || 'N/A'}</strong></p>
               <p style={{ textAlign: 'left', margin: '4px 0', color: '#333' }}>Date: <strong>{formatDate(selectedPurchase.purchaseDate)}</strong></p>
               <p style={{ textAlign: 'left', margin: '4px 0', color: '#333' }}>Supplier: <strong>{selectedPurchase.supplier?.contactPerson || selectedPurchase.supplier?.name || 'Unknown'}</strong></p>
+              
+              {/* 💡 Transporter Name if available */}
+              {selectedPurchase.transporter && (
+                <p style={{ textAlign: 'left', margin: '4px 0', color: '#333' }}>
+                  Transporter: <strong>{selectedPurchase.transporter?.name || 'Included'}</strong>
+                </p>
+              )}
+              
               <p style={{ margin: '4px 0', color: '#10b981', fontWeight: 'bold', textAlign: 'center' }}>[ COMPLETED ]</p>
             </div>
             
@@ -323,7 +337,7 @@ const todayDateStr = new Date().toISOString().split('T')[0];
                 {(selectedPurchase.items || []).map((item, idx) => {
                   const lineTotal = item.totalPrice || (item.quantity * item.unitPrice) || 0;
                   return (
-                    <div key={idx} style={{ borderBottom: '1px dashed #000', padding: '6px 0' }}>
+                    <div key={idx} style={{ padding: '6px 0' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 700, color: '#000' }}>
                         <span>{item.product?.name || 'Unknown Product'}</span>
                         <span>x{item.quantity}</span>
@@ -338,13 +352,13 @@ const todayDateStr = new Date().toISOString().split('T')[0];
               </div>
             ) : (
               <table style={{ width: '100%', tableLayout: 'fixed', borderCollapse: 'collapse', marginBottom: '12px' }}>
-                <thead>
+                <thead style={{borderBottom: '1px solid #5f9382'}}>
                   <tr>
-                    <th style={{ textAlign: 'left', padding: '6px 8px', backgroundColor: 'var(--header)', fontSize: '12px', fontWeight: 600, color: '#ffffff', textTransform: 'uppercase', width: '32%' }}>Product Name</th>
-                    <th style={{ textAlign: 'left', padding: '6px 8px', backgroundColor: 'var(--header)', fontSize: '12px', fontWeight: 600, color: '#ffffff', textTransform: 'uppercase', width: '12%' }}>Qty</th>
-                    <th style={{ textAlign: 'left', padding: '6px 8px', backgroundColor: 'var(--header)', fontSize: '12px', fontWeight: 600, color: '#ffffff', textTransform: 'uppercase', width: '18%' }}>Unit Price</th>
-                    <th style={{ textAlign: 'left', padding: '6px 8px', backgroundColor: 'var(--header)', fontSize: '12px', fontWeight: 600, color: '#ffffff', textTransform: 'uppercase', width: '18%' }}>Expiry</th>
-                    <th style={{ textAlign: 'left', padding: '6px 8px', backgroundColor: 'var(--header)', fontSize: '12px', fontWeight: 600, color: '#ffffff', textTransform: 'uppercase', width: '20%' }}>Total</th>
+                    <th style={{ textAlign: 'left', padding: '6px 8px', backgroundColor: 'var(--primary-light)', fontSize: '12px', fontWeight: 600, color: 'var(--primary)', textTransform: 'uppercase', width: '32%' }}>Product Name</th>
+                    <th style={{ textAlign: 'left', padding: '6px 8px', backgroundColor: 'var(--primary-light)', fontSize: '12px', fontWeight: 600, color: 'var(--primary)', textTransform: 'uppercase', width: '12%' }}>Qty</th>
+                    <th style={{ textAlign: 'left', padding: '6px 8px', backgroundColor: 'var(--primary-light)', fontSize: '12px', fontWeight: 600, color: 'var(--primary)', textTransform: 'uppercase', width: '18%' }}>Unit Price</th>
+                    <th style={{ textAlign: 'left', padding: '6px 8px', backgroundColor: 'var(--primary-light)', fontSize: '12px', fontWeight: 600, color: 'var(--primary)', textTransform: 'uppercase', width: '18%' }}>Expiry</th>
+                    <th style={{ textAlign: 'left', padding: '6px 8px', backgroundColor: 'var(--primary-light)', fontSize: '12px', fontWeight: 600, color: 'var(--primary)', textTransform: 'uppercase', width: '20%' }}>Total</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -365,18 +379,28 @@ const todayDateStr = new Date().toISOString().split('T')[0];
             )}
 
             <div style={{ borderTop: '2px dashed #000', margin: '14px 0' }}></div>
+            
+            {/* 💡 BILLING SUMMARY WITH FREIGHT */}
             <div style={{ marginTop: '14px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', fontSize: '13px', color: '#000' }}>
-                <span>Grand Total</span>
-                <span>Rs. {(selectedPurchase.totalAmount || 0).toFixed(2)}</span>
+                <span>Items Total</span>
+                <span>Rs. {itemsTotal.toFixed(2)}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', fontSize: '13px', color: '#000' }}>
+                <span>Freight Amount</span>
+                <span>Rs. {freightAmt.toFixed(2)}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', fontSize: '13px', color: '#000' }}>
+                <span style={{ fontWeight: 'bold' }}>Grand Total</span>
+                <span style={{ fontWeight: 'bold' }}>Rs. {grandTotal.toFixed(2)}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', fontSize: '13px', color: '#000' }}>
                 <span>Paid Amount</span>
-                <span>Rs. {(selectedPurchase.paidAmount || 0).toFixed(2)}</span>
+                <span>Rs. {paidAmt.toFixed(2)}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', fontSize: '1.15em', color: '#000', fontWeight: 700, borderTop: '2px solid #000' }}>
                 <span>Balance Due</span>
-                <span>Rs. {((selectedPurchase.totalAmount || 0) - (selectedPurchase.paidAmount || 0)).toFixed(2)}</span>
+                <span>Rs. {balanceDue.toFixed(2)}</span>
               </div>
             </div>
             
@@ -433,15 +457,16 @@ const todayDateStr = new Date().toISOString().split('T')[0];
       
 
         <div style={{ overflowX: 'auto', width: '100%' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '800px' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '850px' }}>
             <thead>
               <tr style={{ backgroundColor: 'var(--header)' }}>
                 <th style={{ padding: '12px 16px', color: 'white', textAlign: 'left', fontSize: '13px', fontWeight: '600', width: '8%' }}>Sr #</th>
-                <th style={{ padding: '12px 16px', color: 'white', textAlign: 'left', fontSize: '13px', fontWeight: '600', width: '15%' }}>Invoice #</th>
-                <th style={{ padding: '12px 16px', color: 'white', textAlign: 'left', fontSize: '13px', fontWeight: '600', width: '15%' }}>Date</th>
-                <th style={{ padding: '12px 16px', color: 'white', textAlign: 'left', fontSize: '13px', fontWeight: '600', width: '25%' }}>Supplier</th>
-                <th style={{ padding: '12px 16px', color: 'white', textAlign: 'left', fontSize: '13px', fontWeight: '600', width: '20%' }}>Total Amount</th>
-                <th style={{ padding: '12px 16px', color: 'white', textAlign: 'center', fontSize: '13px', fontWeight: '600', width: '17%' }}>Action</th>
+                <th style={{ padding: '12px 16px', color: 'white', textAlign: 'left', fontSize: '13px', fontWeight: '600', width: '14%' }}>Invoice #</th>
+                <th style={{ padding: '12px 16px', color: 'white', textAlign: 'left', fontSize: '13px', fontWeight: '600', width: '14%' }}>Date</th>
+                <th style={{ padding: '12px 16px', color: 'white', textAlign: 'left', fontSize: '13px', fontWeight: '600', width: '15%' }}>Supplier</th>
+                <th style={{ padding: '12px 16px', color: 'white', textAlign: 'left', fontSize: '13px', fontWeight: '600', width: '12%' }}>Freight</th>
+                <th style={{ padding: '12px 16px', color: 'white', textAlign: 'left', fontSize: '13px', fontWeight: '600', width: '15%' }}>Total Amount</th>
+                <th style={{ padding: '12px 16px', color: 'white', textAlign: 'center', fontSize: '13px', fontWeight: '600', width: '15%' }}>Action</th>
               </tr>
             </thead>
             <tbody>
@@ -459,6 +484,12 @@ const todayDateStr = new Date().toISOString().split('T')[0];
                       <td style={{ padding: '10px 16px', fontSize: '13px', color: 'var(--text-main)', textAlign: 'left', fontWeight: '500' }}>{purchase.invoiceNumber || 'N/A'}</td>
                       <td style={{ padding: '10px 16px', fontSize: '13px', color: 'var(--text-muted)', textAlign: 'left' }}>{formatDate(purchase.purchaseDate)}</td>
                       <td style={{ padding: '10px 16px', fontSize: '13px', color: 'var(--text-main)', textAlign: 'left' }}>{purchase.supplier?.contactPerson || purchase.supplier?.name || 'Unknown'}</td>
+                      
+                      {/* 💡 Freight Column */}
+                      <td style={{ padding: '10px 16px', fontSize: '13px', color: 'var(--text-muted)', textAlign: 'left' }}>
+                        Rs. {purchase.freightAmount || 0}
+                      </td>
+
                       <td style={{ padding: '10px 16px', fontSize: '14px', color: 'var(--success)', textAlign: 'left', fontWeight: '600' }}>Rs. {purchase.totalAmount || 0}</td>
                       <td style={{ padding: '10px 16px', textAlign: 'center' }}>
                         <div style={{ display: 'flex', justifyContent: 'center' }}>
@@ -475,7 +506,7 @@ const todayDateStr = new Date().toISOString().split('T')[0];
                 })
               ) : (
                 <tr>
-                  <td colSpan="6" style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '14px' }}>
+                  <td colSpan="7" style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '14px' }}>
                     No purchases found matching your filters.
                   </td>
                 </tr>

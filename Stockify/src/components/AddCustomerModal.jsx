@@ -298,6 +298,7 @@ export default function AddCustomerModal({ onClose, onSuccess, existingCustomers
               <label className="form-label">Full Name *</label>
               <input 
                 className="form-input" 
+                style={{ border: '1px solid #cbd5e1', borderRadius: '6px', padding: '10px' }}
                 value={newCustomer.name} 
                 onChange={(e) => setNewCustomer({ ...newCustomer, name: e.target.value })}
                 onKeyDown={handleInputKeyDown}
@@ -315,7 +316,7 @@ export default function AddCustomerModal({ onClose, onSuccess, existingCustomers
                   onChange={(e) => setNewCustomer({ ...newCustomer, emailPrefix: e.target.value.replace(/@.*/, '') })} 
                   onKeyDown={handleInputKeyDown}
                   placeholder="username" 
-                  style={{ paddingRight: '85px' }}
+                  style={{ paddingRight: '85px', border: '1px solid #cbd5e1', borderRadius: '6px', padding: '10px', width: '100%' }}
                 />
                 <span style={{ position: 'absolute', right: '12px', color: 'var(--text-light)', fontSize: '13px', pointerEvents: 'none' }}>
                   @gmail.com
@@ -327,6 +328,7 @@ export default function AddCustomerModal({ onClose, onSuccess, existingCustomers
               <label className="form-label">Contact Number *</label>
               <input 
                 className="form-input" 
+                style={{ border: '1px solid #cbd5e1', borderRadius: '6px', padding: '10px' }}
                 value={newCustomer.contact} 
                 onChange={(e) => setNewCustomer({ ...newCustomer, contact: formatContact(e.target.value) })} 
                 onKeyDown={handleInputKeyDown}
@@ -338,6 +340,7 @@ export default function AddCustomerModal({ onClose, onSuccess, existingCustomers
               <label className="form-label">Customer Type</label>
               <select
                 className="form-input"
+                style={{ border: '1px solid #cbd5e1', borderRadius: '6px', padding: '10px' }}
                 value={newCustomer.customerTypeId || ''}
                 onChange={(e) => setNewCustomer({ ...newCustomer, customerTypeId: e.target.value })}
                 onKeyDown={(e) => {
@@ -358,6 +361,7 @@ export default function AddCustomerModal({ onClose, onSuccess, existingCustomers
               <label className="form-label">CNIC</label>
               <input 
                 className="form-input" 
+                style={{ border: '1px solid #cbd5e1', borderRadius: '6px', padding: '10px' }}
                 value={newCustomer.cnic} 
                 maxLength={15}
                 onChange={(e) => setNewCustomer({ ...newCustomer, cnic: formatCNIC(e.target.value) })} 
@@ -370,7 +374,7 @@ export default function AddCustomerModal({ onClose, onSuccess, existingCustomers
               <label className="form-label">Address</label>
               <textarea
                 className="form-input"
-                style={{ minHeight: '80px', resize: 'vertical' }}
+                style={{ minHeight: '80px', resize: 'vertical', border: '1px solid #cbd5e1', borderRadius: '6px', padding: '10px' }}
                 value={newCustomer.address}
                 onChange={(e) => setNewCustomer({ ...newCustomer, address: e.target.value })}
                 onKeyDown={(e) => {
@@ -382,17 +386,65 @@ export default function AddCustomerModal({ onClose, onSuccess, existingCustomers
               />
             </div>
 
-            <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gridColumn: 'span 2', marginBottom: 0 }}>
-              <label className="form-label">Upload Image</label>
-              <input type="file" accept="image/*" onChange={handleImageUpload} disabled={isUploading} style={{ fontSize: '13px' }} />
-              {isUploading && (
-                <span style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: 'var(--space-xs)' }}>Uploading image…</span>
-              )}
-              {!isUploading && newCustomer.pic && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-sm)', marginTop: 'var(--space-sm)' }}>
-                  <AvatarImage pic={newCustomer.pic} name={newCustomer.name} size={40} />
-                  <span style={{ fontSize: '13px', color: 'var(--success)' }}>✓ Image ready — will be saved with this customer</span>
-                </div>
+            {/* --- UPDATE IMAGE FULLY BORDERED & LEFT ALIGNED --- */}
+            <div className="form-group" style={{ gridColumn: 'span 2', marginBottom: 0 }}>
+              <label className="form-label" style={{ display: 'block', marginBottom: '6px' }}>Upload Image</label>
+              
+              <div style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '12px', 
+                border: '1px solid #cbd5e1', 
+                borderRadius: '6px', 
+                padding: '4px 4px',
+                backgroundColor: 'white',
+                width: '100%',
+                justifyContent: 'flex-start' /* Forces elements to the left */
+              }}>
+                <label style={{
+                  backgroundColor: 'var(--header)',
+                  color: 'white',
+                  padding: '6px 24px',
+                  borderRadius: '4px',
+                  cursor: isUploading ? 'not-allowed' : 'pointer',
+                  fontSize: '13px',
+                  fontWeight: '500',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  margin: 0,
+                  border: 'none',
+                  transition: 'opacity 0.2s'
+                }}
+                onMouseOver={(e) => e.currentTarget.style.opacity = '0.9'}
+                onMouseOut={(e) => e.currentTarget.style.opacity = '1'}
+                >
+                  Choose File
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageUpload}
+                    disabled={isUploading}
+                    style={{ display: 'none' }}
+                  />
+                </label>
+                
+                <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
+                  {newCustomer.pic ? 'File selected' : 'No file chosen'}
+                </span>
+              </div>
+
+              {isUploading ? (
+                <span style={{ fontSize: '13px', color: 'var(--text-muted)', display: 'block', marginTop: '8px' }}>Uploading image…</span>
+              ) : (
+                newCustomer.pic && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '12px' }}>
+                    <AvatarImage pic={newCustomer.pic} name={newCustomer.name} size={40} />
+                    <span style={{ fontSize: '13px', color: 'var(--success)' }}>
+                      ✓ Image ready — will be saved with this customer
+                    </span>
+                  </div>
+                )
               )}
             </div>
           </div>

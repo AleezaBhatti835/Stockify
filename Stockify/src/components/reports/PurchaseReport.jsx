@@ -21,7 +21,7 @@ function PurchaseReport() {
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState(false);
 
-  const [viewMode, setViewMode] = useState('detailed'); 
+  const [viewMode, setViewMode] = useState('detailed');
 
   const [selectedSupplier, setSelectedSupplier] = useState('');
   const [fromDate, setFromDate] = useState('');
@@ -72,15 +72,15 @@ function PurchaseReport() {
       });
       if (!res.ok) throw new Error('Not available');
       const data = await res.json();
-      
+
       let list = [];
       if (Array.isArray(data)) {
         list = data;
       } else {
         list = data.purchases || data.purchaseReturns || data.items || data.rows || data.differences || data.rateDifferences || data.purchaseRateDifferences || data.data || [];
         if (list.length === 0) {
-            const possibleArray = Object.values(data).find(val => Array.isArray(val));
-            if (possibleArray) list = possibleArray;
+          const possibleArray = Object.values(data).find(val => Array.isArray(val));
+          if (possibleArray) list = possibleArray;
         }
       }
       setRecords(list);
@@ -133,21 +133,21 @@ function PurchaseReport() {
 
       let lineItems = r.items || r.details || r.products || r.purchaseItems || r.returnItems || [];
       if (!lineItems.length) {
-          const possibleArr = Object.values(r).find(v => Array.isArray(v) && v.length > 0 && typeof v[0] === 'object');
-          if (possibleArr) lineItems = possibleArr;
+        const possibleArr = Object.values(r).find(v => Array.isArray(v) && v.length > 0 && typeof v[0] === 'object');
+        if (possibleArr) lineItems = possibleArr;
       }
 
       const isFlatItem = !lineItems.length && (r.product || r.productName || r.quantity !== undefined);
 
       if (viewMode === 'summary') {
         let invoiceTotal = r.totalAmount ?? r.amount ?? r.differenceAmount ?? r.totalDifference ?? r.netAmount;
-        
+
         if (invoiceTotal === undefined && lineItems.length > 0) {
-           invoiceTotal = lineItems.reduce((sum, item) => sum + (item.totalDifference ?? item.totalDiff ?? item.totalPrice ?? item.lineTotal ?? ((item.quantity || 0) * (item.rate || item.unitPrice || item.newRate || 0))), 0);
+          invoiceTotal = lineItems.reduce((sum, item) => sum + (item.totalDifference ?? item.totalDiff ?? item.totalPrice ?? item.lineTotal ?? ((item.quantity || 0) * (item.rate || item.unitPrice || item.newRate || 0))), 0);
         } else if (invoiceTotal === undefined && isFlatItem) {
-           const qty = r.quantity ?? r.qty ?? 0;
-           const rate = r.unitPrice ?? r.rate ?? r.newRate ?? 0;
-           invoiceTotal = r.lineTotal ?? r.totalPrice ?? (qty * rate);
+          const qty = r.quantity ?? r.qty ?? 0;
+          const rate = r.unitPrice ?? r.rate ?? r.newRate ?? 0;
+          invoiceTotal = r.lineTotal ?? r.totalPrice ?? (qty * rate);
         }
 
         let productLabel = '—';
@@ -159,25 +159,25 @@ function PurchaseReport() {
         let diffRateLabel = '—';
 
         if (lineItems.length === 1) {
-           const item = lineItems[0];
-           productLabel = item.product?.name || item.productName || 'Unknown Product';
-           pId = item.product?._id || item.product || null;
-           qtyLabel = item.quantity ?? item.purchasedQuantity ?? item.qty ?? '—';
-           prevRateLabel = item.prevRate ?? item.oldRate ?? 0;
-           newRateLabel = item.newRate ?? item.rate ?? item.unitPrice ?? 0;
-           diffRateLabel = item.difference ?? item.diffRate ?? (newRateLabel - prevRateLabel);
-           rateLabel = item.unitPrice ?? item.rate ?? item.newRate ?? 0;
+          const item = lineItems[0];
+          productLabel = item.product?.name || item.productName || 'Unknown Product';
+          pId = item.product?._id || item.product || null;
+          qtyLabel = item.quantity ?? item.purchasedQuantity ?? item.qty ?? '—';
+          prevRateLabel = item.prevRate ?? item.oldRate ?? 0;
+          newRateLabel = item.newRate ?? item.rate ?? item.unitPrice ?? 0;
+          diffRateLabel = item.difference ?? item.diffRate ?? (newRateLabel - prevRateLabel);
+          rateLabel = item.unitPrice ?? item.rate ?? item.newRate ?? 0;
 
         } else if (lineItems.length > 1) {
-           productLabel = '— (Multiple Products)';
+          productLabel = '— (Multiple Products)';
         } else if (isFlatItem) {
-           productLabel = typeof r.product === 'object' ? r.product?.name : (r.productName || r.product || 'Unknown Product');
-           pId = typeof r.product === 'object' ? r.product?._id : (r.productId || null);
-           qtyLabel = r.quantity ?? r.purchasedQuantity ?? r.qty ?? '—';
-           prevRateLabel = r.prevRate ?? r.oldRate ?? 0;
-           newRateLabel = r.newRate ?? r.rate ?? r.unitPrice ?? 0;
-           diffRateLabel = r.difference ?? r.diffRate ?? (newRateLabel - prevRateLabel);
-           rateLabel = r.unitPrice ?? r.rate ?? r.newRate ?? 0;
+          productLabel = typeof r.product === 'object' ? r.product?.name : (r.productName || r.product || 'Unknown Product');
+          pId = typeof r.product === 'object' ? r.product?._id : (r.productId || null);
+          qtyLabel = r.quantity ?? r.purchasedQuantity ?? r.qty ?? '—';
+          prevRateLabel = r.prevRate ?? r.oldRate ?? 0;
+          newRateLabel = r.newRate ?? r.rate ?? r.unitPrice ?? 0;
+          diffRateLabel = r.difference ?? r.diffRate ?? (newRateLabel - prevRateLabel);
+          rateLabel = r.unitPrice ?? r.rate ?? r.newRate ?? 0;
         }
 
         rows.push({
@@ -203,7 +203,7 @@ function PurchaseReport() {
           const diffRate = item.difference ?? item.diffRate ?? (newRate - prevRate);
           const rate = item.unitPrice ?? item.rate ?? item.newRate ?? 0;
           const lineTotal = item.totalDifference ?? item.totalDiff ?? item.totalPrice ?? item.lineTotal ?? ((typeof qty === 'number' && typeof rate === 'number') ? qty * rate : 0);
-          
+
           rows.push({
             ...meta,
             product: item.product?.name || item.productName || 'Unknown Product',
@@ -218,25 +218,25 @@ function PurchaseReport() {
           });
         });
       } else if (isFlatItem) {
-          const qty = r.quantity ?? r.purchasedQuantity ?? r.purchaseQty ?? r.qty ?? '—';
-          const prevRate = r.prevRate ?? r.oldRate ?? 0;
-          const newRate = r.newRate ?? r.rate ?? r.unitPrice ?? 0;
-          const diffRate = r.difference ?? r.diffRate ?? (newRate - prevRate);
-          const rate = r.unitPrice ?? r.rate ?? r.newRate ?? 0;
-          const lineTotal = r.totalAmount ?? r.amount ?? r.differenceAmount ?? r.totalDifference ?? r.totalDiff ?? r.totalPrice ?? r.lineTotal ?? ((typeof qty === 'number' && typeof rate === 'number') ? qty * rate : 0);
+        const qty = r.quantity ?? r.purchasedQuantity ?? r.purchaseQty ?? r.qty ?? '—';
+        const prevRate = r.prevRate ?? r.oldRate ?? 0;
+        const newRate = r.newRate ?? r.rate ?? r.unitPrice ?? 0;
+        const diffRate = r.difference ?? r.diffRate ?? (newRate - prevRate);
+        const rate = r.unitPrice ?? r.rate ?? r.newRate ?? 0;
+        const lineTotal = r.totalAmount ?? r.amount ?? r.differenceAmount ?? r.totalDifference ?? r.totalDiff ?? r.totalPrice ?? r.lineTotal ?? ((typeof qty === 'number' && typeof rate === 'number') ? qty * rate : 0);
 
-          rows.push({
-            ...meta,
-            product: typeof r.product === 'object' ? r.product?.name : (r.productName || r.product || 'Unknown Product'),
-            productId: typeof r.product === 'object' ? r.product?._id : (r.productId || null),
-            quantity: qty,
-            prevRate,
-            newRate,
-            diffRate,
-            rate,
-            lineTotal,
-            isSummaryOnly: false
-          });
+        rows.push({
+          ...meta,
+          product: typeof r.product === 'object' ? r.product?.name : (r.productName || r.product || 'Unknown Product'),
+          productId: typeof r.product === 'object' ? r.product?._id : (r.productId || null),
+          quantity: qty,
+          prevRate,
+          newRate,
+          diffRate,
+          rate,
+          lineTotal,
+          isSummaryOnly: false
+        });
       }
     });
     return rows;
@@ -262,7 +262,7 @@ function PurchaseReport() {
     result.sort((a, b) => {
       const dateA = new Date(a.date).getTime() || 0;
       const dateB = new Date(b.date).getTime() || 0;
-      if (dateA !== dateB) return dateA - dateB; 
+      if (dateA !== dateB) return dateA - dateB;
       return (a.ref || '').toString().localeCompare((b.ref || '').toString(), undefined, { numeric: true });
     });
 
@@ -279,7 +279,7 @@ function PurchaseReport() {
   const grandTotal = filtered.reduce((sum, r) => sum + (Number(r.lineTotal) || 0), 0);
   const isDiffTab = activeTab === 'difference';
 
-  const columns = isDiffTab 
+  const columns = isDiffTab
     ? ['Sr#', 'Date', 'Ref #', 'Invoice #', 'Supplier', 'Product', 'Qty', 'Prev Rate', 'New Rate', 'Diff Rate', 'Total Diff']
     : ['Sr#', 'Date', 'Ref #', 'Invoice #', 'Supplier', 'Product', 'Quantity', 'Rate', 'Line Total'];
 
@@ -295,17 +295,17 @@ function PurchaseReport() {
     ];
 
     if (isDiffTab) {
-      return [...baseRow, 
-        typeof r.prevRate === 'number' ? r.prevRate.toFixed(2) : r.prevRate,
-        typeof r.newRate === 'number' ? r.newRate.toFixed(2) : r.newRate,
-        typeof r.diffRate === 'number' ? r.diffRate.toFixed(2) : r.diffRate,
-        typeof r.lineTotal === 'number' ? r.lineTotal.toFixed(2) : r.lineTotal
+      return [...baseRow,
+      typeof r.prevRate === 'number' ? r.prevRate.toFixed(2) : r.prevRate,
+      typeof r.newRate === 'number' ? r.newRate.toFixed(2) : r.newRate,
+      typeof r.diffRate === 'number' ? r.diffRate.toFixed(2) : r.diffRate,
+      typeof r.lineTotal === 'number' ? r.lineTotal.toFixed(2) : r.lineTotal
       ];
     }
 
-    return [...baseRow, 
-      typeof r.rate === 'number' ? r.rate.toFixed(2) : r.rate,
-      typeof r.lineTotal === 'number' ? r.lineTotal.toFixed(2) : r.lineTotal
+    return [...baseRow,
+    typeof r.rate === 'number' ? r.rate.toFixed(2) : r.rate,
+    typeof r.lineTotal === 'number' ? r.lineTotal.toFixed(2) : r.lineTotal
     ];
   };
 
@@ -418,7 +418,7 @@ function PurchaseReport() {
     doc.setTextColor(100, 116, 139);
     doc.text(`Generated on ${new Date().toLocaleString()} — ${filtered.length} line item(s)`, 14, 18);
 
-    const footArray = isDiffTab 
+    const footArray = isDiffTab
       ? [['', '', '', '', '', '', '', '', '', 'Grand Total', grandTotal.toFixed(2)]]
       : [['', '', '', '', '', '', '', 'Grand Total', grandTotal.toFixed(2)]];
 
@@ -494,7 +494,7 @@ function PurchaseReport() {
     }
 
     const worksheet = XLSX.utils.json_to_sheet(rows);
-    
+
     Object.keys(worksheet).forEach((key) => {
       if (key !== '!ref' && key !== '!cols') {
         if (!worksheet[key].s) worksheet[key].s = {};
@@ -504,16 +504,16 @@ function PurchaseReport() {
 
     if (isDiffTab) {
       worksheet['!cols'] = [
-        { wch: 6 },   { wch: 14 },  { wch: 14 },  { wch: 14 },  { wch: 25 },  
-        { wch: 20 },  { wch: 10 },  { wch: 12 },  { wch: 12 },  { wch: 18 },  { wch: 16 }   
+        { wch: 6 }, { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 25 },
+        { wch: 20 }, { wch: 10 }, { wch: 12 }, { wch: 12 }, { wch: 18 }, { wch: 16 }
       ];
     } else {
       worksheet['!cols'] = [
-        { wch: 6 },   { wch: 14 },  { wch: 14 },  { wch: 14 },  { wch: 25 },  
-        { wch: 20 },  { wch: 10 },  { wch: 18 },  { wch: 16 }   
+        { wch: 6 }, { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 25 },
+        { wch: 20 }, { wch: 10 }, { wch: 18 }, { wch: 16 }
       ];
     }
-    
+
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, activeTabLabel);
     XLSX.writeFile(workbook, `${activeTab}-report-${new Date().toISOString().slice(0, 10)}.xlsx`);
@@ -526,7 +526,7 @@ function PurchaseReport() {
 
   return (
     <div className="dashboard-wrapper">
-      
+
       {/* TABS & EXPORTS TOP BAR */}
       <div className="card" style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: '16px' }}>
         <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
@@ -549,16 +549,53 @@ function PurchaseReport() {
 
       {/* FILTER BAR & VIEW MODE */}
       <div className="card" style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', alignItems: 'flex-end' }}>
-        
+
         <div className="form-group" style={{ marginBottom: 0 }}>
           <label className="form-label">View Mode</label>
-          <div style={{ display: 'flex', gap: '12px', alignItems: 'center', padding: '10px 12px', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', backgroundColor: 'var(--bg-surface)' }}>
-            <label style={{ fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', color: 'var(--text-main)', fontWeight: 500 }}>
-              <input type="radio" name="viewMode" value="summary" checked={viewMode === 'summary'} onChange={(e) => setViewMode(e.target.value)} />
+          <div style={{ display: 'flex', gap: '16px', alignItems: 'center', padding: '5px 12px', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', backgroundColor: 'var(--bg-surface)' }}>
+            <label style={{ fontSize: '13px', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', color: 'var(--text-main)', fontWeight: 600 }}>
+              <input
+                type="radio"
+                name="viewMode"
+                value="summary"
+                checked={viewMode === 'summary'}
+                onChange={(e) => setViewMode(e.target.value)}
+                style={{
+                  appearance: 'none',
+                  WebkitAppearance: 'none',
+                  width: '12px',
+                  height: '12px',
+                  borderRadius: '50%',
+                  margin: 0,
+                  cursor: 'pointer',
+                  backgroundColor: viewMode === 'summary' ? 'var(--primary)' : '#fff',
+                  border: viewMode === 'summary' ? '2px solid #fff' : '1px solid #ccc',
+                  boxShadow: viewMode === 'summary' ? '0 0 0 1px var(--primary)' : 'none'
+                }}
+              />
               Abstract
             </label>
-            <label style={{ fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', color: 'var(--text-main)', fontWeight: 500 }}>
-              <input type="radio" name="viewMode" value="detailed" checked={viewMode === 'detailed'} onChange={(e) => setViewMode(e.target.value)} />
+
+            <label style={{ fontSize: '13px', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', color: 'var(--text-main)', fontWeight: 600 }}>
+              <input
+                type="radio"
+                name="viewMode"
+                value="detailed"
+                checked={viewMode === 'detailed'}
+                onChange={(e) => setViewMode(e.target.value)}
+                style={{
+                  appearance: 'none',
+                  WebkitAppearance: 'none',
+                  width: '12px',
+                  height: '12px',
+                  borderRadius: '50%',
+                  margin: 0,
+                  cursor: 'pointer',
+                  backgroundColor: viewMode === 'detailed' ? 'var(--primary)' : '#fff',
+                  border: viewMode === 'detailed' ? '2px solid #fff' : '1px solid #ccc',
+                  boxShadow: viewMode === 'detailed' ? '0 0 0 1px var(--primary)' : 'none'
+                }}
+              />
               Detailed
             </label>
           </div>
@@ -589,11 +626,7 @@ function PurchaseReport() {
 
       {/* DATA TABLE */}
       <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-        <div style={{ padding: '16px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'flex-end' }}>
-          <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
-            Showing {currentRows.length} of {filtered.length} {viewMode === 'summary' ? 'transaction(s)' : 'line item(s)'}
-          </span>
-        </div>
+
 
         <div style={{ overflowX: 'auto', width: '100%' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '1000px' }}>
@@ -620,18 +653,18 @@ function PurchaseReport() {
                   row[0] = serialNumber;
 
                   return (
-                    <tr 
-                      key={`${r.parentId}-${idx}`} 
+                    <tr
+                      key={`${r.parentId}-${idx}`}
                       style={{ borderBottom: '1px solid var(--border-color)', transition: 'background-color 0.2s' }}
                       onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--bg-app)'}
                       onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                     >
                       {row.map((cell, colIdx) => (
-                        <td 
-                          key={colIdx} 
-                          style={{ 
-                            padding: '10px 16px', 
-                            fontSize: '13px', 
+                        <td
+                          key={colIdx}
+                          style={{
+                            padding: '10px 16px',
+                            fontSize: '13px',
                             color: 'var(--text-main)',
                             fontWeight: colIdx === 2 || (colIdx === row.length - 1) ? '600' : '400',
                             textAlign: colIdx === 0 ? 'center' : 'left'
@@ -645,7 +678,7 @@ function PurchaseReport() {
                 })
               )}
             </tbody>
-            
+
             {currentRows.length > 0 && (
               <tfoot>
                 <tr style={{ backgroundColor: 'var(--bg-app)', borderTop: '2px solid var(--border-color)' }}>

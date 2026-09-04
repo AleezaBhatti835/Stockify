@@ -18,13 +18,24 @@ function PayableReceivable() {
   
   const [filterType, setFilterType] = useState('All'); 
 
+  // 💡 Pagination States Added
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(10);
+
   useEffect(() => {
     fetchBalances();
   }, []);
 
+  // 💡 Reset page when tab changes
   useEffect(() => {
     setFilterType('All');
+    setCurrentPage(1);
   }, [activeTab]);
+
+  // 💡 Reset page when filter changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filterType]);
 
   const fetchBalances = async () => {
     setLoading(true);
@@ -51,7 +62,6 @@ function PayableReceivable() {
     return n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   };
 
-  // CORE ARCHITECTURE: Aggregates and filters cross-entity financial balances for unified payable and receivable reporting.
   const filteredData = useMemo(() => {
     let filtered = data.filter(d => d.entityGroup.toLowerCase() === activeTab);
     
@@ -75,7 +85,12 @@ function PayableReceivable() {
 
   const activeTabLabel = TABS.find(t => t.key === activeTab)?.label || '';
 
-  // DATA EXPORT ENGINE: Dynamically generates structured Excel sheets and printable HTML documents based on the active tab and applied filters.
+  // 💡 Pagination Calculations
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentItems = filteredData.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(filteredData.length / itemsPerPage);
+
   const handlePrint = () => {
     const iframe = document.createElement('iframe');
     iframe.style.position = 'fixed';
@@ -84,6 +99,7 @@ function PayableReceivable() {
     const doc = iframe.contentWindow.document;
 
     let rowsHtml = '';
+    // Print all filtered data
     filteredData.forEach((row, idx) => {
       rowsHtml += `
         <tr>
@@ -217,11 +233,7 @@ function PayableReceivable() {
 
       {/* DATA TABLE */}
       <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-        <div style={{ padding: '16px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'flex-end' }}>
-          <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
-            Showing {filteredData.length} record(s)
-          </span>
-        </div>
+
 
         <div style={{ overflowX: 'auto', width: '100%' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '800px' }}>
@@ -237,22 +249,25 @@ function PayableReceivable() {
             <tbody>
               {loading ? (
                 <tr><td colSpan={5} style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '14px' }}>Loading Balances...</td></tr>
-              ) : filteredData.length === 0 ? (
+              ) : currentItems.length === 0 ? (
                 <tr><td colSpan={5} style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '14px' }}>No records found for the selected filters.</td></tr>
               ) : (
-                filteredData.map((row, idx) => (
-                  <tr key={row.id} style={{ borderBottom: '1px solid var(--border-color)', transition: 'background-color 0.2s' }} onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--bg-app)'} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}>
-                    <td style={{ padding: '10px 16px', fontSize: '13px', color: 'var(--text-main)', textAlign: 'center' }}>{idx + 1}</td>
-                    <td style={{ padding: '10px 16px', fontSize: '13px', color: 'var(--text-main)', fontWeight: '500', textAlign: 'left' }}>{row.name}</td>
-                    <td style={{ padding: '10px 16px', fontSize: '13px', color: 'var(--text-main)', textAlign: 'left' }}>{row.designation || '-'}</td>
-                    <td style={{ padding: '10px 16px', fontSize: '13px', color: 'var(--danger)', fontWeight: 'bold', textAlign: 'left' }}>
-                      {row.payable > 0 ? formatCurrency(row.payable) : '0'}
-                    </td>
-                    <td style={{ padding: '10px 16px', fontSize: '13px', color: 'var(--success)', fontWeight: 'bold', textAlign: 'left' }}>
-                      {row.receivable > 0 ? formatCurrency(row.receivable) : '0'}
-                    </td>
-                  </tr>
-                ))
+                currentItems.map((row, idx) => {
+                  const serialNumber = (currentPage - 1) * itemsPerPage + idx + 1;
+                  return (
+                    <tr key={row.id || idx} style={{ borderBottom: '1px solid var(--border-color)', transition: 'background-color 0.2s' }} onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--bg-app)'} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}>
+                      <td style={{ padding: '10px 16px', fontSize: '13px', color: 'var(--text-main)', textAlign: 'center' }}>{serialNumber}</td>
+                      <td style={{ padding: '10px 16px', fontSize: '13px', color: 'var(--text-main)', fontWeight: '500', textAlign: 'left' }}>{row.name}</td>
+                      <td style={{ padding: '10px 16px', fontSize: '13px', color: 'var(--text-main)', textAlign: 'left' }}>{row.designation || '-'}</td>
+                      <td style={{ padding: '10px 16px', fontSize: '13px', color: 'var(--danger)', fontWeight: 'bold', textAlign: 'left' }}>
+                        {row.payable > 0 ? formatCurrency(row.payable) : '0'}
+                      </td>
+                      <td style={{ padding: '10px 16px', fontSize: '13px', color: 'var(--success)', fontWeight: 'bold', textAlign: 'left' }}>
+                        {row.receivable > 0 ? formatCurrency(row.receivable) : '0'}
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
             
@@ -273,6 +288,31 @@ function PayableReceivable() {
             )}
           </table>
         </div>
+
+        {/* 💡 PAGINATION CONTROLS */}
+        {!loading && filteredData.length > itemsPerPage && (
+          <div style={{ display: 'flex', gap: '15px', justifyContent: 'center', alignItems: 'center', padding: '16px', borderTop: '1px solid var(--border-color)' }}>
+            <button
+              className="btn btn-secondary"
+              disabled={currentPage === 1}
+              onClick={() => setCurrentPage(prev => prev - 1)}
+              style={{ padding: '6px 12px' }}
+            >
+              ←
+            </button>
+            <span style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-muted)' }}>
+              Page {currentPage} of {totalPages || 1}
+            </span>
+            <button
+              className="btn btn-secondary"
+              disabled={currentPage >= totalPages}
+              onClick={() => setCurrentPage(prev => prev + 1)}
+              style={{ padding: '6px 12px' }}
+            >
+              →
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

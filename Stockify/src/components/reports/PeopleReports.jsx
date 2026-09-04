@@ -320,11 +320,7 @@ function PeopleReport() {
 
       {/* DATA TABLE */}
       <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-        <div style={{ padding: '16px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'flex-end' }}>
-          <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
-            Showing {currentRows.length} of {filtered.length} record(s)
-          </span>
-        </div>
+
 
         <div style={{ overflowX: 'auto', width: '100%' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '800px' }}>

@@ -46,12 +46,12 @@ function Customers() {
   const [customers, setCustomers] = useState([]);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [customerTypes, setCustomerTypes] = useState([]);
-  
+
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
 
-  const initialState = { 
-    name: '', emailPrefix: '', contact: '+92', address: '', pic: '', cnic: '', status: 'Active', customerTypeId: '' 
+  const initialState = {
+    name: '', emailPrefix: '', contact: '+92', address: '', pic: '', cnic: '', status: 'Active', customerTypeId: ''
   };
 
   const [editCustomerId, setEditCustomerId] = useState(null);
@@ -135,7 +135,6 @@ function Customers() {
     setCurrentPage(1);
   }, [customers]);
 
-  // CORE ARCHITECTURE: Concurrent retrieval of customer directory records and customer type classifications on mount.
   useEffect(() => {
     fetchCustomers();
     const fetchCustomerTypes = async () => {
@@ -197,10 +196,10 @@ function Customers() {
 
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch('http://localhost:5000/api/upload', { 
-        method: 'POST', 
+      const res = await fetch('http://localhost:5000/api/upload', {
+        method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` },
-        body: formData 
+        body: formData
       });
       const raw = await res.text();
 
@@ -261,14 +260,15 @@ function Customers() {
 
     const originalCustomer = customers.find(c => c._id === editCustomerId);
     if (originalCustomer) {
-      const isSame = 
+      const isSame =
         originalCustomer.name === editCustomer.name &&
         originalCustomer.email === editCustomer.email &&
         originalCustomer.contact === editCustomer.contact &&
         originalCustomer.address === editCustomer.address &&
         originalCustomer.cnic === editCustomer.cnic &&
-        originalCustomer.customerTypeId === editCustomer.customerTypeId;
-      
+        originalCustomer.customerTypeId === editCustomer.customerTypeId &&
+        originalCustomer.pic === editCustomer.pic;
+
       if (isSame) {
         showEditMessage('Nothing to update!', 'info');
         return;
@@ -285,7 +285,7 @@ function Customers() {
       const token = localStorage.getItem('token');
       const res = await fetch(`http://localhost:5000/api/customers/${editCustomerId}`, {
         method: 'PUT',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
@@ -314,14 +314,14 @@ function Customers() {
 
   const handleDelete = async () => {
     if (!deleteTarget) return;
-    
+
     try {
       const token = localStorage.getItem('token');
       const response = await fetch(`http://localhost:5000/api/customers/${deleteTarget._id}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      
+
       if (response.ok) {
         showDeleteMessage('Customer deleted successfully!', 'success');
         setTimeout(() => {
@@ -401,7 +401,7 @@ function Customers() {
 
   return (
     <div className="dashboard-wrapper">
-      
+
       {/* HEADER SECTION */}
       <div className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
         <div>
@@ -414,7 +414,7 @@ function Customers() {
 
       {/* TABLE SECTION */}
       <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-        
+
         <div style={{ overflowX: 'auto', width: '100%' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '800px', tableLayout: 'fixed' }}>
             <thead>
@@ -431,7 +431,7 @@ function Customers() {
                 currentItems.map((c, index) => {
                   const serialNumber = (currentPage - 1) * itemsPerPage + index + 1;
                   return (
-                    <tr 
+                    <tr
                       key={c._id}
                       style={{ borderBottom: '1px solid var(--border-color)', transition: 'background-color 0.2s' }}
                       onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--bg-app)'}
@@ -448,7 +448,7 @@ function Customers() {
                       <td style={{ padding: '10px 16px', fontSize: '13px', color: 'var(--text-main)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.contact}</td>
                       <td style={{ padding: '10px 16px', textAlign: 'center' }}>
                         <div style={{ display: 'flex', justifyContent: 'center', gap: '8px' }}>
-                          
+
                           {/* View Button */}
                           <button style={{ backgroundColor: 'var(--view)', color: 'var(--success)', border: 'none', padding: '6px', borderRadius: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center' }} onClick={() => setViewCustomer(c)} title="View">
                             <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
@@ -507,8 +507,8 @@ function Customers() {
 
       {/* ADD MODAL */}
       {isAddModalOpen && (
-        <AddCustomerModal 
-          existingCustomers={customers} 
+        <AddCustomerModal
+          existingCustomers={customers}
           onClose={() => { setIsAddModalOpen(false); }}
           onSuccess={() => { fetchCustomers(); }}
         />
@@ -517,36 +517,38 @@ function Customers() {
       {/* EDIT MODAL */}
       {editCustomerId && (
         <div className="modal-overlay">
-          <div className="modal-container" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '600px', padding: 0 }}>
-            <div className="modal-header" style={{ backgroundColor: 'var(--bg-app)', borderBottom: '1px solid var(--border-color)' }}>
-              <h3 className="modal-title" style={{ fontSize: '18px', color: 'var(--text-main)' }}>Edit Customer</h3>
+          <div className="modal-container" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '800px', width: '100%', maxHeight: '100vh', display: 'flex', flexDirection: 'column', padding: 0 }}>
+            
+            <div className="modal-header" style={{ backgroundColor: 'var(--bg-app)', borderBottom: '1px solid var(--border-color)', padding: '16px 20px', flexShrink: 0 }}>
+              <h3 className="modal-title" style={{ fontSize: '18px', color: 'var(--text-main)', margin: 0 }}>Edit Customer</h3>
               <button className="modal-close" onClick={() => { setEditCustomerId(null); setEditMessage({ text: '', type: '' }); setImageMessage({ text: '', type: '' }); }}>✕</button>
             </div>
 
-            <div className="modal-body">
+            <div className="modal-body" style={{ overflowY: 'auto', padding: '24px', flex: 1 }}>
               <InlineMessage message={editMessage.text} type={editMessage.type} />
               {imageMessage.text && <InlineMessage message={imageMessage.text} type={imageMessage.type} />}
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                 <div className="form-group">
                   <label className="form-label">Full Name *</label>
-                  <input 
+                  <input
                     className="form-input"
-                    value={editCustomer.name} 
+                    style={{ border: '1px solid #cbd5e1', borderRadius: '6px', padding: '10px' }}
+                    value={editCustomer.name}
                     onChange={(e) => setEditCustomer({ ...editCustomer, name: e.target.value })}
                     onKeyDown={(e) => handleInputKeyDown(e, handleUpdateCustomer)}
                     autoFocus
                   />
                 </div>
-                
+
                 <div className="form-group">
                   <label className="form-label">Email Address *</label>
                   <div style={{ position: 'relative', width: '100%', display: 'flex', alignItems: 'center' }}>
-                    <input 
+                    <input
                       className="form-input"
-                      style={{ paddingRight: '90px' }}
-                      value={editCustomer.emailPrefix} 
-                      onChange={(e) => setEditCustomer({ ...editCustomer, emailPrefix: e.target.value.replace(/@.*/, ''), email: `${e.target.value.replace(/@.*/, '')}@gmail.com` })} 
+                      style={{ paddingRight: '90px', border: '1px solid #cbd5e1', borderRadius: '6px', padding: '10px' }}
+                      value={editCustomer.emailPrefix}
+                      onChange={(e) => setEditCustomer({ ...editCustomer, emailPrefix: e.target.value.replace(/@.*/, ''), email: `${e.target.value.replace(/@.*/, '')}@gmail.com` })}
                       placeholder="username"
                       onKeyDown={(e) => handleInputKeyDown(e, handleUpdateCustomer)}
                     />
@@ -558,18 +560,20 @@ function Customers() {
 
                 <div className="form-group">
                   <label className="form-label">Contact Number *</label>
-                  <input 
+                  <input
                     className="form-input"
-                    value={editCustomer.contact} 
-                    onChange={(e) => setEditCustomer({ ...editCustomer, contact: formatContact(e.target.value) })} 
+                    style={{ border: '1px solid #cbd5e1', borderRadius: '6px', padding: '10px' }}
+                    value={editCustomer.contact}
+                    onChange={(e) => setEditCustomer({ ...editCustomer, contact: formatContact(e.target.value) })}
                     onKeyDown={(e) => handleInputKeyDown(e, handleUpdateCustomer)}
                   />
                 </div>
-                
+
                 <div className="form-group">
                   <label className="form-label">Customer Type</label>
                   <select
                     className="form-input"
+                    style={{ border: '1px solid #cbd5e1', borderRadius: '6px', padding: '10px' }}
                     value={editCustomer.customerTypeId || ''}
                     onChange={(e) => setEditCustomer({ ...editCustomer, customerTypeId: e.target.value })}
                     onKeyDown={(e) => {
@@ -588,11 +592,12 @@ function Customers() {
 
                 <div className="form-group">
                   <label className="form-label">CNIC</label>
-                  <input 
+                  <input
                     className="form-input"
-                    value={editCustomer.cnic || ''} 
+                    style={{ border: '1px solid #cbd5e1', borderRadius: '6px', padding: '10px' }}
+                    value={editCustomer.cnic || ''}
                     maxLength={15}
-                    onChange={(e) => setEditCustomer({ ...editCustomer, cnic: formatCNIC(e.target.value) })} 
+                    onChange={(e) => setEditCustomer({ ...editCustomer, cnic: formatCNIC(e.target.value) })}
                     placeholder="64822-1648208-2"
                     onKeyDown={(e) => handleInputKeyDown(e, handleUpdateCustomer)}
                   />
@@ -602,7 +607,7 @@ function Customers() {
                   <label className="form-label">Address</label>
                   <textarea
                     className="form-input"
-                    style={{ minHeight: '80px', resize: 'vertical' }}
+                    style={{ minHeight: '80px', resize: 'vertical', border: '1px solid #cbd5e1', borderRadius: '6px', padding: '10px' }}
                     value={editCustomer.address}
                     onChange={(e) => setEditCustomer({ ...editCustomer, address: e.target.value })}
                     onKeyDown={(e) => {
@@ -615,12 +620,55 @@ function Customers() {
                 </div>
 
                 <div className="form-group" style={{ gridColumn: 'span 2', marginBottom: 0 }}>
-                  <label className="form-label">Update Image</label>
-                  <input type="file" accept="image/*" onChange={(e) => handleImageUpload(e, true)} disabled={uploading.edit} style={{ fontSize: '13px', color: 'var(--text-muted)' }} />
+                  <label className="form-label" style={{ display: 'block' }}>Update Image</label>
+                  
+                  <div style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: '12px', 
+                    border: '1px solid #cbd5e1', 
+                    borderRadius: '6px', 
+                    padding: '4px 4px',
+                    backgroundColor: 'white',
+                    width: '100%',
+                    justifyContent: 'flex-start' 
+                  }}>
+                    <label style={{
+                      backgroundColor: 'var(--header)',
+                      color: 'white',
+                      padding: '6px 24px',
+                      borderRadius: '4px',
+                      cursor: uploading.edit ? 'not-allowed' : 'pointer',
+                      fontSize: '13px',
+                      fontWeight: '500',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      margin: 0,
+                      border: 'none',
+                      transition: 'opacity 0.2s'
+                    }}
+                    onMouseOver={(e) => e.currentTarget.style.opacity = '0.9'}
+                    onMouseOut={(e) => e.currentTarget.style.opacity = '1'}
+                    >
+                      Choose File
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => handleImageUpload(e, true)}
+                        disabled={uploading.edit}
+                        style={{ display: 'none' }}
+                      />
+                    </label>
+                    <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
+                      {editCustomer.pic ? 'File selected' : 'No file chosen'}
+                    </span>
+                  </div>
+
                   {uploading.edit ? (
                     <span style={{ fontSize: '13px', color: 'var(--text-muted)', display: 'block', marginTop: '8px' }}>Uploading image…</span>
                   ) : (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '8px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '12px' }}>
                       <AvatarImage pic={editCustomer.pic} name={editCustomer.name} size={40} />
                       <span style={{ fontSize: '13px', color: editCustomer.pic ? 'var(--success)' : 'var(--text-muted)' }}>
                         {editCustomer.pic ? '✓ Current image — pick a new file to replace it' : 'No image on file yet'}
@@ -631,7 +679,7 @@ function Customers() {
               </div>
             </div>
 
-            <div className="modal-footer" style={{ borderTop: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)' }}>
+            <div className="modal-footer" style={{ borderTop: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)', padding: '16px 20px', flexShrink: 0 }}>
               <button className="btn btn-secondary" onClick={() => { setEditCustomerId(null); setEditMessage({ text: '', type: '' }); setImageMessage({ text: '', type: '' }); }}>Cancel</button>
               <button className="btn btn-primary" onClick={handleUpdateCustomer}>Save Changes</button>
             </div>
@@ -642,10 +690,10 @@ function Customers() {
       {/* VIEW MODAL */}
       {viewCustomer && (
         <div className="modal-overlay" onClick={() => setViewCustomer(null)}>
-          <div className="modal-container" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '520px', padding: 0 }}>
-            
+          <div className="modal-container" onClick={(e) => e.stopPropagation()} style={{ width: '550px', padding: 0, textAlign: 'left' }}>
+
             <div style={{
-              backgroundColor: 'var(--primary)', padding: '24px', display: 'flex',
+              backgroundColor: 'var(--primary-other)', padding: '24px', display: 'flex', textAlign: 'left',
               flexDirection: 'column', alignItems: 'center', gap: '10px', borderTopLeftRadius: 'var(--radius-lg)', borderTopRightRadius: 'var(--radius-lg)'
             }}>
               <AvatarImage pic={viewCustomer.pic} name={viewCustomer.name} size={84} />
@@ -700,7 +748,7 @@ function Customers() {
                 <span style={{ fontSize: '24px' }}>⚠️</span> Delete Customer
               </h3>
             </div>
-            
+
             <div className="modal-body">
               <InlineMessage message={deleteMessage.text} type={deleteMessage.type} />
               <p style={{ fontSize: '14px', color: 'var(--text-muted)', margin: 0, lineHeight: '1.5' }}>
@@ -709,19 +757,19 @@ function Customers() {
             </div>
 
             <div className="modal-footer" style={{ borderTop: 'none', backgroundColor: 'transparent' }}>
-              <button 
+              <button
                 className="btn btn-secondary"
                 onClick={() => {
                   setDeleteTarget(null);
                   setIsDeleteModalOpen(false);
                   setDeleteMessage({ text: '', type: '' });
-                }} 
+                }}
               >
                 Cancel
               </button>
-              <button 
+              <button
                 className="btn btn-danger"
-                onClick={handleDelete} 
+                onClick={handleDelete}
               >
                 Delete
               </button>

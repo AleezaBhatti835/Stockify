@@ -27,7 +27,6 @@ function CustomerAccount() {
         fetchCustomers();
     }, []);
 
-    // CORE ARCHITECTURE: Auto-fetch ledger data whenever filters change, resetting pagination.
     useEffect(() => {
         if (selectedCustomerId) {
             fetchLedger();
@@ -77,7 +76,6 @@ function CustomerAccount() {
                     return 0;
                 });
 
-                // CORE ARCHITECTURE: Recalculate running balance dynamically on the frontend to ensure chronological accuracy.
                 let runningBal = 0;
                 fetchedRows = fetchedRows.map((row, index) => {
                     const rowDebit = Number(row.debit) || 0;
@@ -154,9 +152,11 @@ function CustomerAccount() {
 
     const getCustomerName = (c) => c?.name || c?.customerName || 'Walk-in Customer';
 
+    // 💡 FORMAT BALANCE WITH DR/CR & RECEIVABLE/PAYABLE TAGS
     const formatBalanceText = (amount) => {
-        if (amount > 0) return `${amount.toFixed(2)}`;
-        if (amount < 0) return `${Math.abs(amount).toFixed(2)}`;
+        const absVal = Math.abs(amount).toFixed(2);
+        if (amount > 0) return `Rs. ${absVal} (Dr) — Receivable`;
+        if (amount < 0) return `Rs. ${absVal} (Cr) — Payable`;
         return `Settled: Rs. 0.00`;
     };
 
@@ -301,52 +301,60 @@ function CustomerAccount() {
                     <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '800px' }}>
                         <thead>
                             <tr>
-                                <th style={{ padding: '12px 16px', backgroundColor: 'var(--header)', color: 'white', textAlign: 'center', fontSize: '13px', fontWeight: '600' }}>Sr#</th>
-                                <th style={{ padding: '12px 16px', backgroundColor: 'var(--header)', color: 'white', textAlign: 'center', fontSize: '13px', fontWeight: '600' }}>Date</th>
-                                <th style={{ padding: '12px 16px', backgroundColor: 'var(--header)', color: 'white', textAlign: 'center', fontSize: '13px', fontWeight: '600' }}>Invoice</th>
-                                <th style={{ padding: '12px 16px', backgroundColor: 'var(--header)', color: 'white', textAlign: 'center', fontSize: '13px', fontWeight: '600' }}>Debit</th>
-                                <th style={{ padding: '12px 16px', backgroundColor: 'var(--header)', color: 'white', textAlign: 'center', fontSize: '13px', fontWeight: '600' }}>Credit</th>
-                                <th style={{ padding: '12px 16px', backgroundColor: 'var(--header)', color: 'white', textAlign: 'center', fontSize: '13px', fontWeight: '600' }}>Balance</th>
-                                <th style={{ padding: '12px 16px', backgroundColor: 'var(--header)', color: 'white', textAlign: 'center', fontSize: '13px', fontWeight: '600' }}>Prev Balance</th>
-                                <th style={{ padding: '12px 16px', backgroundColor: 'var(--header)', color: 'white', textAlign: 'center', fontSize: '13px', fontWeight: '600' }}>Net</th>
+                                <th style={{ padding: '12px 16px', backgroundColor: 'var(--header)', color: 'white', textAlign: 'left', fontSize: '13px', fontWeight: '600',width:'5%' }}>Sr#</th>
+                                <th style={{ padding: '12px 16px', backgroundColor: 'var(--header)', color: 'white', textAlign: 'left', fontSize: '13px', fontWeight: '600',width:'10%'  }}>Date</th>
+                                <th style={{ padding: '12px 16px', backgroundColor: 'var(--header)', color: 'white', textAlign: 'left', fontSize: '13px', fontWeight: '600',width:'14%' }}>Invoice</th>
+                                <th style={{ padding: '12px 16px', backgroundColor: 'var(--header)', color: 'white', textAlign: 'left', fontSize: '13px', fontWeight: '600',width:'13%' }}>Debit</th>
+                                <th style={{ padding: '12px 16px', backgroundColor: 'var(--header)', color: 'white', textAlign: 'left', fontSize: '13px', fontWeight: '600',width:'14%' }}>Credit</th>
+                                <th style={{ padding: '12px 16px', backgroundColor: 'var(--header)', color: 'white', textAlign: 'left', fontSize: '13px', fontWeight: '600',width:'14%' }}>Balance</th>
+                                <th style={{ padding: '12px 16px', backgroundColor: 'var(--header)', color: 'white', textAlign: 'left', fontSize: '13px', fontWeight: '600',width:'15%' }}>Prev Balance</th>
+                                <th style={{ padding: '12px 16px', backgroundColor: 'var(--header)', color: 'white', textAlign: 'left', fontSize: '13px', fontWeight: '600',width:'25%' }}>Net (Dr / Cr)</th>
                             </tr>
                         </thead>
                         <tbody>
                             {loading ? (
-                                <tr><td colSpan="8" style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)',fontSize:'14px' }}>Loading...</td></tr>
+                                <tr><td colSpan="8" style={{ padding: '40px', textAlign: 'left', color: 'var(--text-muted)',fontSize:'14px' }}>Loading...</td></tr>
                             ) : !selectedCustomerId ? (
-                                <tr><td colSpan="8" style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)',fontSize:'14px' }}>Please select a customer to view their ledger.</td></tr>
+                                <tr><td colSpan="8" style={{ padding: '40px', textAlign: 'left', color: 'var(--text-muted)',fontSize:'14px' }}>Please select a customer to view their ledger.</td></tr>
                             ) : currentRows.length === 0 ? (
-                                <tr><td colSpan="8" style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)',fontSize:'14px' }}>No transactions found for the selected filters.</td></tr>
+                                <tr><td colSpan="8" style={{ padding: '40px', textAlign: 'left', color: 'var(--text-muted)',fontSize:'14px' }}>No transactions found for the selected filters.</td></tr>
                             ) : (
-                                currentRows.map(row => (
-                                    <tr key={row._id} style={{ borderBottom: '1px solid var(--border-color)' }}>
-                                        <td style={{ padding: '7px 16px', fontSize: '13px', color: 'var(--text-main)' }}>{row.srNo}</td>
-                                        <td style={{ padding: '7px 16px', fontSize: '13px', color: 'var(--text-main)' }}>{new Date(row.date).toLocaleDateString()}</td>
-                                        <td style={{ padding: '7px 16px', fontSize: '13px', color: 'var(--text-main)' }}>{row.invoiceNumber || '-'}</td>
-                                        <td style={{ padding: '7px 16px', fontSize: '13px', color: 'var(--danger)', fontWeight: '500' }}>
-                                            {row.debit > 0 ? row.debit.toFixed(2) : '0'}
-                                        </td>
-                                        <td style={{ padding: '7px 16px', fontSize: '13px', color: 'var(--success)', fontWeight: '500' }}>
-                                            {row.credit > 0 ? row.credit.toFixed(2) : '0'}
-                                        </td>
-                                        <td style={{ padding: '7px 16px', fontSize: '13px', color: 'var(--text-main)', fontWeight: '600' }}>{row.balance.toFixed(2)}</td>
-                                        <td style={{ padding: '7px 16px', fontSize: '13px', color: 'var(--text-main)' }}>{row.previousBalance.toFixed(2)}</td>
-                                        <td style={{ padding: '7px 16px', fontSize: '13px', color: 'var(--text-main)', fontWeight: '700' }}>{row.net.toFixed(2)}</td>
-                                    </tr>
-                                ))
+                                currentRows.map(row => {
+                                    const netVal = row.net || 0;
+                                    const netColor = netVal > 0 ? 'var(--success)' : (netVal < 0 ? 'var(--danger)' : 'var(--text-main)');
+                                    const netTag = netVal > 0 ? ' (Dr)' : (netVal < 0 ? ' (Cr)' : '');
+
+                                    return (
+                                        <tr key={row._id} style={{ borderBottom: '1px solid var(--border-color)',textAlign:'left' }}>
+                                            <td style={{ padding: '7px 16px', fontSize: '13px', color: 'var(--text-main)' }}>{row.srNo}</td>
+                                            <td style={{ padding: '7px 16px', fontSize: '13px', color: 'var(--text-main)' }}>{new Date(row.date).toLocaleDateString()}</td>
+                                            <td style={{ padding: '7px 16px', fontSize: '13px', color: 'var(--text-main)' }}>{row.invoiceNumber || '-'}</td>
+                                            <td style={{ padding: '7px 16px', fontSize: '13px', color: 'var(--danger)', fontWeight: '500' }}>
+                                                {row.debit > 0 ? row.debit.toFixed(2) : '0'}
+                                            </td>
+                                            <td style={{ padding: '7px 16px', fontSize: '13px', color: 'var(--success)', fontWeight: '500' }}>
+                                                {row.credit > 0 ? row.credit.toFixed(2) : '0'}
+                                            </td>
+                                            <td style={{ padding: '7px 16px', fontSize: '13px', color: 'var(--text-main)', fontWeight: '600' }}>{row.balance.toFixed(2)}</td>
+                                            <td style={{ padding: '7px 16px', fontSize: '13px', color: 'var(--text-main)' }}>{row.previousBalance.toFixed(2)}</td>
+                                            <td style={{ padding: '7px 16px', fontSize: '13px', color: netColor, fontWeight: '700' }}>
+                                                {Math.abs(netVal).toFixed(2)}{netTag}
+                                            </td>
+                                        </tr>
+                                    );
+                                })
                             )}
                         </tbody>
                         {rows.length > 0 && (
                             <tfoot>
                                 <tr style={{ backgroundColor: 'var(--bg-app)', borderTop: '2px solid var(--border-color)' }}>
                                     <td></td>
-                                    <td style={{ padding: '12px 16px', fontSize: '14px', fontWeight: '700', color: 'var(--text-main)' }}>Total</td>
+                                    <td style={{ padding: '12px 16px', fontSize: '13px', fontWeight: '700', color: 'var(--text-main)' }}>Total</td>
                                     <td></td>
-                                    <td style={{ padding: '12px 16px', fontSize: '14px', fontWeight: '700', color: 'var(--danger)' }}>{totalDebit.toFixed(2)}</td>
-                                    <td style={{ padding: '12px 16px', fontSize: '14px', fontWeight: '700', color: 'var(--success)' }}>{totalCredit.toFixed(2)}</td>
+                                    <td style={{ padding: '12px 16px', fontSize: '13px', fontWeight: '700', color: 'var(--danger)' }}>{totalDebit.toFixed(2)}</td>
+                                    <td style={{ padding: '12px 16px', fontSize: '13px', fontWeight: '700', color: 'var(--success)' }}>{totalCredit.toFixed(2)}</td>
                                     <td colSpan="2"></td>
-                                    <td style={{ padding: '12px 16px', fontSize: '14px', fontWeight: '700', color: closingBalance > 0 ? 'var(--success)' : (closingBalance < 0 ? 'var(--danger)' : 'var(--text-main)') }}>
+                                    <td style={{ padding: '12px 16px',textAlign:'left', fontSize: '13px', fontWeight: '700', color: closingBalance > 0 ? 'var(--success)' : (closingBalance < 0 ? 'var(--danger)' : 'var(--text-main)') }}>
                                         {formatBalanceText(closingBalance)}
                                     </td>
                                 </tr>

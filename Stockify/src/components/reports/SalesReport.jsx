@@ -22,7 +22,7 @@ function SalesReport() {
   const [fetchError, setFetchError] = useState(false);
 
   // ================= VIEW MODE STATE (Abstract vs Detailed) =================
-  const [viewMode, setViewMode] = useState('detailed'); 
+  const [viewMode, setViewMode] = useState('detailed');
 
   // ================= FILTER STATES =================
   const [selectedCustomer, setSelectedCustomer] = useState('');
@@ -79,20 +79,20 @@ function SalesReport() {
         }
       });
       if (!res.ok) throw new Error('Not available');
-      
+
       const data = await res.json();
-      
+
       let list = [];
       if (Array.isArray(data)) {
         list = data;
       } else {
         list = data.sales || data.saleReturns || data.rows || data.differences || data.rateDifferences || data.saleRateDifferences || data.data || [];
         if (list.length === 0) {
-            const possibleArray = Object.values(data).find(val => Array.isArray(val));
-            if (possibleArray) list = possibleArray;
+          const possibleArray = Object.values(data).find(val => Array.isArray(val));
+          if (possibleArray) list = possibleArray;
         }
       }
-      
+
       setRecords(list);
     } catch (err) {
       console.error(`Error fetching ${activeTab} data:`, err);
@@ -114,7 +114,7 @@ function SalesReport() {
     const getCustomerName = (r) => {
       let name = r.customerName || r.customer?.name || r.customer?.customerName || r.sale?.customer?.name;
       if (name) return name;
-      
+
       let rawId = r.customerId || r.customer?._id || r.customer || r.sale?.customer?._id || r.sale?.customer;
       let cId = typeof rawId === 'object' && rawId !== null ? rawId._id : rawId;
 
@@ -147,8 +147,8 @@ function SalesReport() {
 
       let lineItems = r.items || r.details || r.products || r.saleItems || r.returnItems || [];
       if (!lineItems.length) {
-          const possibleArr = Object.values(r).find(v => Array.isArray(v) && v.length > 0 && typeof v[0] === 'object');
-          if (possibleArr) lineItems = possibleArr;
+        const possibleArr = Object.values(r).find(v => Array.isArray(v) && v.length > 0 && typeof v[0] === 'object');
+        if (possibleArr) lineItems = possibleArr;
       }
 
       const isFlatItem = !lineItems.length && (r.product || r.productName || r.quantity !== undefined || r.soldQuantity !== undefined);
@@ -156,13 +156,13 @@ function SalesReport() {
       // --- ABSTRACT (SUMMARY) MODE ---
       if (viewMode === 'summary') {
         let invoiceTotal = r.totalAmount ?? r.amount ?? r.differenceAmount ?? r.totalDifference ?? r.netAmount;
-        
+
         if (invoiceTotal === undefined && lineItems.length > 0) {
-           invoiceTotal = lineItems.reduce((sum, item) => sum + (item.totalDifference ?? item.totalPrice ?? item.lineTotal ?? ((item.quantity ?? item.soldQuantity ?? item.saleQty ?? 0) * (item.rate ?? item.unitPrice ?? item.newRate ?? 0))), 0);
+          invoiceTotal = lineItems.reduce((sum, item) => sum + (item.totalDifference ?? item.totalPrice ?? item.lineTotal ?? ((item.quantity ?? item.soldQuantity ?? item.saleQty ?? 0) * (item.rate ?? item.unitPrice ?? item.newRate ?? 0))), 0);
         } else if (invoiceTotal === undefined && isFlatItem) {
-           const qty = r.quantity ?? r.soldQuantity ?? r.saleQty ?? r.qty ?? 0;
-           const rate = r.unitPrice ?? r.rate ?? r.newRate ?? 0;
-           invoiceTotal = r.lineTotal ?? r.totalPrice ?? (qty * rate);
+          const qty = r.quantity ?? r.soldQuantity ?? r.saleQty ?? r.qty ?? 0;
+          const rate = r.unitPrice ?? r.rate ?? r.newRate ?? 0;
+          invoiceTotal = r.lineTotal ?? r.totalPrice ?? (qty * rate);
         }
 
         let productLabel = '—';
@@ -174,24 +174,24 @@ function SalesReport() {
         let diffRateLabel = '—';
 
         if (lineItems.length === 1) {
-           const item = lineItems[0];
-           productLabel = item.product?.name || item.productName || 'Unknown Product';
-           pId = item.product?._id || item.product || null;
-           qtyLabel = item.quantity ?? item.soldQuantity ?? item.saleQty ?? item.qty ?? '—';
-           prevRateLabel = item.prevRate ?? item.oldRate ?? 0;
-           newRateLabel = item.newRate ?? item.rate ?? item.unitPrice ?? 0;
-           diffRateLabel = item.difference ?? item.diffRate ?? (newRateLabel - prevRateLabel);
-           rateLabel = item.unitPrice ?? item.rate ?? item.newRate ?? 0;
+          const item = lineItems[0];
+          productLabel = item.product?.name || item.productName || 'Unknown Product';
+          pId = item.product?._id || item.product || null;
+          qtyLabel = item.quantity ?? item.soldQuantity ?? item.saleQty ?? item.qty ?? '—';
+          prevRateLabel = item.prevRate ?? item.oldRate ?? 0;
+          newRateLabel = item.newRate ?? item.rate ?? item.unitPrice ?? 0;
+          diffRateLabel = item.difference ?? item.diffRate ?? (newRateLabel - prevRateLabel);
+          rateLabel = item.unitPrice ?? item.rate ?? item.newRate ?? 0;
         } else if (lineItems.length > 1) {
-           productLabel = '— (Multiple Products)';
+          productLabel = '— (Multiple Products)';
         } else if (isFlatItem) {
-           productLabel = typeof r.product === 'object' ? r.product?.name : (r.productName || r.product || 'Unknown Product');
-           pId = typeof r.product === 'object' ? r.product?._id : (r.productId || null);
-           qtyLabel = r.quantity ?? r.soldQuantity ?? r.saleQty ?? r.qty ?? '—';
-           prevRateLabel = r.prevRate ?? r.oldRate ?? 0;
-           newRateLabel = r.newRate ?? r.rate ?? r.unitPrice ?? 0;
-           diffRateLabel = r.difference ?? r.diffRate ?? (newRateLabel - prevRateLabel);
-           rateLabel = r.unitPrice ?? r.rate ?? r.newRate ?? 0;
+          productLabel = typeof r.product === 'object' ? r.product?.name : (r.productName || r.product || 'Unknown Product');
+          pId = typeof r.product === 'object' ? r.product?._id : (r.productId || null);
+          qtyLabel = r.quantity ?? r.soldQuantity ?? r.saleQty ?? r.qty ?? '—';
+          prevRateLabel = r.prevRate ?? r.oldRate ?? 0;
+          newRateLabel = r.newRate ?? r.rate ?? r.unitPrice ?? 0;
+          diffRateLabel = r.difference ?? r.diffRate ?? (newRateLabel - prevRateLabel);
+          rateLabel = r.unitPrice ?? r.rate ?? r.newRate ?? 0;
         }
 
         rows.push({
@@ -218,7 +218,7 @@ function SalesReport() {
           const diffRate = item.difference ?? item.diffRate ?? (newRate - prevRate);
           const rate = item.unitPrice ?? item.rate ?? item.newRate ?? 0;
           const lineTotal = item.totalDifference ?? item.totalPrice ?? item.lineTotal ?? ((typeof qty === 'number' && typeof rate === 'number') ? qty * rate : 0);
-          
+
           rows.push({
             ...meta,
             product: item.product?.name || item.productName || 'Unknown Product',
@@ -233,25 +233,25 @@ function SalesReport() {
           });
         });
       } else if (isFlatItem) {
-          const qty = r.quantity ?? r.soldQuantity ?? r.saleQty ?? r.qty ?? '—';
-          const prevRate = r.prevRate ?? r.oldRate ?? 0;
-          const newRate = r.newRate ?? r.rate ?? r.unitPrice ?? 0;
-          const diffRate = r.difference ?? r.diffRate ?? (newRate - prevRate);
-          const rate = r.unitPrice ?? r.rate ?? r.newRate ?? 0;
-          const lineTotal = r.totalAmount ?? r.amount ?? r.differenceAmount ?? r.totalDifference ?? r.totalPrice ?? r.lineTotal ?? ((typeof qty === 'number' && typeof rate === 'number') ? qty * rate : 0);
+        const qty = r.quantity ?? r.soldQuantity ?? r.saleQty ?? r.qty ?? '—';
+        const prevRate = r.prevRate ?? r.oldRate ?? 0;
+        const newRate = r.newRate ?? r.rate ?? r.unitPrice ?? 0;
+        const diffRate = r.difference ?? r.diffRate ?? (newRate - prevRate);
+        const rate = r.unitPrice ?? r.rate ?? r.newRate ?? 0;
+        const lineTotal = r.totalAmount ?? r.amount ?? r.differenceAmount ?? r.totalDifference ?? r.totalPrice ?? r.lineTotal ?? ((typeof qty === 'number' && typeof rate === 'number') ? qty * rate : 0);
 
-          rows.push({
-            ...meta,
-            product: typeof r.product === 'object' ? r.product?.name : (r.productName || r.product || 'Unknown Product'),
-            productId: typeof r.product === 'object' ? r.product?._id : (r.productId || null),
-            quantity: qty,
-            prevRate,
-            newRate,
-            diffRate,
-            rate,
-            lineTotal,
-            isSummaryOnly: false
-          });
+        rows.push({
+          ...meta,
+          product: typeof r.product === 'object' ? r.product?.name : (r.productName || r.product || 'Unknown Product'),
+          productId: typeof r.product === 'object' ? r.product?._id : (r.productId || null),
+          quantity: qty,
+          prevRate,
+          newRate,
+          diffRate,
+          rate,
+          lineTotal,
+          isSummaryOnly: false
+        });
       }
     });
     return rows;
@@ -278,7 +278,7 @@ function SalesReport() {
     result.sort((a, b) => {
       const dateA = new Date(a.date).getTime() || 0;
       const dateB = new Date(b.date).getTime() || 0;
-      if (dateA !== dateB) return dateA - dateB; 
+      if (dateA !== dateB) return dateA - dateB;
       return (a.ref || '').toString().localeCompare((b.ref || '').toString(), undefined, { numeric: true });
     });
 
@@ -296,7 +296,7 @@ function SalesReport() {
 
   const isDiffTab = activeTab === 'difference';
 
-  const columns = isDiffTab 
+  const columns = isDiffTab
     ? ['Sr#', 'Date', 'Ref #', 'Invoice #', 'Customer', 'Product', 'Qty', 'Prev Rate', 'New Rate', 'Diff Rate', 'Total Diff']
     : ['Sr#', 'Date', 'Ref #', 'Invoice #', 'Customer', 'Product', 'Quantity', 'Rate', 'Line Total'];
 
@@ -312,17 +312,17 @@ function SalesReport() {
     ];
 
     if (isDiffTab) {
-      return [...baseRow, 
-        typeof r.prevRate === 'number' ? r.prevRate.toFixed(2) : r.prevRate,
-        typeof r.newRate === 'number' ? r.newRate.toFixed(2) : r.newRate,
-        typeof r.diffRate === 'number' ? r.diffRate.toFixed(2) : r.diffRate,
-        typeof r.lineTotal === 'number' ? r.lineTotal.toFixed(2) : r.lineTotal
+      return [...baseRow,
+      typeof r.prevRate === 'number' ? r.prevRate.toFixed(2) : r.prevRate,
+      typeof r.newRate === 'number' ? r.newRate.toFixed(2) : r.newRate,
+      typeof r.diffRate === 'number' ? r.diffRate.toFixed(2) : r.diffRate,
+      typeof r.lineTotal === 'number' ? r.lineTotal.toFixed(2) : r.lineTotal
       ];
     }
 
-    return [...baseRow, 
-      typeof r.rate === 'number' ? r.rate.toFixed(2) : r.rate,
-      typeof r.lineTotal === 'number' ? r.lineTotal.toFixed(2) : r.lineTotal
+    return [...baseRow,
+    typeof r.rate === 'number' ? r.rate.toFixed(2) : r.rate,
+    typeof r.lineTotal === 'number' ? r.lineTotal.toFixed(2) : r.lineTotal
     ];
   };
 
@@ -436,7 +436,7 @@ function SalesReport() {
     doc.setTextColor(100, 116, 139);
     doc.text(`Generated on ${new Date().toLocaleString()} — ${filtered.length} line item(s)`, 14, 18);
 
-    const footArray = isDiffTab 
+    const footArray = isDiffTab
       ? [['', '', '', '', '', '', '', '', '', 'Grand Total', grandTotal.toFixed(2)]]
       : [['', '', '', '', '', '', '', 'Grand Total', grandTotal.toFixed(2)]];
 
@@ -562,10 +562,10 @@ function SalesReport() {
 
   return (
     <div className="dashboard-wrapper">
-      
+
       {/* HEADER TABS & ACTIONS */}
       <div className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 'var(--space-md)' }}>
-        
+
         {/* TABS */}
         <div style={{ display: 'flex', gap: 'var(--space-sm)', flexWrap: 'wrap' }}>
           {TABS.map(t => (
@@ -581,7 +581,7 @@ function SalesReport() {
         </div>
 
         {/* EXPORT ACTIONS */}
-       <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
           <button className="btn btn-secondary" onClick={handlePrint} disabled={loading || filtered.length === 0}><FontAwesomeIcon icon={faPrint} /> Print</button>
           <button className="btn btn-secondary" onClick={handleExportPDF} disabled={loading || filtered.length === 0}><FontAwesomeIcon icon={faFilePdf} /> PDF</button>
           <button className="btn btn-secondary" onClick={handleExportExcel} disabled={loading || filtered.length === 0}><FontAwesomeIcon icon={faFileExcel} /> Excel</button>
@@ -590,33 +590,57 @@ function SalesReport() {
 
       {/* ==================== FILTERS & VIEW MODE ==================== */}
       <div className="card" style={{ display: 'flex', gap: 'var(--space-md)', alignItems: 'flex-end', flexWrap: 'wrap' }}>
-        
+
         {/* VIEW MODE RADIO */}
         <div className="form-group" style={{ marginBottom: 0 }}>
           <label className="form-label">View Mode</label>
-          <div style={{ 
-            display: 'flex', gap: 'var(--space-md)', alignItems: 'center', 
-            padding: '9px 12px', border: '1px solid var(--border-color)', 
-            borderRadius: 'var(--radius-md)', backgroundColor: 'var(--bg-surface)', 
-            height: '40px', boxSizing: 'border-box' 
+          <div style={{
+            display: 'flex', gap: 'var(--space-md)', alignItems: 'center',
+            padding: '4px 12px', border: '1px solid var(--border-color)',
+            borderRadius: 'var(--radius-md)', backgroundColor: 'var(--bg-surface)',
+            height: '40px', boxSizing: 'border-box'
           }}>
-            <label style={{ fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', color: 'var(--text-main)', fontWeight: 500 }}>
-              <input 
-                type="radio" 
-                name="viewMode" 
-                value="summary" 
-                checked={viewMode === 'summary'} 
-                onChange={(e) => setViewMode(e.target.value)} 
+            <label style={{ fontSize: '13px', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', color: 'var(--text-main)', fontWeight: 600 }}>
+              <input
+                type="radio"
+                name="viewMode"
+                value="summary"
+                checked={viewMode === 'summary'}
+                onChange={(e) => setViewMode(e.target.value)}
+                style={{
+                  appearance: 'none',
+                  WebkitAppearance: 'none',
+                  width: '12px',
+                  height: '12px',
+                  borderRadius: '50%',
+                  margin: 0,
+                  cursor: 'pointer',
+                  backgroundColor: viewMode === 'summary' ? 'var(--primary)' : '#fff',
+                  border: viewMode === 'summary' ? '2px solid #fff' : '1px solid #ccc',
+                  boxShadow: viewMode === 'summary' ? '0 0 0 1px var(--primary)' : 'none'
+                }}
               />
               Abstract
             </label>
-            <label style={{ fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', color: 'var(--text-main)', fontWeight: 500 }}>
-              <input 
-                type="radio" 
-                name="viewMode" 
-                value="detailed" 
-                checked={viewMode === 'detailed'} 
-                onChange={(e) => setViewMode(e.target.value)} 
+            <label style={{ fontSize: '13px', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', color: 'var(--text-main)', fontWeight: 600 }}>
+              <input
+                type="radio"
+                name="viewMode"
+                value="detailed"
+                checked={viewMode === 'detailed'}
+                onChange={(e) => setViewMode(e.target.value)}
+                style={{
+                  appearance: 'none',
+                  WebkitAppearance: 'none',
+                  width: '12px',
+                  height: '12px',
+                  borderRadius: '50%',
+                  margin: 0,
+                  cursor: 'pointer',
+                  backgroundColor: viewMode === 'detailed' ? 'var(--primary)' : '#fff',
+                  border: viewMode === 'detailed' ? '2px solid #fff' : '1px solid #ccc',
+                  boxShadow: viewMode === 'detailed' ? '0 0 0 1px var(--primary)' : 'none'
+                }}
               />
               Detailed
             </label>
@@ -656,10 +680,6 @@ function SalesReport() {
 
       {/* ==================== TABLE SECTION ==================== */}
       <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-        
-        <div style={{ padding: 'var(--space-sm) var(--space-md)', textAlign: 'right', fontSize: '13px', color: 'var(--text-muted)', borderBottom: '1px solid var(--border-color)' }}>
-          Showing {filtered.length} {viewMode === 'summary' ? 'transaction(s)' : 'line item(s)'}
-        </div>
 
         <div style={{ overflowX: 'auto', width: '100%' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '900px' }}>
@@ -700,8 +720,8 @@ function SalesReport() {
                 currentRows.map((r, idx) => {
                   const serialNumber = (currentPage - 1) * itemsPerPage + idx + 1;
                   return (
-                    <tr 
-                      key={`${r.parentId}-${idx}`} 
+                    <tr
+                      key={`${r.parentId}-${idx}`}
                       style={{ borderBottom: '1px solid var(--border-color)', transition: 'background-color 0.2s' }}
                       onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--bg-app)'}
                       onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
@@ -737,18 +757,18 @@ function SalesReport() {
                 })
               )}
             </tbody>
-            
+
             {/* Grand Total Footer */}
             {currentRows.length > 0 && (
               <tfoot>
                 <tr style={{ backgroundColor: 'var(--primary-light)', borderTop: '2px solid var(--border-color)' }}>
-                  <td 
-                    colSpan={isDiffTab ? 10 : 8} 
+                  <td
+                    colSpan={isDiffTab ? 10 : 8}
                     style={{ ...tableStyles.td, textAlign: 'right', fontWeight: 700 }}
                   >
                     Grand Total:
                   </td>
-                  <td 
+                  <td
                     style={{ ...tableStyles.td, textAlign: 'left', fontWeight: 800, color: 'var(--text-main)' }}
                   >
                     {grandTotal.toFixed(2)}

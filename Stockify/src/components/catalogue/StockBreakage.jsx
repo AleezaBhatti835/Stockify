@@ -413,7 +413,7 @@ function StockBreakage() {
         </head>
         <body>
           <div class="header-info">
-            <h2>CAPOBIZ</h2>
+            <h2>Stockify</h2>
             <h4>STOCK BREAKAGE / DAMAGE RECEIPT ${viewModalData.isSingleItemView ? '(SINGLE ITEM)' : ''}</h4>
           </div>
           
@@ -653,7 +653,7 @@ function StockBreakage() {
         <div className="modal-overlay" onClick={() => setViewModalData(null)}>
           <div className="modal-container modal-container-wide" onClick={(e) => e.stopPropagation()} style={{ display: 'flex', flexDirection: 'column', maxHeight: '90vh' }}>
             <div className="modal-header" style={{ backgroundColor: 'var(--bg-app)' }}>
-              <h3 style={{ margin: 0, color: 'var(--text-main)' }}>CAPOBIZ</h3>
+              <h3 style={{ margin: 0, color: 'var(--text-main)' }}>Stockify</h3>
               <div style={{ display: 'flex', gap: '12px' }}>
                 <button className="btn btn-primary" onClick={handlePrintBreakage}>🖨️ Print</button>
                 <button className="btn btn-secondary" onClick={() => setViewModalData(null)}>✕ Close</button>
