@@ -1202,7 +1202,7 @@ const tableStyles = {
 const actionStyles = {
   iconBtnView: {
     backgroundColor: 'var(--success-bg)',
-    color: 'var(--success)',
+    color: 'var(--viewtext)',
     border: 'none',
     padding: '6px',
     borderRadius: '4px',

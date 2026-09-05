@@ -601,7 +601,7 @@ function StockBreakage() {
                             onClick={() => setViewModalData(group)}
                             style={{
                               backgroundColor: 'var(--view)',
-                              color: 'var(--success)', border: 'none', padding: '6px 12px', borderRadius: 'var(--radius-sm)', cursor: 'pointer', transition: '0.2s'
+                              color: 'var(--viewtext)', border: 'none', padding: '6px 12px', borderRadius: 'var(--radius-sm)', cursor: 'pointer', transition: '0.2s'
                             }}
                             title="View Invoice"
                           >

@@ -459,7 +459,7 @@ const PurchaseReturnList = () => {
                       <td style={{ padding: '10px 16px', textAlign: 'center' }}>
                         <div style={{ display: 'flex', justifyContent: 'center' }}>
                           <button 
-                            style={{ backgroundColor: 'var(--view)', color: 'var(--success)', border: 'none', padding: '6px', borderRadius: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+                            style={{ backgroundColor: 'var(--view)', color: 'var(--viewtext)', border: 'none', padding: '6px', borderRadius: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
                             onClick={() => openModal(ret)} 
                             title="View"
                           >

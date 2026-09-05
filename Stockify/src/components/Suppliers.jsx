@@ -833,6 +833,10 @@ const fetchCities = async () => {
                     value={editSupplier.email}
                     onChange={(e) => setEditSupplier({ ...editSupplier, email: e.target.value })}
                     placeholder="supplier@company.com"
+                    disabled={true}  style={{ 
+                      border: '1px solid #cbd5e1', borderRadius: '6px', padding: '10px', width: '100%', boxSizing: 'border-box',
+                      backgroundColor: '#f1f5f9', cursor: 'not-allowed', color: 'var(--text-muted)'
+                    }}
                     onKeyDown={(e) => handleInputKeyDown(e, handleUpdateSupplier)}
                   />
                 </div>
@@ -1020,7 +1024,7 @@ const tableStyles = {
 const actionStyles = {
   iconBtnView: {
     backgroundColor: 'var(--view)',
-    color: 'var(--success)',
+    color: 'var(--viewtext)',
     border: 'none',
     padding: '6px',
     borderRadius: '4px',

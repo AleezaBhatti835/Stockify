@@ -6,10 +6,8 @@ function CustomerType() {
   const [customerTypes, setCustomerTypes] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Message State for Custom Popups
   const [message, setMessage] = useState({ text: '', type: '' });
 
-  // Modal States
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [typeToDelete, setTypeToDelete] = useState(null);
@@ -209,7 +207,6 @@ function CustomerType() {
         <button className="btn btn-primary" onClick={() => openModal()}>+ Add Customer Type</button>
       </div>
 
-      {/* Main Screen Message (Visible when modals are closed) */}
       {!isModalOpen && !isDeleteModalOpen && renderMessage()}
 
       {/* Table */}
@@ -288,7 +285,7 @@ function CustomerType() {
             <div className="modal-body">
               {renderMessage()}
               <div className="form-group" style={{ marginBottom: 0 }}>
-                <label className="form-label">Type Name *</label>
+                <label className="form-label required">Type Name</label>
                 <input
                   type="text"
                   className="form-input"

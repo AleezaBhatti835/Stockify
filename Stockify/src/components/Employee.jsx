@@ -628,7 +628,7 @@ function Employees() {
                       <td style={{ ...tableStyles.td, textAlign: 'center' }}>
                         <div style={styles.actionGroup}>
                           {/* View Button */}
-                          <button style={{ backgroundColor: 'var(--view)', color: 'var(--success)', border: 'none', padding: '6px', borderRadius: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center' }} onClick={() => setViewEmployee(emp)} title="View">
+                          <button style={{ backgroundColor: 'var(--view)', color: 'var(--viewtext)', border: 'none', padding: '6px', borderRadius: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center' }} onClick={() => setViewEmployee(emp)} title="View">
                             <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
                               <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
                               <circle cx="12" cy="12" r="3"></circle>
@@ -991,8 +991,12 @@ function Employees() {
                   <input
                     type="email"
                     className="form-input"
-                    style={{ border: '1px solid #cbd5e1', borderRadius: '6px', padding: '10px', width: '100%', boxSizing: 'border-box' }}
                     value={editEmployee.email}
+                    disabled={true} 
+                     style={{ 
+                      border: '1px solid #cbd5e1', borderRadius: '6px', padding: '10px', width: '100%', boxSizing: 'border-box',
+                      backgroundColor: '#f1f5f9', cursor: 'not-allowed', color: 'var(--text-muted)'
+                    }}
                     onChange={(e) => setEditEmployee({ ...editEmployee, email: e.target.value })}
                     onKeyDown={(e) => handleInputKeyDown(e, handleUpdateEmployee)}
                     placeholder="employee@domain.com"

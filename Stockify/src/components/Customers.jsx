@@ -467,7 +467,7 @@ function Customers() {
                         <div style={{ display: 'flex', justifyContent: 'center', gap: '8px' }}>
 
                           {/* View Button */}
-                          <button style={{ backgroundColor: 'var(--view)', color: 'var(--success)', border: 'none', padding: '6px', borderRadius: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center' }} onClick={() => setViewCustomer(c)} title="View">
+                          <button style={{ backgroundColor: 'var(--view)', color: 'var(--viewtext)', border: 'none', padding: '6px', borderRadius: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center' }} onClick={() => setViewCustomer(c)} title="View">
                             <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
                               <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
                               <circle cx="12" cy="12" r="3"></circle>
@@ -560,7 +560,6 @@ function Customers() {
 
                 <div className="form-group">
                   <label className="form-label">Email Address</label>
-                  {/* 💡 Email Input Disabled during Edit */}
                   <input
                     type="email"
                     className="form-input"
@@ -619,7 +618,6 @@ function Customers() {
                   />
                 </div>
 
-                {/* 💡 City Dropdown in Edit Modal */}
                 <div className="form-group">
                   <label className="form-label">City</label>
                   <select
@@ -719,7 +717,6 @@ function Customers() {
         </div>
       )}
 
-      {/* 💡 VIEW MODAL (Simplified like Employees) */}
       {viewCustomer && (
         <div className="modal-overlay" onClick={() => setViewCustomer(null)}>
           <div className="modal-container" style={{ maxWidth: '550px', padding: 0, overflow: 'hidden' }} onClick={(e) => e.stopPropagation()}>

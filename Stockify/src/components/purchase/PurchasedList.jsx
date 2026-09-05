@@ -529,7 +529,7 @@ const PurchasedList = () => {
 const styles = {
   iconBtnView: {
     backgroundColor: 'var(--view)',
-    color: 'var(--success)',
+    color: 'var(--viewtext)',
     border: 'none',
     padding: '6px',
     borderRadius: '4px',

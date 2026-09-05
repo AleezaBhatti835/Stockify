@@ -423,7 +423,6 @@ const tableStyles = {
     }
 };
 
-// Strict Actions Rule Enforced
 const styles = {
     actionGroup: {
         display: 'flex',

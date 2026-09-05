@@ -12,12 +12,10 @@ function BusinessCapitalReport() {
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState(false);
 
-  // Fetch report data on component mount
   useEffect(() => {
     fetchReport();
   }, []);
 
-  // ================= FETCH REPORT (WITH TOKEN) =================
   const fetchReport = async () => {
     setLoading(true);
     setFetchError(false);
@@ -44,14 +42,12 @@ function BusinessCapitalReport() {
     }
   };
 
-  // Format numbers to standard currency layout with 2 decimal places
   const formatCurrency = (val) => {
     const n = Number(val || 0);
     const formatted = Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     return n < 0 ? `(${formatted})` : formatted;
   };
 
-  // Construct UI Rows based on fetched reporting data (Grouped logically)
   const getTableRows = () => {
     if (!reportData) return [];
 
@@ -62,7 +58,6 @@ function BusinessCapitalReport() {
       { type: 'item', title: 'Supplier Receivables (Advances)', amount: reportData.supplierReceivables }, 
       { type: 'item', title: 'Employee Receivables (Advances)', amount: reportData.employeeReceivables },
       
-      // Liabilities (Rendered as negative values)
       { type: 'item', title: 'Less: Customer Payables', amount: -Math.abs(reportData.customerPayables) },
       { type: 'item', title: 'Less: Supplier Payables', amount: -Math.abs(reportData.supplierPayables) },
       { type: 'item', title: 'Less: Employee Payables (Pending Salaries)', amount: -Math.abs(reportData.employeePayables) },
@@ -75,10 +70,8 @@ function BusinessCapitalReport() {
   const rowsData = getTableRows();
   const currentDateLabel = `As of ${new Date().toLocaleDateString('en-GB')}`;
 
-  // ==================== PRINT CONFIGURATION ====================
   const handlePrint = () => {
     const rowsHtml = rowsData.map(r => {
-      // Highlight Grand Total row
       if (r.type === 'grandTotal') {
         return `<tr>
           <td style="padding: 20px 24px; font-weight: 900; font-size: 16px; background-color: #f1f5f9; color: #0f172a; border-top: 3px solid #cbd5e1; border-bottom: 3px solid #cbd5e1; text-transform: uppercase;">${r.title}</td>
@@ -86,7 +79,6 @@ function BusinessCapitalReport() {
         </tr>`;
       }
       
-      // Highlight negative liabilities in red
       const valColor = r.amount < 0 ? 'color: #dc2626;' : 'color: #475569;';
       return `<tr>
         <td style="padding: 12px 16px 12px 24px; color: #334155; font-size: 14px; border-bottom: 1px solid #f1f5f9;">${r.title}</td>
@@ -184,12 +176,11 @@ function BusinessCapitalReport() {
     
     const worksheet = XLSX.utils.json_to_sheet(excelRows);
 
-    // Apply alignment formatting to Excel cells
     Object.keys(worksheet).forEach((key) => {
       if (key !== '!ref' && key !== '!cols') {
         if (!worksheet[key].s) worksheet[key].s = {};
         if (key.startsWith('B') && key !== 'B1') {
-          worksheet[key].s.alignment = { horizontal: "right" }; // Right align amounts
+          worksheet[key].s.alignment = { horizontal: "right" }; 
           worksheet[key].z = '#,##0.00';
         } else {
           worksheet[key].s.alignment = { horizontal: "left" };
@@ -219,7 +210,6 @@ function BusinessCapitalReport() {
         </button>
       </div>
 
-      {/* Main Report Table Area */}
       <div className="card" style={{ padding: 0, overflow: 'hidden', maxWidth: '820px', margin: '0 auto', width: '100%' }}>
         
         {/* Header Ribbon */}

@@ -943,7 +943,6 @@ const tableStyles = {
   }
 };
 
-// Strict Actions Rule Enforced
 const actionStyles = {
   iconBtnEdit: {
     background: 'var(--edit)',

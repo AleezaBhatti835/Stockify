@@ -535,11 +535,10 @@ const tableStyles = {
     }
 };
 
-// Strict Actions Rule Enforced
 const actionStyles = {
     iconBtnView: {
         backgroundColor: 'var(--success-bg)',
-        color: 'var(--success)',
+        color: 'var(--viewtext)',
         border: 'none',
         padding: '6px',
         borderRadius: '4px',
@@ -549,7 +548,6 @@ const actionStyles = {
     }
 };
 
-// Specific styles strictly for receipt rendering matching Paper constraints
 const styles = {
     receiptBody: { overflowY: 'auto', overflowX: 'hidden', flex: 1, color: 'var(--text-main)' },
     receiptHeaderInfo: { textAlign: 'left', marginBottom: '16px' },

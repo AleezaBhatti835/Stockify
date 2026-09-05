@@ -133,10 +133,18 @@ if (!fs.existsSync(uploadDir)) {
 
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-mongoose.connect(process.env.MONGO_URI)
-  .then(() => console.log('Connected to MongoDB'))
-  .catch((err) => console.error('Connection error:', err));
 
+const dbURI = process.env.NODE_ENV === 'test' 
+  ? 'mongodb://localhost:27017/stockify_test_db' 
+  : process.env.MONGO_URI;
+
+mongoose.connect(dbURI)
+  .then(() => {
+    if (process.env.NODE_ENV !== 'test') {
+      console.log('Connected to MongoDB');
+    }
+  })
+  .catch((err) => console.error('Connection error:', err));
 const VALID_SIZES = ['A4', 'A5', 'Thermal58'];
 
 const transporter = nodemailer.createTransport({
@@ -6568,4 +6576,10 @@ app.get('/', (req, res) => {
 });
 
 // ==================== START SERVER ====================
-app.listen(5000, () => console.log('Server running on port 5000'));
+if (process.env.NODE_ENV !== 'test') {
+  app.listen(5000, () => {
+    console.log('Server is running on port 5000');
+  });
+}
+
+export default app;

@@ -445,11 +445,10 @@ const tableStyles = {
     }
 };
 
-// Strict Actions Rule Enforced
 const actionStyles = {
     iconBtnView: {
         backgroundColor: 'var(--view)',
-        color: 'var(--success)',
+        color: 'var(--viewtext)',
         border: 'none',
         padding: '6px',
         borderRadius: '4px',
