@@ -212,22 +212,22 @@ function Transporters() {
             </div>
 
             <div className="modal-body" style={{ padding: '24px 44px', textAlign: 'left' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '18px', marginBottom: '18px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '28px', marginBottom: '10px' }}>
                 <div>
                   <label className="form-label">Vehicle Number</label>
-                  <p style={{ fontSize: '14px', margin: '4px 0 0', color: 'var(--primary)', fontWeight: 'bold' }}>{viewRecord.vehicleNumber || 'N/A'}</p>
+                  <p style={{ fontSize: '13px', margin: '4px 0 0', color: 'var(--primary)', fontWeight: 'bold' }}>{viewRecord.vehicleNumber || 'N/A'}</p>
                 </div>
                 <div>
                   <label className="form-label">Vehicle Model</label>
-                  <p style={{ fontSize: '14px', margin: '4px 0 0', color: 'var(--text-main)', fontWeight: '500' }}>{viewRecord.vehicleModel || 'N/A'}</p>
+                  <p style={{ fontSize: '13px', margin: '4px 0 0', color: 'var(--text-main)', fontWeight: '500' }}>{viewRecord.vehicleModel || 'N/A'}</p>
                 </div>
                 <div>
                   <label className="form-label">Contact Number</label>
-                  <p style={{ fontSize: '14px', margin: '4px 0 0', color: 'var(--text-main)', fontWeight: '500' }}>{viewRecord.contact || 'N/A'}</p>
+                  <p style={{ fontSize: '13px', margin: '4px 0 0', color: 'var(--text-main)', fontWeight: '500' }}>{viewRecord.contact || 'N/A'}</p>
                 </div>
                 <div>
                   <label className="form-label">CNIC</label>
-                  <p style={{ fontSize: '14px', margin: '4px 0 0', color: 'var(--text-main)', fontWeight: '500' }}>{viewRecord.cnic || 'N/A'}</p>
+                  <p style={{ fontSize: '13px', margin: '4px 0 0', color: 'var(--text-main)', fontWeight: '500' }}>{viewRecord.cnic || 'N/A'}</p>
                 </div>
               </div>
 
@@ -262,38 +262,38 @@ function Transporters() {
               <div className="modal-body" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', padding: '16px 24px' }}>
                 
                 <div className="form-group" style={{ margin: 0 }}>
-                  <label className="form-label" style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>Driver / Name *</label>
+                  <label className="form-label required" style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>Name </label>
                   <input className="form-input" style={{ width: '100%', boxSizing: 'border-box', border: '1px solid #cbd5e1', borderRadius: '6px', padding: '10px' }} value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} required autoFocus />
                 </div>
                 
                 <div className="form-group" style={{ margin: 0 }}>
-                  <label className="form-label" style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>Company Name</label>
-                  <input className="form-input" style={{ width: '100%', boxSizing: 'border-box', border: '1px solid #cbd5e1', borderRadius: '6px', padding: '10px' }} value={formData.companyName} onChange={e => setFormData({...formData, companyName: e.target.value})} />
+                  <label className="form-label required" style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>Contact </label>
+                  <input className="form-input" style={{ width: '100%', boxSizing: 'border-box', border: '1px solid #cbd5e1', borderRadius: '6px', padding: '10px' }} value={formData.contact} onChange={e => setFormData({...formData, contact: e.target.value})} required />
+                </div>
+
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label className="form-label required" style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>CNIC</label>
+                  <input className="form-input" style={{ width: '100%', boxSizing: 'border-box', border: '1px solid #cbd5e1', borderRadius: '6px', padding: '10px' }} value={formData.cnic} onChange={e => setFormData({...formData, cnic: e.target.value})} required />
                 </div>
                 
                 <div className="form-group" style={{ margin: 0 }}>
-                  <label className="form-label" style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>Vehicle Number</label>
+                  <label className="form-label required" style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>Vehicle Number</label>
                   <input className="form-input" style={{ width: '100%', boxSizing: 'border-box', border: '1px solid #cbd5e1', borderRadius: '6px', padding: '10px' }} value={formData.vehicleNumber} onChange={e => setFormData({...formData, vehicleNumber: e.target.value})} placeholder="ABC-1234" />
                 </div>
 
                 <div className="form-group" style={{ margin: 0 }}>
-                  <label className="form-label" style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>Vehicle Model</label>
+                  <label className="form-label " style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>Vehicle Model</label>
                   <input className="form-input" style={{ width: '100%', boxSizing: 'border-box', border: '1px solid #cbd5e1', borderRadius: '6px', padding: '10px' }} value={formData.vehicleModel} onChange={e => setFormData({...formData, vehicleModel: e.target.value})} placeholder="e.g. Toyota Hilux" />
                 </div>
+
                 
                 <div className="form-group" style={{ margin: 0 }}>
-                  <label className="form-label" style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>Contact *</label>
-                  <input className="form-input" style={{ width: '100%', boxSizing: 'border-box', border: '1px solid #cbd5e1', borderRadius: '6px', padding: '10px' }} value={formData.contact} onChange={e => setFormData({...formData, contact: formatContact(e.target.value)})} required />
-                </div>
-                
-                <div className="form-group" style={{ margin: 0 }}>
-                  <label className="form-label" style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>CNIC</label>
+                  <label className="form-label required" style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>CNIC</label>
                   <input className="form-input" style={{ width: '100%', boxSizing: 'border-box', border: '1px solid #cbd5e1', borderRadius: '6px', padding: '10px' }} value={formData.cnic} onChange={e => setFormData({...formData, cnic: formatCNIC(e.target.value)})} placeholder="00000-0000000-0" />
                 </div>
                 
-                {/* --- CUSTOM BORDERED & LEFT-ALIGNED FILE UPLOADER --- */}
                 <div className="form-group" style={{ gridColumn: 'span 2', margin: 0 }}>
-                  <label className="form-label" style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>Image</label>
+                  <label className="form-label " style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>Image</label>
                   
                   <div style={{ 
                     display: 'flex', 

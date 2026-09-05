@@ -351,10 +351,10 @@ function Category() {
                       onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--bg-app)'}
                       onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                     >
-                      <td style={{ padding: '8px 16px', fontSize: '13px', color: 'var(--text-main)' }}>{serialNumber}</td>
-                      <td style={{ padding: '8px 16px', fontSize: '13px', color: 'var(--text-main)' }}>{c.name}</td>
-                      <td style={{ padding: '8px 16px', fontSize: '13px', color: 'var(--text-muted)' }}>{c.description || <span style={{ fontStyle: 'italic', opacity: 0.6 }}>N/A</span>}</td>
-                      <td style={{ padding: '8px 16px', textAlign: 'center' }}>
+                      <td style={{ padding: '8px 16px', textAlign: 'left' , fontSize: '13px', color: 'var(--text-main)' }}>{serialNumber}</td>
+                      <td style={{ padding: '8px 16px', textAlign: 'left' , fontSize: '13px', color: 'var(--text-main)' }}>{c.name}</td>
+                      <td style={{ padding: '8px 16px', textAlign: 'left' , fontSize: '13px', color: 'var(--text-muted)' }}>{c.description || <span style={{ fontStyle: 'italic', opacity: 0.6 }}>N/A</span>}</td>
+                      <td style={{ padding: '8px 16px', textAlign: 'left' }}>
                         <div style={{ display: 'flex', justifyContent: 'center', gap: '8px' }}>
                           <button 
                             style={styles.iconBtnEdit} 
@@ -440,7 +440,7 @@ function Category() {
               <InlineMessage message={addMessage.text} type={addMessage.type} />
               
               <div className="form-group">
-                <label className="form-label">Category Name *</label>
+                <label className="form-label">Category Name <span className="star-red">*</span></label>
                 <input 
                   className="form-input"
                   value={newCategory.name} 
@@ -498,7 +498,7 @@ function Category() {
               <InlineMessage message={editMessage.text} type={editMessage.type} />
 
               <div className="form-group">
-                <label className="form-label">Category Name *</label>
+                <label className="form-label">Category Name <span className="star-red">*</span></label>
                 <input 
                   className="form-input"
                   value={editCategory.name} 

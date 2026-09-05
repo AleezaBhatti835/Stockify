@@ -280,7 +280,6 @@ const handleSaveRecovery = async () => {
     return (
         <div className="dashboard-wrapper">
 
-            {/* TOP HEADER & FILTERS */}
             <div className="card" style={{ display: 'flex', gap: '16px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
                 <div className="form-group" style={{ marginBottom: 0, flex: '1 1 200px' }}>
                     <label className="form-label">Employee</label>
@@ -371,7 +370,7 @@ const handleSaveRecovery = async () => {
                             ) : (
                                 <>
                                     <div className="form-group">
-                                        <label className="form-label">Select Employee *</label>
+                                        <label className="form-label required">Select Employee </label>
                                         <select className="form-input" value={newRecovery.employeeId} onChange={handleEmployeeChange}>
                                             <option value="">-- Choose Employee --</option>
                                             {employeesWithLoans.map(emp => (
@@ -387,11 +386,11 @@ const handleSaveRecovery = async () => {
                                         )}
                                     </div>
                                     <div className="form-group">
-                                        <label className="form-label">Amount Received (PKR) *</label>
+                                        <label className="form-label required">Amount Received (PKR) </label>
                                         <input type="number" className="form-input" value={newRecovery.amount} onChange={e => setNewRecovery({ ...newRecovery, amount: e.target.value })} placeholder="0.00" />
                                     </div>
                                     <div className="form-group">
-                                        <label className="form-label">Date *</label>
+                                        <label className="form-label required">Date </label>
                                         <input type="date" className="form-input" value={newRecovery.date} onChange={e => setNewRecovery({ ...newRecovery, date: e.target.value })} />
                                     </div>
                                     <div className="form-group">
@@ -493,20 +492,19 @@ const handleSaveRecovery = async () => {
                 </div>
             )}
 
-            {/* ================= GLOBAL TOAST MESSAGE (CENTERED) ================= */}
             {message.text && (
                 <div style={{
                     position: 'fixed',
-                    top: '30px',           /* Oopar se thora fasla */
-                    left: '50%',           /* Screen ke darmiyan mein lane ke liye */
-                    transform: 'translateX(-50%)', /* Exact center align karne ka CSS trick */
+                    top: '30px',          
+                    left: '50%',          
+                    transform: 'translateX(-50%)', 
                     zIndex: 2147483647,
                     padding: '16px 24px',
                     borderRadius: '8px',
                     backgroundColor: message.type === 'error' ? '#fef2f2' : '#f0fdf4',
                     color: message.type === 'error' ? '#b91c1c' : '#15803d',
                     border: `1px solid ${message.type === 'error' ? '#fecaca' : '#bbf7d0'}`,
-                    boxShadow: '0 10px 25px rgba(0,0,0,0.2)', /* Thora bara shadow taake aur wazeh ho */
+                    boxShadow: '0 10px 25px rgba(0,0,0,0.2)', 
                     fontWeight: 'bold',
                     display: 'flex',
                     alignItems: 'center',

@@ -516,17 +516,15 @@ const handleUpdateProduct = async () => {
             <div className="modal-body" style={{ maxHeight: '65vh', overflowY: 'auto', paddingRight: '10px' }}>
               <InlineMessage message={addMessage.text} type={addMessage.type} />
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-md)' }}>
-                {/* Basic Fields */}
-                <div className="form-group" style={{ marginBottom: 0 }}><label className="form-label">Category *</label><select className="form-input" value={newProduct.categoryId} onChange={(e) => setNewProduct({ ...newProduct, categoryId: e.target.value })}><option value="">Select Category</option>{categories.map(c => <option key={c._id} value={c._id}>{c.name}</option>)}</select></div>
-                <div className="form-group" style={{ marginBottom: 0 }}><label className="form-label">UOM *</label><select className="form-input" value={newProduct.uomId} onChange={(e) => setNewProduct({ ...newProduct, uomId: e.target.value })}><option value="">Select UOM</option>{uoms.map(u => <option key={u._id} value={u._id}>{u.name}</option>)}</select></div>
-                <div className="form-group" style={{ gridColumn: 'span 2', marginBottom: 0 }}><label className="form-label">Product Name *</label><input className="form-input" value={newProduct.name} onChange={(e) => setNewProduct({ ...newProduct, name: e.target.value })} autoFocus placeholder="Enter product name" /></div>
+                <div className="form-group" style={{ marginBottom: 0 }}><label className="form-label">Category <span className="star-red">*</span></label><select className="form-input" value={newProduct.categoryId} onChange={(e) => setNewProduct({ ...newProduct, categoryId: e.target.value })}><option value="">Select Category</option>{categories.map(c => <option key={c._id} value={c._id}>{c.name}</option>)}</select></div>
+                <div className="form-group" style={{ marginBottom: 0 }}><label className="form-label">UOM <span className="star-red">*</span></label><select className="form-input" value={newProduct.uomId} onChange={(e) => setNewProduct({ ...newProduct, uomId: e.target.value })}><option value="">Select UOM</option>{uoms.map(u => <option key={u._id} value={u._id}>{u.name}</option>)}</select></div>
+                <div className="form-group" style={{ gridColumn: 'span 2', marginBottom: 0 }}><label className="form-label">Product Name <span className="star-red">*</span></label><input className="form-input" value={newProduct.name} onChange={(e) => setNewProduct({ ...newProduct, name: e.target.value })} autoFocus placeholder="Enter product name" /></div>
                 <div className="form-group" style={{ marginBottom: 0 }}><label className="form-label">Base Cost Price</label><input type="number" className="form-input" min="0" value={newProduct.costPrice} onChange={(e) => setNewProduct({ ...newProduct, costPrice: e.target.value })} /></div>
                 <div className="form-group" style={{ marginBottom: 0 }}><label className="form-label">Retail Price</label><input type="number" className="form-input" min="0" value={newProduct.retailPrice} onChange={(e) => setNewProduct({ ...newProduct, retailPrice: e.target.value })} /></div>
                 <div className="form-group" style={{ marginBottom: 0 }}><label className="form-label">Quantity</label><input type="number" className="form-input" min="0" value={newProduct.quantity} onChange={(e) => setNewProduct({ ...newProduct, quantity: e.target.value })} /></div>
                 <div className="form-group" style={{ marginBottom: 0 }}><label className="form-label">Reorder Quantity</label><input type="number" className="form-input" min="0" value={newProduct.reorderQuantity} onChange={(e) => setNewProduct({ ...newProduct, reorderQuantity: e.target.value })} /></div>
                 <div className="form-group" style={{ gridColumn: 'span 2', marginBottom: 0 }}><label className="form-label">Expiry Date</label><input type="date" className="form-input" value={newProduct.expiryDate} onChange={(e) => setNewProduct({ ...newProduct, expiryDate: e.target.value })} /></div>
                 
-                {/* Linked Suppliers Section */}
                 <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '16px', marginTop: '8px', gridColumn: 'span 2' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
                     <label className="form-label" style={{ margin: 0, color: 'var(--primary)', fontWeight: 'bold' }}>Linked Suppliers (Optional)</label>
@@ -540,7 +538,7 @@ const handleUpdateProduct = async () => {
                           <div key={idx} style={{ display: 'flex', gap: '8px', marginBottom: '8px', alignItems: 'flex-start' }}>
                               <div style={{ flex: 2 }}>
                                   <select className="form-input" value={row.supplier} onChange={(e) => handleUpdateSupplierRow(false, idx, 'supplier', e.target.value)}>
-                                     <option value="">Select Supplier *</option>
+                                     <option value="">Select Supplier <span className="star-red">*</span></option>
                                       {suppliers && suppliers.length > 0 ? (
                                           suppliers.map(s => (
                                               <option key={s._id || s.id} value={s._id || s.id}>
@@ -585,9 +583,9 @@ const handleUpdateProduct = async () => {
             <div className="modal-body" style={{ maxHeight: '65vh', overflowY: 'auto', paddingRight: '10px' }}>
               <InlineMessage message={editMessage.text} type={editMessage.type} />
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-md)' }}>
-                <div className="form-group" style={{ marginBottom: 0 }}><label className="form-label">Category *</label><select className="form-input" value={editProduct.categoryId} onChange={(e) => setEditProduct({ ...editProduct, categoryId: e.target.value })}><option value="">Select Category</option>{categories.map(c => <option key={c._id} value={c._id}>{c.name}</option>)}</select></div>
-                <div className="form-group" style={{ marginBottom: 0 }}><label className="form-label">UOM *</label><select className="form-input" value={editProduct.uomId} onChange={(e) => setEditProduct({ ...editProduct, uomId: e.target.value })}><option value="">Select UOM</option>{uoms.map(u => <option key={u._id} value={u._id}>{u.name}</option>)}</select></div>
-                <div className="form-group" style={{ gridColumn: 'span 2', marginBottom: 0 }}><label className="form-label">Product Name *</label><input className="form-input" value={editProduct.name} onChange={(e) => setEditProduct({ ...editProduct, name: e.target.value })} autoFocus /></div>
+                <div className="form-group" style={{ marginBottom: 0 }}><label className="form-label">Category <span className="star-red">*</span></label><select className="form-input" value={editProduct.categoryId} onChange={(e) => setEditProduct({ ...editProduct, categoryId: e.target.value })}><option value="">Select Category</option>{categories.map(c => <option key={c._id} value={c._id}>{c.name}</option>)}</select></div>
+                <div className="form-group" style={{ marginBottom: 0 }}><label className="form-label">UOM <span className="star-red">*</span></label><select className="form-input" value={editProduct.uomId} onChange={(e) => setEditProduct({ ...editProduct, uomId: e.target.value })}><option value="">Select UOM</option>{uoms.map(u => <option key={u._id} value={u._id}>{u.name}</option>)}</select></div>
+                <div className="form-group" style={{ gridColumn: 'span 2', marginBottom: 0 }}><label className="form-label">Product Name <span className="star-red">*</span></label><input className="form-input" value={editProduct.name} onChange={(e) => setEditProduct({ ...editProduct, name: e.target.value })} autoFocus /></div>
                 <div className="form-group" style={{ marginBottom: 0 }}><label className="form-label">Cost Price</label><input type="number" className="form-input" min="0" value={editProduct.costPrice} onChange={(e) => setEditProduct({ ...editProduct, costPrice: e.target.value })} /></div>
                 <div className="form-group" style={{ marginBottom: 0 }}><label className="form-label">Retail Price</label><input type="number" className="form-input" min="0" value={editProduct.retailPrice} onChange={(e) => setEditProduct({ ...editProduct, retailPrice: e.target.value })} /></div>
                 <div className="form-group" style={{ marginBottom: 0 }}><label className="form-label">Quantity</label><input type="number" className="form-input" min="0" value={editProduct.quantity} onChange={(e) => setEditProduct({ ...editProduct, quantity: e.target.value })} /></div>
@@ -608,7 +606,7 @@ const handleUpdateProduct = async () => {
                           <div key={idx} style={{ display: 'flex', gap: '8px', marginBottom: '8px', alignItems: 'flex-start' }}>
                               <div style={{ flex: 2 }}>
                                   <select className="form-input" value={row.supplier} onChange={(e) => handleUpdateSupplierRow(true, idx, 'supplier', e.target.value)}>
-                                      <option value="">Select Supplier *</option>
+                                      <option value="">Select Supplier <span className="star-red">*</span></option>
                                       {suppliers.map(s => <option key={s._id} value={s._id}>{s.companyName || s.name || s.contactPerson}</option>)}
                                   </select>
                               </div>

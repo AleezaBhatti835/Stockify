@@ -119,7 +119,6 @@ function Stock({ view = 'current' }) {
     return Math.round((expiry - today) / (1000 * 60 * 60 * 24));
   };
 
-  // DATA INTEGRITY: Dynamic badging system assigning real-time status indicators based on calculated thresholds.
   const getExpiryBadge = (dateStr) => {
     const days = daysUntil(dateStr);
     if (days === null) return null;
@@ -276,7 +275,6 @@ function Stock({ view = 'current' }) {
       
       <InlineMessage msg={message} />
 
-      {/* FILTER BAR */}
       <div className="card" style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', alignItems: 'flex-end' }}>
         <div className="form-group" style={{ marginBottom: 0, flex: '1 1 200px' }}>
           <label className="form-label">Category</label>

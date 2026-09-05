@@ -280,9 +280,6 @@ const PurchaseRateDifference = () => {
         <div className="dashboard-wrapper" style={{ paddingBottom: '90px' }}>
 
             <InlineMessage msg={message} />
-
-
-            {/* SEARCH SECTION */}
             <div className="card" style={{ position: 'relative', zIndex: 1000 }}>
                 <div className="form-group" style={{ marginBottom: 0, position: 'relative' }} ref={searchWrapperRef}>
                     <label className="form-label">Search Invoice Number</label>
@@ -341,8 +338,6 @@ const PurchaseRateDifference = () => {
                     </div>
                 )}
             </div>
-
-            {/* LINE ITEMS TABLE */}
             <div className="card" style={{ padding: 0, overflow: 'hidden', zIndex: 1 }}>
                 <div style={{ overflowX: 'auto', width: '100%' }}>
                     <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '800px' }}>
@@ -420,7 +415,6 @@ const PurchaseRateDifference = () => {
                 </div>
             </div>
 
-            {/* BOTTOM ACTION BAR */}
             <div className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
                 <div style={{ padding: '12px 20px', borderRadius: 'var(--radius-sm)', backgroundColor: 'var(--bg-app)', border: '1px solid var(--border-color)' }}>
                     <label className="form-label" style={{ marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>NET RATE DIFFERENCE</label>
@@ -442,7 +436,6 @@ const PurchaseRateDifference = () => {
                 </button>
             </div>
 
-            {/* CONFIRMATION MODAL */}
             {confirmDialog.isOpen && (
                 <div className="modal-overlay" onClick={closeConfirmDialog}>
                     <div className="modal-container" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '420px', borderTop: '6px solid var(--primary)' }}>

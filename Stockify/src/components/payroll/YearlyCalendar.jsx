@@ -83,21 +83,17 @@ const YearlyCalendar = () => {
   const indexOfLastEntry = currentPage * entriesPerPage;
   const indexOfFirstEntry = indexOfLastEntry - entriesPerPage;
   
-  // 3. Slice records for the current page
   const currentEntries = filteredCalendars.slice(indexOfFirstEntry, indexOfLastEntry);
 
   return (
     <div className="dashboard-wrapper">
       
-      {/* Messages */}
       {message.text && (
         <div style={{ padding: '10px 14px', marginBottom: '15px', borderRadius: '6px', backgroundColor: message.type === 'error' ? '#fee2e2' : '#d1fae5', color: message.type === 'error' ? '#dc2626' : '#065f46', fontWeight: 500 }}>
           {message.text}
         </div>
       )}
 
-
-      {/* SEARCH, SHOW ENTRIES AND TABLE CARD */}
       <div className="card" style={{ padding: '20px' }}>
         
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px', flexWrap: 'wrap', gap: '10px' }}>
@@ -142,7 +138,6 @@ const YearlyCalendar = () => {
           </div>
         </div>
 
-        {/* DATA TABLE */}
         <div style={{ overflowX: 'auto', border: '1px solid var(--border-color)', borderRadius: '4px' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
@@ -172,7 +167,6 @@ const YearlyCalendar = () => {
           </table>
         </div>
 
-        {/* PAGINATION CONTROLS */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '20px', flexWrap: 'wrap', gap: '10px' }}>
           <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
             Showing {totalEntries === 0 ? 0 : indexOfFirstEntry + 1} to {Math.min(indexOfLastEntry, totalEntries)} of {totalEntries} entries
@@ -219,7 +213,6 @@ const YearlyCalendar = () => {
         </div>
       </div>
 
-      {/* ADD CALENDAR MODAL */}
       {isModalOpen && (
         <div className="modal-overlay" onClick={() => setIsModalOpen(false)}>
           <div className="modal-container" style={{ width: '450px' }} onClick={e => e.stopPropagation()}>
@@ -235,7 +228,7 @@ const YearlyCalendar = () => {
                 </p>
                 
                 <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label className="form-label" style={{ color: 'var(--text-main)', fontWeight: 'bold' }}>Year <span style={{ color: 'red' }}>*</span></label>
+                  <label className="form-label required">Year </label>
                   <input 
                     type="number" 
                     className="form-input" 

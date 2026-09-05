@@ -46,12 +46,14 @@ function Customers() {
   const [customers, setCustomers] = useState([]);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [customerTypes, setCustomerTypes] = useState([]);
+  const [cities, setCities] = useState([]); // 💡 City State added
 
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
 
+  // 💡 Initial state mein city add ki
   const initialState = {
-    name: '', emailPrefix: '', contact: '+92', address: '', pic: '', cnic: '', status: 'Active', customerTypeId: ''
+    name: '', email: '', contact: '+92', address: '', pic: '', cnic: '', city: '', status: 'Active', customerTypeId: ''
   };
 
   const [editCustomerId, setEditCustomerId] = useState(null);
@@ -85,6 +87,14 @@ function Customers() {
     return `+92${numbers}`;
   };
 
+  // 💡 Naya function Edit form clear karne ke liye
+  const closeEditModal = () => {
+    setEditCustomerId(null);
+    setEditCustomer(initialState); // Form Reset
+    setEditMessage({ text: '', type: '' });
+    setImageMessage({ text: '', type: '' });
+  };
+
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key === 'Escape') {
@@ -94,9 +104,7 @@ function Customers() {
         }
         if (editCustomerId) {
           e.preventDefault();
-          setEditCustomerId(null);
-          setEditMessage({ text: '', type: '' });
-          setImageMessage({ text: '', type: '' });
+          closeEditModal(); // 💡 Escape pe bhi reset hoga
         }
         if (viewCustomer) {
           e.preventDefault();
@@ -137,20 +145,51 @@ function Customers() {
 
   useEffect(() => {
     fetchCustomers();
-    const fetchCustomerTypes = async () => {
-      try {
-        const token = localStorage.getItem('token');
-        const res = await fetch(`${API_BASE_URL}/api/customer-types`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        const data = await res.json();
-        setCustomerTypes(Array.isArray(data) ? data : []);
-      } catch (err) {
-        console.error('Error fetching customer types:', err);
-      }
-    };
     fetchCustomerTypes();
+    fetchCities(); // 💡 Component load hone par cities fetch hongi
   }, []);
+
+  const fetchCustomerTypes = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${API_BASE_URL}/api/customer-types`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      setCustomerTypes(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error('Error fetching customer types:', err);
+    }
+  };
+
+  // 💡 Cities mangwane ki API
+  const fetchCities = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${API_BASE_URL}/api/cities`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (data.success) {
+        setCities(data.data);
+      }
+    } catch (error) {
+      console.error('Error fetching cities:', error);
+    }
+  };
+
+  const fetchCustomers = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${API_BASE_URL}/api/customers`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      setCustomers(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error('Error fetching customers:', error);
+    }
+  };
 
   const showEditMessage = (text, type) => {
     setEditMessage({ text, type });
@@ -173,19 +212,6 @@ function Customers() {
     }, 3000);
   };
 
-  const fetchCustomers = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      const res = await fetch('http://localhost:5000/api/customers', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      const data = await res.json();
-      setCustomers(Array.isArray(data) ? data : []);
-    } catch (error) {
-      console.error('Error fetching customers:', error);
-    }
-  };
-
   const handleImageUpload = async (e, isEditing) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -196,7 +222,7 @@ function Customers() {
 
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch('http://localhost:5000/api/upload', {
+      const res = await fetch(`${API_BASE_URL}/api/upload`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` },
         body: formData
@@ -234,11 +260,6 @@ function Customers() {
   };
 
   const checkDuplicates = (payload, customerIdToExclude = null) => {
-    if (payload.email) {
-      const duplicateEmail = customers.find(c => c.email && c.email.toLowerCase() === payload.email.toLowerCase() && c._id !== customerIdToExclude);
-      if (duplicateEmail) return "This Email is already registered to another customer.";
-    }
-
     if (payload.contact && payload.contact !== '+92') {
       const duplicateContact = customers.find(c => c.contact && c.contact === payload.contact && c._id !== customerIdToExclude);
       if (duplicateContact) return "This Contact Number is already registered to another customer.";
@@ -249,6 +270,7 @@ function Customers() {
       if (duplicateCnic) return "This CNIC is already registered to another customer.";
     }
 
+    // Email check is removed from here because email cannot be updated anyway.
     return null;
   };
 
@@ -262,10 +284,10 @@ function Customers() {
     if (originalCustomer) {
       const isSame =
         originalCustomer.name === editCustomer.name &&
-        originalCustomer.email === editCustomer.email &&
         originalCustomer.contact === editCustomer.contact &&
         originalCustomer.address === editCustomer.address &&
         originalCustomer.cnic === editCustomer.cnic &&
+        originalCustomer.city === editCustomer.city &&
         originalCustomer.customerTypeId === editCustomer.customerTypeId &&
         originalCustomer.pic === editCustomer.pic;
 
@@ -283,7 +305,7 @@ function Customers() {
 
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`http://localhost:5000/api/customers/${editCustomerId}`, {
+      const res = await fetch(`${API_BASE_URL}/api/customers/${editCustomerId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -294,8 +316,7 @@ function Customers() {
       if (res.ok) {
         showEditMessage('Customer updated successfully!', 'success');
         setTimeout(() => {
-          setEditCustomerId(null);
-          setEditMessage({ text: '', type: '' });
+          closeEditModal();
           fetchCustomers();
         }, 500);
       } else {
@@ -317,7 +338,7 @@ function Customers() {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:5000/api/customers/${deleteTarget._id}`, {
+      const response = await fetch(`${API_BASE_URL}/api/customers/${deleteTarget._id}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -344,19 +365,15 @@ function Customers() {
     setEditMessage({ text: '', type: '' });
     setImageMessage({ text: '', type: '' });
     setEditCustomerId(customer._id);
-    let emailPrefixVal = customer.email || '';
-    if (emailPrefixVal.endsWith('@gmail.com')) {
-      emailPrefixVal = emailPrefixVal.replace('@gmail.com', '');
-    }
 
     setEditCustomer({
       name: customer.name || '',
       email: customer.email || '',
-      emailPrefix: emailPrefixVal,
       contact: customer.contact || '+92',
       address: customer.address || '',
       pic: customer.pic || '',
       cnic: customer.cnic || '',
+      city: customer.city || '', // 💡 Map City from DB
       customerTypeId: customer.customerTypeId || ''
     });
   };
@@ -444,9 +461,9 @@ function Customers() {
                           <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', fontWeight: '500' }}>{c.name}</span>
                         </div>
                       </td>
-                      <td style={{ padding: '10px 16px', fontSize: '13px', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.email || 'N/A'}</td>
-                      <td style={{ padding: '10px 16px', fontSize: '13px', color: 'var(--text-main)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.contact}</td>
-                      <td style={{ padding: '10px 16px', textAlign: 'center' }}>
+                      <td style={{ padding: '10px 16px', textAlign: 'left', fontSize: '13px', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.email || 'N/A'}</td>
+                      <td style={{ padding: '10px 16px', textAlign: 'left', fontSize: '13px', color: 'var(--text-main)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.contact}</td>
+                      <td style={{ padding: '10px 16px', textAlign: 'left' }}>
                         <div style={{ display: 'flex', justifyContent: 'center', gap: '8px' }}>
 
                           {/* View Button */}
@@ -516,12 +533,12 @@ function Customers() {
 
       {/* EDIT MODAL */}
       {editCustomerId && (
-        <div className="modal-overlay">
+        <div className="modal-overlay" onClick={closeEditModal}>
           <div className="modal-container" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '800px', width: '100%', maxHeight: '100vh', display: 'flex', flexDirection: 'column', padding: 0 }}>
             
             <div className="modal-header" style={{ backgroundColor: 'var(--bg-app)', borderBottom: '1px solid var(--border-color)', padding: '16px 20px', flexShrink: 0 }}>
               <h3 className="modal-title" style={{ fontSize: '18px', color: 'var(--text-main)', margin: 0 }}>Edit Customer</h3>
-              <button className="modal-close" onClick={() => { setEditCustomerId(null); setEditMessage({ text: '', type: '' }); setImageMessage({ text: '', type: '' }); }}>✕</button>
+              <button className="modal-close" onClick={closeEditModal}>✕</button>
             </div>
 
             <div className="modal-body" style={{ overflowY: 'auto', padding: '24px', flex: 1 }}>
@@ -530,7 +547,7 @@ function Customers() {
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                 <div className="form-group">
-                  <label className="form-label">Full Name *</label>
+                  <label className="form-label">Full Name <span style={{ color: 'var(--danger)' }}>*</span></label>
                   <input
                     className="form-input"
                     style={{ border: '1px solid #cbd5e1', borderRadius: '6px', padding: '10px' }}
@@ -542,24 +559,23 @@ function Customers() {
                 </div>
 
                 <div className="form-group">
-                  <label className="form-label">Email Address *</label>
-                  <div style={{ position: 'relative', width: '100%', display: 'flex', alignItems: 'center' }}>
-                    <input
-                      className="form-input"
-                      style={{ paddingRight: '90px', border: '1px solid #cbd5e1', borderRadius: '6px', padding: '10px' }}
-                      value={editCustomer.emailPrefix}
-                      onChange={(e) => setEditCustomer({ ...editCustomer, emailPrefix: e.target.value.replace(/@.*/, ''), email: `${e.target.value.replace(/@.*/, '')}@gmail.com` })}
-                      placeholder="username"
-                      onKeyDown={(e) => handleInputKeyDown(e, handleUpdateCustomer)}
-                    />
-                    <span style={{ position: 'absolute', right: '12px', color: 'var(--text-muted)', fontSize: '12px', pointerEvents: 'none' }}>
-                      @gmail.com
-                    </span>
-                  </div>
+                  <label className="form-label">Email Address</label>
+                  {/* 💡 Email Input Disabled during Edit */}
+                  <input
+                    type="email"
+                    className="form-input"
+                    disabled={true}
+                    style={{ 
+                      border: '1px solid #cbd5e1', borderRadius: '6px', padding: '10px', width: '100%', boxSizing: 'border-box',
+                      backgroundColor: '#f1f5f9', cursor: 'not-allowed', color: 'var(--text-muted)'
+                    }}
+                    value={editCustomer.email}
+                    title="Email cannot be changed once created"
+                  />
                 </div>
 
                 <div className="form-group">
-                  <label className="form-label">Contact Number *</label>
+                  <label className="form-label">Contact Number <span style={{ color: 'var(--danger)' }}>*</span></label>
                   <input
                     className="form-input"
                     style={{ border: '1px solid #cbd5e1', borderRadius: '6px', padding: '10px' }}
@@ -601,6 +617,22 @@ function Customers() {
                     placeholder="64822-1648208-2"
                     onKeyDown={(e) => handleInputKeyDown(e, handleUpdateCustomer)}
                   />
+                </div>
+
+                {/* 💡 City Dropdown in Edit Modal */}
+                <div className="form-group">
+                  <label className="form-label">City</label>
+                  <select
+                    className="form-input"
+                    style={{ border: '1px solid #cbd5e1', borderRadius: '6px', padding: '10px' }}
+                    value={editCustomer.city}
+                    onChange={(e) => setEditCustomer({ ...editCustomer, city: e.target.value })}
+                  >
+                    <option value="">-- Select City --</option>
+                    {cities.map(city => (
+                      <option key={city._id} value={city.name}>{city.name}</option>
+                    ))}
+                  </select>
                 </div>
 
                 <div className="form-group" style={{ gridColumn: 'span 2' }}>
@@ -680,61 +712,69 @@ function Customers() {
             </div>
 
             <div className="modal-footer" style={{ borderTop: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)', padding: '16px 20px', flexShrink: 0 }}>
-              <button className="btn btn-secondary" onClick={() => { setEditCustomerId(null); setEditMessage({ text: '', type: '' }); setImageMessage({ text: '', type: '' }); }}>Cancel</button>
+              <button className="btn btn-secondary" onClick={closeEditModal}>Cancel</button>
               <button className="btn btn-primary" onClick={handleUpdateCustomer}>Save Changes</button>
             </div>
           </div>
         </div>
       )}
 
-      {/* VIEW MODAL */}
+      {/* 💡 VIEW MODAL (Simplified like Employees) */}
       {viewCustomer && (
         <div className="modal-overlay" onClick={() => setViewCustomer(null)}>
-          <div className="modal-container" onClick={(e) => e.stopPropagation()} style={{ width: '550px', padding: 0, textAlign: 'left' }}>
+          <div className="modal-container" style={{ maxWidth: '550px', padding: 0, overflow: 'hidden' }} onClick={(e) => e.stopPropagation()}>
 
-            <div style={{
-              backgroundColor: 'var(--primary-other)', padding: '24px', display: 'flex', textAlign: 'left',
-              flexDirection: 'column', alignItems: 'center', gap: '10px', borderTopLeftRadius: 'var(--radius-lg)', borderTopRightRadius: 'var(--radius-lg)'
-            }}>
-              <AvatarImage pic={viewCustomer.pic} name={viewCustomer.name} size={84} />
+            {/* Profile Header */}
+            <div style={{ backgroundColor: 'var(--primary-other)', padding: '24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
+              <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', border: '3px solid rgba(255,255,255,0.3)', borderRadius: '50%', padding: '4px' }}>
+                <AvatarImage pic={viewCustomer.pic} name={viewCustomer.name} size={80} />
+              </div>
               <h3 style={{ color: 'white', margin: 0, fontSize: '20px', fontWeight: '600' }}>{viewCustomer.name}</h3>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <span style={{ fontSize: '12px', background: 'var(--primary-light)', color: 'var(--primary)', padding: '4px 12px', borderRadius: '20px', fontWeight: '600' }}>
+                  {getCustomerTypeName(viewCustomer.customerTypeId)}
+                </span>
+              </div>
             </div>
 
+            {/* Simple Details Body */}
             <div className="modal-body" style={{ padding: '24px' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '18px', marginBottom: '18px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                
                 <div>
-                  <label className="form-label">Email Address</label>
-                  <p style={{ fontSize: '13px', margin: '4px 0 0', color: 'var(--text-muted)', wordBreak: 'break-word' }}>{viewCustomer.email || 'N/A'}</p>
+                  <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-muted)', fontWeight: '600', marginBottom: '4px', textTransform: 'uppercase' }}>Email Address</label>
+                  <div style={{ fontSize: '14px', color: 'var(--text-main)', fontWeight: '500', wordBreak: 'break-all' }}>{viewCustomer.email || 'N/A'}</div>
                 </div>
-                <div>
-                  <label className="form-label">Contact Number</label>
-                  <p style={{ fontSize: '13px', margin: '4px 0 0', color: 'var(--text-muted)' }}>{viewCustomer.contact || 'N/A'}</p>
-                </div>
-                <div>
-                  <label className="form-label">Customer Type</label>
-                  <p style={{ fontSize: '13px', margin: '4px 0 0', color: 'var(--text-muted)' }}>{getCustomerTypeName(viewCustomer.customerTypeId)}</p>
-                </div>
-                <div>
-                  <label className="form-label">CNIC</label>
-                  <p style={{ fontSize: '13px', margin: '4px 0 0', color: 'var(--text-muted)' }}>{viewCustomer.cnic || 'N/A'}</p>
-                </div>
-              </div>
 
-              <div>
-                <label className="form-label">Address</label>
-                <div style={{
-                  marginTop: '6px', padding: '12px', minHeight: '70px', borderRadius: 'var(--radius-sm)',
-                  backgroundColor: 'var(--bg-app)', border: '1px solid var(--border-color)', fontSize: '13px',
-                  color: 'var(--text-main)', whiteSpace: 'pre-wrap', lineHeight: 1.5
-                }}>
-                  {viewCustomer.address || 'N/A'}
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-muted)', fontWeight: '600', marginBottom: '4px', textTransform: 'uppercase' }}>Contact Number</label>
+                  <div style={{ fontSize: '14px', color: 'var(--text-main)', fontWeight: '500' }}>{viewCustomer.contact || 'N/A'}</div>
                 </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-muted)', fontWeight: '600', marginBottom: '4px', textTransform: 'uppercase' }}>CNIC</label>
+                  <div style={{ fontSize: '14px', color: 'var(--text-main)', fontWeight: '500' }}>{viewCustomer.cnic || 'N/A'}</div>
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-muted)', fontWeight: '600', marginBottom: '4px', textTransform: 'uppercase' }}>City</label>
+                  <div style={{ fontSize: '14px', color: 'var(--text-main)', fontWeight: '500' }}>{viewCustomer.city || 'N/A'}</div>
+                </div>
+
+                <div style={{ gridColumn: 'span 2', marginTop: '8px', paddingTop: '16px', borderTop: '1px solid var(--border-color)' }}>
+                  <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-muted)', fontWeight: '600', marginBottom: '8px', textTransform: 'uppercase' }}>Address</label>
+                  <div style={{ fontSize: '14px', color: 'var(--text-main)', fontWeight: '500', backgroundColor: 'var(--bg-app)', padding: '12px', borderRadius: '6px', border: '1px solid var(--border-color)', minHeight: '60px' }}>
+                    {viewCustomer.address || 'No Address Provided'}
+                  </div>
+                </div>
+
               </div>
             </div>
 
-            <div className="modal-footer" style={{ borderTop: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)' }}>
+            <div className="modal-footer" style={{ borderTop: '1px solid var(--border-color)' }}>
               <button className="btn btn-secondary" onClick={() => setViewCustomer(null)}>Close</button>
             </div>
+
           </div>
         </div>
       )}

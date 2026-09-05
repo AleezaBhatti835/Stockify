@@ -533,7 +533,6 @@ function AddPurchase() {
       
       {message.text && <InlineMessage message={message.text} type={message.type} />}
 
-      {/* --- EDIT MODAL --- */}
       {isEditModalOpen && (
         <div className="modal-overlay" onClick={closeEditModal}>
           <div className="modal-container" onClick={e => e.stopPropagation()}>
@@ -544,7 +543,7 @@ function AddPurchase() {
             
             <div className="modal-body">
               <div className="form-group" style={{ position: 'relative' }} ref={modalSearchRef}>
-                <label className="form-label">Search Product *</label>
+                <label className="form-label required">Search Product </label>
                 <input
                   type="text" className="form-input" placeholder="Search product..."
                   value={modalSearchTerm}
@@ -586,7 +585,7 @@ function AddPurchase() {
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-md)' }}>
                 <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label className="form-label">Unit Price *</label>
+                  <label className="form-label required">Unit Price </label>
                   <input
                     type="number" step="10" className="form-input"
                     value={editFormData.unitPrice === 0 || editFormData.unitPrice === '' ? '' : editFormData.unitPrice}
@@ -598,7 +597,7 @@ function AddPurchase() {
                   />
                 </div>
                 <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label className="form-label">Quantity *</label>
+                  <label className="form-label required">Quantity </label>
                   <input
                     type="number" min="1" className="form-input"
                     value={editFormData.quantity === 0 || editFormData.quantity === '' ? '' : editFormData.quantity}
@@ -626,15 +625,13 @@ function AddPurchase() {
 
       <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-md)' }}>
         
-        {/* --- TOP SPLIT: ADD PRODUCTS & SUPPLIER --- */}
         <div style={{ display: 'flex', gap: 'var(--space-md)', flexWrap: 'wrap' }}>
           
-          {/* Add Products Section */}
           <div className="card" style={{ flex: 1, minWidth: '320px', display: 'flex', flexDirection: 'column' }}>
             <h4 style={{ margin: '0 0 var(--space-md) 0', color: 'var(--primary)', fontSize: '15px' }}>Add Products</h4>
             
             <div className="form-group" style={{ position: 'relative' }} ref={searchRef}>
-              <label className="form-label">Search Product *</label>
+              <label className="form-label required">Search Product </label>
               <input
                 type="text" className="form-input" placeholder={purchaseInfo.supplierId ? "Type to search approved products..." : "Type to search all products..."}
                 value={searchTerm}
@@ -675,7 +672,7 @@ function AddPurchase() {
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-md)', marginBottom: 'var(--space-md)' }}>
               <div className="form-group" style={{ marginBottom: 0 }}>
-                <label className="form-label">Unit Price *</label>
+                <label className="form-label required">Unit Price </label>
                 <input
                   type="number" step="10" className="form-input" placeholder="Enter price"
                   value={draftItem.unitPrice === 0 || draftItem.unitPrice === '' ? '' : draftItem.unitPrice}
@@ -686,7 +683,7 @@ function AddPurchase() {
                 />
               </div>
               <div className="form-group" style={{ marginBottom: 0 }}>
-                <label className="form-label">Quantity *</label>
+                <label className="form-label required">Quantity </label>
                 <input
                   ref={qtyInputRef} type="number" min="1" className="form-input"
                   value={draftItem.quantity === 0 || draftItem.quantity === '' ? '' : draftItem.quantity}
@@ -711,12 +708,11 @@ function AddPurchase() {
 
           </div>
 
-          {/* Supplier Section */}
           <div className="card" style={{ flex: 1, minWidth: '320px' }}>
             <h4 style={{ margin: '0 0 var(--space-md) 0', color: 'var(--primary)', fontSize: '15px' }}>Supplier Details</h4>
             
             <div className="form-group">
-              <label className="form-label">Select Supplier *</label>
+              <label className="form-label required">Select Supplier </label>
               <select className="form-input" name="supplierId" value={purchaseInfo.supplierId} onChange={handleSupplierChange} required>
                 <option value="">-- Choose Supplier --</option>
                 {suppliers
@@ -786,13 +782,12 @@ function AddPurchase() {
             </div>
 
             <div className="form-group" style={{ marginBottom: 0 }}>
-              <label className="form-label">Purchase Date *</label>
+              <label className="form-label required">Purchase Date </label>
               <input type="date" className="form-input" name="purchaseDate" value={purchaseInfo.purchaseDate} onChange={handleInfoChange} required />
             </div>
           </div>
         </div>
 
-        {/* --- ADD TO CART BUTTON (OUTSIDE CARDS) --- */}
         <div style={{marginTop: '8px', marginBottom: 'var(--space-md)' }}>
            <button
              type="button"
@@ -804,7 +799,6 @@ function AddPurchase() {
            </button>
         </div>
 
-        {/* --- MIDDLE: DATA TABLE --- */}
         <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
@@ -861,7 +855,6 @@ function AddPurchase() {
           </div>
         </div>
 
-      {/* --- BOTTOM: BILLING --- */}
         <div className="card">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-md)' }}>
             <h4 style={{ margin: 0, color: 'var(--primary)', fontSize: '15px' }}>Billing Summary</h4>

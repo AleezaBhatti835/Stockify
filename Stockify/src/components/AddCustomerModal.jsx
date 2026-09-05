@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
 const API_BASE_URL = 'http://localhost:5000';
 
@@ -24,7 +24,7 @@ function AvatarImage({ pic, name, size }) {
         onError={() => setFailed(true)}
         style={{
           width: size, height: size, borderRadius: '50%', objectFit: 'cover',
-          border: '2px solid var(--primary)', flexShrink: 0
+          border: '1px solid var(--border-color)', flexShrink: 0
         }}
       />
     );
@@ -41,7 +41,6 @@ function AvatarImage({ pic, name, size }) {
   );
 }
 
-// Inline Message Component
 function InlineMessage({ message, type }) {
   if (!message) return null;
   
@@ -72,17 +71,20 @@ function InlineMessage({ message, type }) {
 }
 
 export default function AddCustomerModal({ onClose, onSuccess, existingCustomers = [] }) {
+  // 💡 1. Initial state mein city: '' add kiya gaya hai
   const initialState = { 
-    name: '', emailPrefix: '', contact: '+92', address: '', pic: '', cnic: '', status: 'Active', customerTypeId: '' 
+    name: '', email: '', contact: '+92', address: '', pic: '', cnic: '', city: '', status: 'Active', customerTypeId: '' 
   };
   
   const [newCustomer, setNewCustomer] = useState(initialState);
   const [message, setMessage] = useState({ text: '', type: '' });
   const [customerTypes, setCustomerTypes] = useState([]);
+  const [cities, setCities] = useState([]); // 💡 2. Cities ki state
   const [isUploading, setIsUploading] = useState(false);
   const [imageMessage, setImageMessage] = useState({ text: '', type: '' });
 
-  // Helper functions for formatting CNIC and Contact
+  const modalBodyRef = useRef(null);
+
   const formatCNIC = (value) => {
     const numbers = value.replace(/\D/g, '').slice(0, 13);
     if (numbers.length <= 5) {
@@ -103,7 +105,6 @@ export default function AddCustomerModal({ onClose, onSuccess, existingCustomers
     return `+92${numbers}`;
   };
 
-  // Keyboard shortcut handler
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key === 'Escape') {
@@ -120,7 +121,6 @@ export default function AddCustomerModal({ onClose, onSuccess, existingCustomers
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [newCustomer]);
 
-  // Fetch Customer Types on mount (With Token)
   useEffect(() => {
     const fetchCustomerTypes = async () => {
       try {
@@ -136,16 +136,42 @@ export default function AddCustomerModal({ onClose, onSuccess, existingCustomers
         console.error('Error fetching customer types:', err);
       }
     };
+
+    // 💡 3. Cities fetch karne ki logic
+    const fetchCities = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const res = await fetch(`${API_BASE_URL}/api/cities`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (data.success) {
+          setCities(data.data);
+        }
+      } catch (error) {
+        console.error('Error fetching cities:', error);
+      }
+    };
+
     fetchCustomerTypes();
+    fetchCities(); // Yahan call kar diya
   }, []);
+
+  const scrollToTop = () => {
+    if (modalBodyRef.current) {
+      modalBodyRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
 
   const showMessage = (text, type) => {
     setMessage({ text, type });
+    scrollToTop(); 
     setTimeout(() => setMessage({ text: '', type: '' }), 3000);
   };
 
   const showImageMessage = (text, type) => {
     setImageMessage({ text, type });
+    scrollToTop();
     setTimeout(() => setImageMessage({ text: '', type: '' }), 3000);
   };
 
@@ -213,13 +239,12 @@ export default function AddCustomerModal({ onClose, onSuccess, existingCustomers
   };
 
   const handleAddCustomer = async () => {
-    if (!newCustomer.name || !newCustomer.contact || !newCustomer.emailPrefix) {
-      showMessage('Name, Email prefix, and Contact are required!', 'error');
+    if (!newCustomer.name || !newCustomer.contact || !newCustomer.email) {
+      showMessage('Name, Email, and Contact are required!', 'error');
       return;
     }
 
-    const fullEmail = `${newCustomer.emailPrefix.trim()}@gmail.com`;
-    const payloadObj = { ...newCustomer, email: fullEmail };
+    const payloadObj = { ...newCustomer, email: newCustomer.email.trim() };
 
     const duplicateError = checkDuplicates(payloadObj);
     if (duplicateError) {
@@ -229,14 +254,13 @@ export default function AddCustomerModal({ onClose, onSuccess, existingCustomers
 
     try {
       const token = localStorage.getItem('token');
-      const { emailPrefix, ...finalPayload } = payloadObj;
       const res = await fetch(`${API_BASE_URL}/api/customers`, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify(finalPayload)
+        body: JSON.stringify(payloadObj)
       });
       
       if (res.ok) {
@@ -247,7 +271,7 @@ export default function AddCustomerModal({ onClose, onSuccess, existingCustomers
             onSuccess(savedCustomer);
           }
           onClose();
-        }, 500);
+        }, 800);
       } else {
         const errData = await res.json().catch(() => null);
         showMessage(errData?.message || 'Error saving customer.', 'error');
@@ -257,7 +281,6 @@ export default function AddCustomerModal({ onClose, onSuccess, existingCustomers
     }
   };
 
-  // Handle Enter key on input fields
   const handleInputKeyDown = (e) => {
     if (e.key === 'Enter') {
       e.preventDefault();
@@ -273,11 +296,10 @@ export default function AddCustomerModal({ onClose, onSuccess, existingCustomers
           <button className="modal-close" onClick={onClose}>&times;</button>
         </div>
 
-        <div className="modal-body" style={{ maxHeight: '75vh', overflowY: 'auto' }}>
-          {/* Inline Message */}
+        <div className="modal-body" ref={modalBodyRef} style={{ maxHeight: '75vh', overflowY: 'auto' }}>
+          
           <InlineMessage message={message.text} type={message.type} />
 
-          {/* Image Upload Inline Message */}
           {imageMessage.text && !message.text && (
             <div style={{
               padding: '10px 14px',
@@ -295,7 +317,7 @@ export default function AddCustomerModal({ onClose, onSuccess, existingCustomers
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-md)' }}>
             <div className="form-group" style={{ marginBottom: 0 }}>
-              <label className="form-label">Full Name *</label>
+              <label className="form-label required">Full Name</label>
               <input 
                 className="form-input" 
                 style={{ border: '1px solid #cbd5e1', borderRadius: '6px', padding: '10px' }}
@@ -306,26 +328,21 @@ export default function AddCustomerModal({ onClose, onSuccess, existingCustomers
               />
             </div>
 
-            {/* Email with suffix */}
             <div className="form-group" style={{ marginBottom: 0 }}>
-              <label className="form-label">Email Address *</label>
-              <div style={{ position: 'relative', width: '100%', display: 'flex', alignItems: 'center' }}>
-                <input 
-                  className="form-input" 
-                  value={newCustomer.emailPrefix} 
-                  onChange={(e) => setNewCustomer({ ...newCustomer, emailPrefix: e.target.value.replace(/@.*/, '') })} 
-                  onKeyDown={handleInputKeyDown}
-                  placeholder="username" 
-                  style={{ paddingRight: '85px', border: '1px solid #cbd5e1', borderRadius: '6px', padding: '10px', width: '100%' }}
-                />
-                <span style={{ position: 'absolute', right: '12px', color: 'var(--text-light)', fontSize: '13px', pointerEvents: 'none' }}>
-                  @gmail.com
-                </span>
-              </div>
+              <label className="form-label required">Email Address</label>
+              <input 
+                type="email"
+                className="form-input" 
+                value={newCustomer.email} 
+                onChange={(e) => setNewCustomer({ ...newCustomer, email: e.target.value })} 
+                onKeyDown={handleInputKeyDown}
+                placeholder="customer@domain.com" 
+                style={{ border: '1px solid #cbd5e1', borderRadius: '6px', padding: '10px', width: '100%' }}
+              />
             </div>
 
             <div className="form-group" style={{ marginBottom: 0 }}>
-              <label className="form-label">Contact Number *</label>
+              <label className="form-label required">Contact Number</label>
               <input 
                 className="form-input" 
                 style={{ border: '1px solid #cbd5e1', borderRadius: '6px', padding: '10px' }}
@@ -337,7 +354,7 @@ export default function AddCustomerModal({ onClose, onSuccess, existingCustomers
             </div>
 
             <div className="form-group" style={{ marginBottom: 0 }}>
-              <label className="form-label">Customer Type</label>
+              <label className="form-label required">Customer Type</label>
               <select
                 className="form-input"
                 style={{ border: '1px solid #cbd5e1', borderRadius: '6px', padding: '10px' }}
@@ -358,7 +375,7 @@ export default function AddCustomerModal({ onClose, onSuccess, existingCustomers
             </div>
 
             <div className="form-group" style={{ marginBottom: 0 }}>
-              <label className="form-label">CNIC</label>
+              <label className="form-label required">CNIC</label>
               <input 
                 className="form-input" 
                 style={{ border: '1px solid #cbd5e1', borderRadius: '6px', padding: '10px' }}
@@ -368,6 +385,27 @@ export default function AddCustomerModal({ onClose, onSuccess, existingCustomers
                 onKeyDown={handleInputKeyDown}
                 placeholder="64822-1648208-2" 
               />
+            </div>
+
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label className="form-label required">City</label>
+              <select
+                className="form-input"
+                style={{ border: '1px solid #cbd5e1', borderRadius: '6px', padding: '10px' }}
+                value={newCustomer.city}
+                onChange={(e) => setNewCustomer({ ...newCustomer, city: e.target.value })}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleAddCustomer();
+                  }
+                }}
+              >
+                <option value="">-- Select City --</option>
+                {cities.map(city => (
+                  <option key={city._id} value={city.name}>{city.name}</option>
+                ))}
+              </select>
             </div>
 
             <div className="form-group" style={{ gridColumn: 'span 2', marginBottom: 0 }}>
@@ -386,7 +424,6 @@ export default function AddCustomerModal({ onClose, onSuccess, existingCustomers
               />
             </div>
 
-            {/* --- UPDATE IMAGE FULLY BORDERED & LEFT ALIGNED --- */}
             <div className="form-group" style={{ gridColumn: 'span 2', marginBottom: 0 }}>
               <label className="form-label" style={{ display: 'block', marginBottom: '6px' }}>Upload Image</label>
               
@@ -399,7 +436,7 @@ export default function AddCustomerModal({ onClose, onSuccess, existingCustomers
                 padding: '4px 4px',
                 backgroundColor: 'white',
                 width: '100%',
-                justifyContent: 'flex-start' /* Forces elements to the left */
+                justifyContent: 'flex-start' 
               }}>
                 <label style={{
                   backgroundColor: 'var(--header)',

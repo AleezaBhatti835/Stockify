@@ -286,7 +286,6 @@ const OpeningStock = () => {
 
             <div className="card" style={{padding:'50px 20px', maxWidth: '800px', margin: '2% auto', width: '100%',border:'1px solid #c8efec' }}>
                 <div style={{ textAlign: 'center', marginBottom: 'var(--space-lg)' }}>
-                    {/* Using var(--header) for the title as requested */}
                     <h2 style={{ color: 'var(--primary)', fontSize: '24px', fontWeight: '700' }}>
                         Add Opening Stock
                     </h2>
@@ -294,7 +293,7 @@ const OpeningStock = () => {
 
                 <form onSubmit={handleSubmit}>
                     <div className="form-group" style={{ position: 'relative' }} ref={dropdownRef}>
-                        <label className="form-label">Product Name *</label>
+                        <label className="form-label">Product Name <span className="star-red">*</span></label>
                         <input
                             ref={inputRef}
                             type="text"

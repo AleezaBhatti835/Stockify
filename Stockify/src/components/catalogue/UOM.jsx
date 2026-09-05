@@ -1,4 +1,3 @@
-// src/components/catalogue/UOM.js
 import { useState, useEffect } from 'react';
 
 function UOM() {
@@ -8,29 +7,19 @@ function UOM() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [deleteTargetId, setDeleteTargetId] = useState(null);
-
-  // Loading / Submitting lock to prevent double entries
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  // Pagination states
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
-
   const [newUOM, setNewUOM] = useState({ code: '', name: '' });
   const [editUOM, setEditUOM] = useState({ id: '', code: '', name: '' });
-
-  // Inline message states for each modal
   const [addMessage, setAddMessage] = useState({ text: '', type: '' });
   const [editMessage, setEditMessage] = useState({ text: '', type: '' });
   const [deleteMessage, setDeleteMessage] = useState({ text: '', type: '' });
-
-  // Pagination logic
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
   const currentItems = uoms.slice(indexOfFirstItem, indexOfLastItem);
   const totalPages = Math.ceil(uoms.length / itemsPerPage);
 
-  // Reset to page 1 when uoms change
   useEffect(() => {
     setCurrentPage(1);
   }, [uoms]);
@@ -40,7 +29,6 @@ function UOM() {
     fetchProducts();
   }, []);
 
-  // Keyboard shortcut handler
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key === 'Escape') {
@@ -360,9 +348,9 @@ function UOM() {
             <thead>
               <tr>
                 <th style={{ ...tableStyles.th, width: '10%' }}>Sr#</th>
-                <th style={{ ...tableStyles.th, width: '40%' }}>Name</th>
+                <th style={{ ...tableStyles.th, width: '30%' }}>Name</th>
                 <th style={{ ...tableStyles.th, width: '30%' }}>Code</th>
-                <th style={{ ...tableStyles.th, width: '20%' }}>Actions</th>
+                <th style={{ ...tableStyles.th, width: '20%',textAlign: 'center' }}>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -451,7 +439,7 @@ function UOM() {
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-md)' }}>
                 <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label className="form-label">Code *</label>
+                  <label className="form-label">Code <span className="star-red">*</span> </label>
                   <input 
                     className="form-input" 
                     value={newUOM.code} 
@@ -462,7 +450,7 @@ function UOM() {
                   />
                 </div>
                 <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label className="form-label">Name *</label>
+                  <label className="form-label">Name <span className="star-red">*</span> </label>
                   <input 
                     className="form-input" 
                     value={newUOM.name} 
@@ -498,7 +486,7 @@ function UOM() {
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-md)' }}>
                 <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label className="form-label">Code *</label>
+                  <label className="form-label">Code <span className="star-red">*</span> </label>
                   <input 
                     className="form-input" 
                     value={editUOM.code} 
@@ -509,7 +497,7 @@ function UOM() {
                   />
                 </div>
                 <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label className="form-label">Name *</label>
+                  <label className="form-label">Name <span className="star-red">*</span> </label>
                   <input 
                     className="form-input" 
                     value={editUOM.name} 
@@ -560,7 +548,6 @@ function UOM() {
   );
 }
 
-// Strict Table Styles Rule
 const tableStyles = {
   th: {
     padding: '12px 16px',
@@ -578,12 +565,12 @@ const tableStyles = {
   }
 };
 
-// Actions styling EXACTLY as requested by user
 const styles = {
   actionGroup: { 
     display: 'flex', 
-    justifyContent: 'left', 
-    gap: '12px' 
+    justifyContent: 'center', 
+    gap: '12px' ,
+    
   },
   iconBtnView: {
     backgroundColor: 'var(--view)',

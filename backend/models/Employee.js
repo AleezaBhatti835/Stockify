@@ -1,9 +1,11 @@
 import mongoose from 'mongoose';
+
 const employeeSchema = new mongoose.Schema({
   name: { type: String, required: true },
   email: { type: String },
   phone: { type: String },
   cnic: { type: String },
+  city: { type: String }, 
   address: { type: String },
   pic: { type: String },
   designation: { type: mongoose.Schema.Types.ObjectId, ref: 'Designation', required: false },

@@ -136,14 +136,14 @@ function EmployeeDashboard() {
               </div>
             ) : !todayRecord?.clockIn ? (
               <button disabled={isActionLoading} onClick={() => handleClockAction('in')} 
-                style={{ width: '70%', padding: '12px 1px', background: 'var(--primary-other)', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                style={{ width: '70%', padding: '12px 1px',marginLeft:'40%', background: 'var(--header)', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
                 <FontAwesomeIcon icon={faUserCheck} /> Clock In 
               </button>
             ) : !todayRecord?.clockOut ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <div style={{ fontSize: '11px', color: '#10b981', textAlign: 'center', fontWeight: '600' }}>✓ Checked in at {todayRecord.clockIn}</div>
+                <div style={{ fontSize: '11px', color: '#10b981', textAlign: 'right', fontWeight: '600' }}>✓ Checked in at {todayRecord.clockIn}</div>
                 <button disabled={isActionLoading} onClick={() => handleClockAction('out')} 
-                  style={{ width: '100%', padding: '10px', background: '#f59e0b', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                  style={{ width: '70%', padding: '10px',marginLeft:'40%', background: '#b49764', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <FontAwesomeIcon icon={faClock} /> Clock Out
                 </button>
               </div>

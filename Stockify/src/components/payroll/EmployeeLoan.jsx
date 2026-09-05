@@ -276,20 +276,17 @@ const EmployeeLoan = () => {
         }, 300);
     };
 
-    // Calculate overall Ledger Totals for the View Modal
     const totalAdded = employeeLedger.reduce((sum, row) => sum + (row.debit || 0), 0);
     const totalDeducted = employeeLedger.reduce((sum, row) => sum + (row.credit || 0), 0);
     const currentLoanAmount = viewLoan ? parseFloat(viewLoan.amount) : 0;
-    // Previous Deducted excludes the current loan amount we are viewing
     const previousDeducted = Math.max(0, totalDeducted - currentLoanAmount); 
     const netBalance = totalAdded - totalDeducted;
 
     return (
         <div className="dashboard-wrapper">
-            {/* TOP HEADER & FILTERS */}
             <div className="card" style={{ display: 'flex', gap: '16px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
                 <div className="form-group" style={{ marginBottom: 0, flex: '1 1 200px' }}>
-                    <label className="form-label">Employee</label>
+                    <label className="form-label required">Employee</label>
                     <select className="form-input" value={filterEmployee} onChange={e => setFilterEmployee(e.target.value)}>
                         <option value="">All Employees</option>
                         {employees.map(emp => (
@@ -298,11 +295,11 @@ const EmployeeLoan = () => {
                     </select>
                 </div>
                 <div className="form-group" style={{ marginBottom: 0, minWidth: '150px', flex: '1' }}>
-                    <label className="form-label" style={{ fontSize: '12px', fontWeight: '600' }}>Date From</label>
+                    <label className="form-label required">Date From</label>
                     <input type="date" className="form-input" value={filterFromDate} onChange={e => setFilterFromDate(e.target.value)} />
                 </div>
                 <div className="form-group" style={{ marginBottom: 0, minWidth: '150px', flex: '1' }}>
-                    <label className="form-label" style={{ fontSize: '12px', fontWeight: '600' }}>Date To</label>
+                    <label className="form-label required">Date To</label>
                     <input type="date" className="form-input" value={filterToDate} onChange={e => setFilterToDate(e.target.value)} />
                 </div>
                 <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
@@ -321,7 +318,6 @@ const EmployeeLoan = () => {
                 </div>
             )}
 
-            {/* MAIN TABLE */}
             <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
                 <div style={{ overflowX: 'auto', width: '100%' }}>
                     <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '800px' }}>
@@ -368,7 +364,6 @@ const EmployeeLoan = () => {
                 </div>
             </div>
 
-            {/* ADD LOAN MODAL */}
             {isAddModalOpen && (
                 <div className="modal-overlay">
                     <div className="modal-container" style={{ width: '450px' }}>
@@ -378,14 +373,13 @@ const EmployeeLoan = () => {
                         </div>
                         <div className="modal-body">
                             <div className="form-group">
-                                <label className="form-label">Employee *</label>
+                                <label className="form-label required">Employee </label>
                                 <select className="form-input" value={newLoan.employeeId} onChange={handleEmployeeChange}>
                                     <option value="">Select Employee</option>
                                     {employees.map(emp => (
                                         <option key={emp._id} value={emp._id}>{emp.name}</option>
                                     ))}
                                 </select>
-                                {/* CURRENT BALANCE DISPLAY */}
                                 {isFetchingBalance && <div style={{ fontSize: '12px', marginTop: '6px', color: 'var(--info)' }}>Calculating Balance...</div>}
                                 {selectedEmployeeBalance !== null && !isFetchingBalance && (
                                     <div style={{ marginTop: '8px', padding: '8px 12px', backgroundColor: '#f8fafc', borderRadius: '4px', fontSize: '13px', border: '1px solid #e2e8f0' }}>
@@ -398,11 +392,11 @@ const EmployeeLoan = () => {
                                 )}
                             </div>
                             <div className="form-group">
-                                <label className="form-label">Loan Amount (PKR) *</label>
+                                <label className="form-label required">Loan Amount </label>
                                 <input type="number" className="form-input" value={newLoan.amount} onChange={e => setNewLoan({ ...newLoan, amount: e.target.value })} placeholder="0.00" />
                             </div>
                             <div className="form-group">
-                                <label className="form-label">Issue Date *</label>
+                                <label className="form-label required">Issue Date </label>
                                 <input type="date" className="form-input" value={newLoan.date} onChange={e => setNewLoan({ ...newLoan, date: e.target.value })} />
                             </div>
                             <div className="form-group">
@@ -420,7 +414,6 @@ const EmployeeLoan = () => {
                 </div>
             )}
 
-            {/* INVOICE VIEW MODAL */}
             {isViewModalOpen && viewLoan && (
                 <div className="modal-overlay" onClick={closeViewModal}>
                     <div className="modal-container" style={{ width: '70%', padding: 0, display: 'flex', flexDirection: 'column', maxHeight: '90vh' }} onClick={(e) => e.stopPropagation()}>
@@ -444,7 +437,6 @@ const EmployeeLoan = () => {
                             
                             <div style={{ borderTop: '2px dashed #000', margin: '14px 0' }}></div>
 
-                            {/* Current Transaction Area */}
                             {getPaperConfig(printSettings?.paperSize).mono ? (
                                 <div>
                                     <div style={{ borderBottom: '1px dashed #000', padding: '6px 0' }}>
@@ -476,7 +468,6 @@ const EmployeeLoan = () => {
                                 </table>
                             )}
 
-                            {/* ACCOUNT SUMMARY AREA */}
                             <div style={{ marginTop: '20px', borderTop: '2px solid #000', paddingTop: '10px' }}>
                                 <h5 style={{ margin: '0 0 10px 0', color: '#333', textAlign: 'center' }}>ACCOUNT SUMMARY</h5>
                                 

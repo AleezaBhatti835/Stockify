@@ -7,6 +7,7 @@ const customerSchema = new mongoose.Schema({
   address: { type: String },
   pic: { type: String }, 
   cnic: { type: String },
+  city: { type: String }, 
   customerTypeId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'CustomerType',

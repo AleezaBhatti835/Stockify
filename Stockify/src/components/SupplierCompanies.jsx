@@ -8,11 +8,15 @@ function SupplierCompanies() {
   const [isEditing, setIsEditing] = useState(false);
   const [currentId, setCurrentId] = useState(null);
   
+  // View Modal States
+  const [viewModalData, setViewModalData] = useState(null);
+  const [linkedSuppliers, setLinkedSuppliers] = useState([]);
+  const [isLoadingSuppliers, setIsLoadingSuppliers] = useState(false);
+  
   const initialState = {
     name: '',
-    contact: '', // 💡 Default empty rakha hai taake mandatory check sahi kaam kare
-    emailPrefix: '',
-    email: '',
+    contact: '', 
+    email: '', 
     address: ''
   };
 
@@ -43,7 +47,6 @@ function SupplierCompanies() {
     }
   };
 
-  // 💡 Mandatory 11 digits format check (+92 followed by 9 digits e.g. +923001234567)
   const formatContact = (value) => {
     let numbers = value.replace(/\D/g, '');
     if (numbers.startsWith('92')) {
@@ -61,17 +64,15 @@ function SupplierCompanies() {
       return;
     }
 
-    // 💡 Phone validation: compulsory and exact length check (+92 + 10 digits = 13 characters total)
     if (!formData.contact || formData.contact.length !== 13) {
       showMessage('Phone number is mandatory and must be 11 digits (e.g. +923XXXXXXXXX)', 'error');
       return;
     }
 
-    const fullEmail = formData.emailPrefix.trim() ? `${formData.emailPrefix.trim()}@gmail.com` : '';
     const payload = {
       name: formData.name,
       contact: formData.contact,
-      email: fullEmail,
+      email: formData.email.trim(),
       address: formData.address
     };
 
@@ -132,19 +133,46 @@ function SupplierCompanies() {
 
   const openEditModal = (c) => {
     setCurrentId(c._id);
-    let emailPrefixVal = c.email || '';
-    if (emailPrefixVal.endsWith('@gmail.com')) {
-      emailPrefixVal = emailPrefixVal.replace('@gmail.com', '');
-    }
     setFormData({
       name: c.name || '',
       contact: c.contact === '+92' ? '' : (c.contact || ''),
-      emailPrefix: emailPrefixVal,
       email: c.email || '',
       address: c.address || ''
     });
     setIsEditing(true);
     setIsOpenModal(true);
+  };
+
+  const openViewModal = async (c) => {
+    setViewModalData(c);
+    setIsLoadingSuppliers(true);
+    setLinkedSuppliers([]);
+    
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${API_BASE_URL}/api/suppliers`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      
+      if (Array.isArray(data)) {
+        const filtered = data.filter(s => 
+          (s.companyId && s.companyId._id === c._id) || 
+          s.companyId === c._id ||
+          (s.companyName && s.companyName.toLowerCase() === c.name.toLowerCase())
+        );
+        setLinkedSuppliers(filtered);
+      }
+    } catch (err) {
+      console.error('Error fetching linked suppliers:', err);
+    } finally {
+      setIsLoadingSuppliers(false);
+    }
+  };
+
+  const closeViewModal = () => {
+    setViewModalData(null);
+    setLinkedSuppliers([]);
   };
 
   return (
@@ -182,7 +210,16 @@ function SupplierCompanies() {
                 <td style={{ padding: '12px 16px' }}>{c.address || '-'}</td>
                 <td style={{ padding: '12px 16px', textAlign: 'center' }}>
                    <div style={{ display: 'flex', justifyContent: 'center', gap: '8px' }}>
-                 {/* Edit Button */}
+                          
+                          {/* 💡 View Button */}
+                          <button style={{ backgroundColor: 'var(--view)', color: 'var(--success)', border: 'none', padding: '6px', borderRadius: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center' }} onClick={() => openViewModal(c)} title="View">
+                            <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+                              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                              <circle cx="12" cy="12" r="3"></circle>
+                            </svg>
+                          </button>
+
+                          {/* Edit Button */}
                           <button style={{ backgroundColor: 'var(--primary-light)', color: 'var(--primary)', border: 'none', padding: '6px', borderRadius: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center' }} onClick={() => openEditModal(c)} title="Edit">
                             <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
                               <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
@@ -198,7 +235,9 @@ function SupplierCompanies() {
                               <line x1="10" y1="11" x2="10" y2="17"></line>
                               <line x1="14" y1="11" x2="14" y2="17"></line>
                             </svg>
-                          </button>       </div>      </td>
+                          </button> 
+                    </div> 
+                 </td>
               </tr>
             ))}
             {companies.length === 0 && <tr><td colSpan="6" style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>No supplier companies found.</td></tr>}
@@ -215,53 +254,34 @@ function SupplierCompanies() {
             </div>
             <form onSubmit={handleSave}>
               <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                
                 <div className="form-group" style={{ margin: 0 }}>
-                  <label className="form-label" style={{ display: 'block', marginBottom: '8px' }}>Company Name *</label>
+                  <label className="form-label required" style={{ display: 'block', marginBottom: '8px' }}>Company Name </label>
                   <input className="form-input" style={{ width: '100%', border: '1px solid #cbd5e1', borderRadius: '6px', padding: '10px', boxSizing: 'border-box' }} value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} required autoFocus />
                 </div>
 
                 <div className="form-group" style={{ margin: 0 }}>
-                  <label className="form-label" style={{ display: 'block', marginBottom: '8px' }}>Contact Number *</label>
+                  <label className="form-label required" style={{ display: 'block', marginBottom: '8px' }}>Contact Number </label>
                   <input className="form-input" style={{ width: '100%', border: '1px solid #cbd5e1', borderRadius: '6px', padding: '10px', boxSizing: 'border-box' }} value={formData.contact} onChange={e => setFormData({...formData, contact: formatContact(e.target.value)} )} placeholder="+923001234567" required />
                 </div>
 
                 <div className="form-group" style={{ margin: 0 }}>
-                  <label className="form-label" style={{ display: 'block', marginBottom: '8px' }}>Email Address</label>
-                  <div style={{ position: 'relative', width: '100%', display: 'flex', alignItems: 'center' }}>
-                    <input
-                      className="form-input"
-                      style={{ width: '100%', paddingRight: '95px', border: '1px solid #cbd5e1', borderRadius: '6px', padding: '10px', boxSizing: 'border-box' }}
-                      value={formData.emailPrefix}
-                      onChange={(e) => setFormData({ ...formData, emailPrefix: e.target.value.replace(/@.*/, '') })}
-                      placeholder="username"
-                    />
-                   <span 
-                      title="Domain is automatically handled"
-                      style={{ 
-                        position: 'absolute', 
-                        right: '1px', 
-                        color: 'var(--text-main)', 
-                        fontSize: '13px', 
-                        pointerEvents: 'none',
-                        backgroundColor: '#d9f3ea',
-                        padding: '4px 6px',
-                        borderRadius: '4px',
-                        border: '1px solid var(--btn-border)',
-                        transition: 'all 0.2s ease'
-                      }}
-                      onMouseEnter={(e) => { e.target.style.color = 'var(--primary)'; e.target.style.borderColor = 'var(--primary)'; }}
-                      onMouseLeave={(e) => { e.target.style.color = 'var(--text-main)'; e.target.style.borderColor = '#e2e8f0'; }}
-                    >
-                      @gmail.com
-                    </span>
-         
-                  </div>
+                  <label className="form-label " style={{ display: 'block', marginBottom: '8px' }}>Email Address</label>
+                  <input
+                    type="email"
+                    className="form-input"
+                    style={{ width: '100%', border: '1px solid #cbd5e1', borderRadius: '6px', padding: '10px', boxSizing: 'border-box' }}
+                    value={formData.email}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    placeholder="company@domain.com"
+                  />
                 </div>
 
                 <div className="form-group" style={{ margin: 0 }}>
                   <label className="form-label" style={{ display: 'block', marginBottom: '8px' }}>Address</label>
                   <textarea className="form-input" style={{ width: '100%', border: '1px solid #cbd5e1', borderRadius: '6px', padding: '10px', resize: 'vertical', boxSizing: 'border-box' }} value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})} rows="2" />
                 </div>
+
               </div>
 
               <div className="modal-footer" style={{ padding: '16px 24px', backgroundColor: 'var(--bg-app)', borderTop: '1px solid var(--border-color)', display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
@@ -272,6 +292,78 @@ function SupplierCompanies() {
           </div>
         </div>
       )}
+
+      {/* 💡 VIEW COMPANY MODAL */}
+      {viewModalData && (
+        <div className="modal-overlay" onClick={closeViewModal}>
+          <div className="modal-container" onClick={e => e.stopPropagation()} style={{ width: '650px', padding: 0, overflow: 'hidden' }}>
+            
+            <div style={{ backgroundColor: 'var(--primary-other)', padding: '24px', textAlign: 'center', color: 'white' }}>
+              <h3 style={{ margin: '0 0 8px 0', fontSize: '22px', fontWeight: 700 }}>{viewModalData.name}</h3>
+              <p style={{ margin: 0, fontSize: '13px', opacity: 0.9 }}>Supplier Company Overview</p>
+            </div>
+
+            <div className="modal-body" style={{ padding: '20px', maxHeight: '70vh', overflowY: 'auto' }}>
+    
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '24px' }}>
+                <div>
+                  <label style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 600 }}>Contact Number</label>
+                  <p style={{ fontSize: '13px', margin: '4px 0 0', color: 'var(--text-main)', fontWeight: 500 }}>{viewModalData.contact || 'N/A'}</p>
+                </div>
+                <div>
+                  <label style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 600 }}>Email Address</label>
+                  <p style={{ fontSize: '13px', margin: '4px 0 0', color: 'var(--text-main)', fontWeight: 500 }}>{viewModalData.email || 'N/A'}</p>
+                </div>
+                <div style={{ gridColumn: 'span 2' }}>
+                  <label style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 600 }}>Physical Address</label>
+                  <p style={{ fontSize: '13px', margin: '4px 0 0', color: 'var(--text-main)', fontWeight: 500, backgroundColor: 'var(--bg-app)', padding: '8px', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
+                    {viewModalData.address || 'N/A'}
+                  </p>
+                </div>
+              </div>
+
+              <h4 style={{ margin: '0 0 12px 0',fontSize: '16px',  color: 'var(--primary)', borderBottom: '1px solid var(--border-color)', paddingBottom: '6px' }}>
+                Linked Suppliers ({linkedSuppliers.length})
+              </h4>
+              
+              {isLoadingSuppliers ? (
+                <p style={{ fontSize: '13px', color: 'var(--text-muted)', textAlign: 'center', padding: '20px 0' }}>Loading suppliers...</p>
+              ) : linkedSuppliers.length > 0 ? (
+                <div style={{ border: '1px solid var(--border-color)', borderRadius: '6px', overflow: 'hidden' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '12px' }}>
+                    <thead style={{ backgroundColor: 'var(--header)', color: 'white' }}>
+                      <tr>
+                        <th style={{ padding: '8px 12px' }}>Contact Person</th>
+                        <th style={{ padding: '8px 12px' }}>Phone</th>
+                        <th style={{ padding: '8px 12px' }}>Email</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {linkedSuppliers.map((sup, idx) => (
+                        <tr key={sup._id} style={{ borderBottom: idx !== linkedSuppliers.length - 1 ? '1px solid var(--border-color)' : 'none' }}>
+                          <td style={{ padding: '8px 12px', fontWeight: 600, color: 'var(--text-main)' }}>{sup.contactPerson || sup.name}</td>
+                          <td style={{ padding: '8px 12px', color: 'var(--text-main)' }}>{sup.phone || sup.contact || '-'}</td>
+                          <td style={{ padding: '8px 12px', color: 'var(--text-main)' }}>{sup.email || '-'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div style={{ backgroundColor: 'var(--bg-app)', padding: '20px', textAlign: 'center', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
+                  <p style={{ fontSize: '13px', color: 'var(--text-muted)', margin: 0 }}>No suppliers are currently linked to this company.</p>
+                </div>
+              )}
+
+            </div>
+
+            <div className="modal-footer" style={{ borderTop: '1px solid var(--border-color)', padding: '12px 20px', backgroundColor: 'var(--bg-app)' }}>
+              <button className="btn btn-secondary" onClick={closeViewModal}>Close</button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

@@ -370,7 +370,6 @@ const EmployeeAttendance = () => {
 
         return (
             <div className="card" style={{ padding: '20px', width: '100%', boxSizing: 'border-box' }}>
-                {/* Salary locked warning with clear info note */}
                 {isMonthLocked && (
                     <div style={{ padding: '12px', fontSize:'13px', textAlign:'left', backgroundColor: '#fdf8f6', color: '#9a3412', border: '1px solid #fed7aa', borderRadius: '8px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <span>⚠️</span> <strong>Notice:</strong>Financial ledger will remain unaffected until the salary is recalculated.

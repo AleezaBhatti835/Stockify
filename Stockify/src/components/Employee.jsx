@@ -77,6 +77,7 @@ function Employees() {
   const editModalBodyRef = useRef(null);
   const [employees, setEmployees] = useState([]);
   const [designations, setDesignations] = useState([]);
+  const [cities, setCities] = useState([]); 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
   // Pagination states
@@ -86,9 +87,10 @@ function Employees() {
   // Initial State Updated
   const initialState = {
     name: '',
-    emailPrefix: '',
+    email: '',
     phone: '+92',
     cnic: '',
+    city: '', 
     address: '',
     pic: '',
     designation: '',
@@ -132,14 +134,20 @@ function Employees() {
     return `+92${numbers}`;
   };
 
+  // 💡 Naya function: Form reset aur modal close karne ke liye
+  const closeAddModal = () => {
+    setIsAddModalOpen(false);
+    setNewEmployee(initialState);
+    setAddMessage({ text: '', type: '' });
+    setImageUploadMessage({ text: '', type: '' });
+  };
+
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key === 'Escape') {
         if (isAddModalOpen) {
           e.preventDefault();
-          setIsAddModalOpen(false);
-          setAddMessage({ text: '', type: '' });
-          setImageUploadMessage({ text: '', type: '' });
+          closeAddModal(); // 💡 Escape key par bhi reset hoga
         }
         if (editEmployeeId) {
           e.preventDefault();
@@ -175,6 +183,7 @@ function Employees() {
   useEffect(() => {
     fetchEmployees();
     fetchDesignations();
+    fetchCities(); 
   }, []);
 
   useEffect(() => {
@@ -266,6 +275,21 @@ function Employees() {
     }
   };
 
+  const fetchCities = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${API_BASE_URL}/api/cities`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (data.success) {
+        setCities(data.data);
+      }
+    } catch (error) {
+      console.error('Error fetching cities:', error);
+    }
+  };
+
   const handleImageUpload = async (e, isEditing) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -345,8 +369,8 @@ function Employees() {
   };
 
   const handleAddEmployee = async () => {
-    if (!newEmployee.name || !newEmployee.emailPrefix) {
-      showAddMessage('Name and Email prefix are required!', 'error');
+    if (!newEmployee.name || !newEmployee.email) {
+      showAddMessage('Name and Email are required!', 'error');
       return;
     }
 
@@ -359,10 +383,9 @@ function Employees() {
       return;
     }
 
-    const fullEmail = `${newEmployee.emailPrefix.trim()}@gmail.com`;
     const payloadObj = {
       ...newEmployee,
-      email: fullEmail,
+      email: newEmployee.email.trim(),
       commission: newEmployee.employeeType === 'Salesman' ? Number(newEmployee.commission) : 0
     };
 
@@ -378,7 +401,6 @@ function Employees() {
 
     try {
       const token = localStorage.getItem('token');
-      const { emailPrefix, ...finalPayload } = payloadObj;
 
       const res = await fetch(`${API_BASE_URL}/api/employees`, {
         method: 'POST',
@@ -387,7 +409,7 @@ function Employees() {
           'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
-          ...finalPayload,
+          ...payloadObj,
           status: 'Active'
         })
       });
@@ -395,9 +417,7 @@ function Employees() {
       if (res.ok) {
         showAddMessage('Employee added successfully!', 'success');
         setTimeout(() => {
-          setNewEmployee(initialState);
-          setIsAddModalOpen(false);
-          setAddMessage({ text: '', type: '' });
+          closeAddModal(); // 💡 Form clear aur modal close function
           fetchEmployees();
         }, 500);
       } else {
@@ -424,11 +444,9 @@ function Employees() {
       return;
     }
 
-    const fullEmail = editEmployee.emailPrefix.trim() ? `${editEmployee.emailPrefix.trim()}@gmail.com` : '';
-
     const payload = {
       ...editEmployee,
-      email: fullEmail,
+      email: editEmployee.email.trim(),
       commission: editEmployee.employeeType === 'Salesman' ? Number(editEmployee.commission) : 0
     };
 
@@ -444,7 +462,6 @@ function Employees() {
 
     try {
       const token = localStorage.getItem('token');
-      const { emailPrefix, ...finalPayload } = payload;
 
       const res = await fetch(`${API_BASE_URL}/api/employees/${editEmployeeId}`, {
         method: 'PUT',
@@ -452,7 +469,7 @@ function Employees() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify(finalPayload)
+        body: JSON.stringify(payload)
       });
 
       if (res.ok) {
@@ -502,10 +519,6 @@ function Employees() {
     setEditMessage({ text: '', type: '' });
     setImageUploadMessage({ text: '', type: '' });
     setEditEmployeeId(employee._id);
-    let emailPrefixVal = employee.email || '';
-    if (emailPrefixVal.endsWith('@gmail.com')) {
-      emailPrefixVal = emailPrefixVal.replace('@gmail.com', '');
-    }
 
     let designationId = employee.designation;
     if (typeof employee.designation === 'object' && employee.designation !== null) {
@@ -515,9 +528,9 @@ function Employees() {
     setEditEmployee({
       name: employee.name || '',
       email: employee.email || '',
-      emailPrefix: emailPrefixVal,
       phone: employee.phone || '+92',
       cnic: employee.cnic || '',
+      city: employee.city || '', 
       address: employee.address || '',
       pic: employee.pic || '',
       designation: designationId || '',
@@ -687,11 +700,11 @@ function Employees() {
 
       {/* ADD MODAL */}
       {isAddModalOpen && (
-        <div className="modal-overlay" onClick={() => setIsAddModalOpen(false)}>
+        <div className="modal-overlay" onClick={closeAddModal}>
           <div className="modal-container modal-container-wide" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3 className="modal-title">Add New Employee</h3>
-              <button className="modal-close" onClick={() => { setIsAddModalOpen(false); setAddMessage({ text: '', type: '' }); setImageUploadMessage({ text: '', type: '' }); }}>&times;</button>
+              <button className="modal-close" onClick={closeAddModal}>&times;</button>
             </div>
 
             <div className="modal-body" ref={addModalBodyRef} style={{ maxHeight: '75vh', overflowY: 'auto' }}>
@@ -711,7 +724,7 @@ function Employees() {
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-md)' }}>
                 <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label className="form-label">Full Name *</label>
+                  <label className="form-label">Full Name <span style={{ color: 'var(--danger)' }}>*</span></label>
                   <input
                     className="form-input"
                     style={{ border: '1px solid #cbd5e1', borderRadius: '6px', padding: '10px' }}
@@ -723,20 +736,16 @@ function Employees() {
                 </div>
 
                 <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label className="form-label">Email Address *</label>
-                  <div style={{ position: 'relative', width: '100%', display: 'flex', alignItems: 'center' }}>
-                    <input
-                      className="form-input"
-                      style={{ paddingRight: '85px', border: '1px solid #cbd5e1', borderRadius: '6px', padding: '10px', width: '100%' }}
-                      value={newEmployee.emailPrefix}
-                      onChange={(e) => setNewEmployee({ ...newEmployee, emailPrefix: e.target.value.replace(/@.*/, '') })}
-                      onKeyDown={(e) => handleInputKeyDown(e, handleAddEmployee)}
-                      placeholder="username"
-                    />
-                    <span style={{ position: 'absolute', right: '12px', color: 'var(--text-light)', fontSize: '13px', pointerEvents: 'none' }}>
-                      @gmail.com
-                    </span>
-                  </div>
+                  <label className="form-label">Email Address <span style={{ color: 'var(--danger)' }}>*</span></label>
+                  <input
+                    type="email"
+                    className="form-input"
+                    style={{ border: '1px solid #cbd5e1', borderRadius: '6px', padding: '10px', width: '100%', boxSizing: 'border-box' }}
+                    value={newEmployee.email}
+                    onChange={(e) => setNewEmployee({ ...newEmployee, email: e.target.value })}
+                    onKeyDown={(e) => handleInputKeyDown(e, handleAddEmployee)}
+                    placeholder="employee@domain.com"
+                  />
                 </div>
 
                 <div className="form-group" style={{ marginBottom: 0 }}>
@@ -764,9 +773,36 @@ function Employees() {
                   />
                 </div>
 
+                {/* City Dropdown */}
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label">City</label>
+                  <select
+                    className="form-input"
+                    style={{ border: '1px solid #cbd5e1', borderRadius: '6px', padding: '10px' }}
+                    value={newEmployee.city}
+                    onChange={(e) => setNewEmployee({ ...newEmployee, city: e.target.value })}
+                  >
+                    <option value="">-- Select City --</option>
+                    {cities.map(city => (
+                      <option key={city._id} value={city.name}>{city.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label">Joining Date <span style={{ color: 'var(--danger)' }}>*</span></label>
+                  <input
+                    type="date"
+                    className="form-input"
+                    style={{ border: '1px solid #cbd5e1', borderRadius: '6px', padding: '10px' }}
+                    value={newEmployee.joiningDate}
+                    onChange={(e) => setNewEmployee({ ...newEmployee, joiningDate: e.target.value })}
+                  />
+                </div>
+
                 {/* Employee Role Field */}
                 <div className="form-group" style={{ gridColumn: 'span 2', marginBottom: 0 }}>
-                  <label className="form-label">Employee Role *</label>
+                  <label className="form-label">Employee Role <span style={{ color: 'var(--danger)' }}>*</span></label>
                   <div style={{ display: 'flex', gap: '24px', alignItems: 'center', marginTop: '4px', padding: '8px', backgroundColor: '#f8fafc', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
                     <label style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-main)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <input
@@ -801,10 +837,9 @@ function Employees() {
                   </div>
                 </div>
 
-                {/* Conditionally show Designation OR Commission */}
                 {newEmployee.employeeType === 'Employee' ? (
                   <div className="form-group" style={{ marginBottom: 0 }}>
-                    <label className="form-label">Designation *</label>
+                    <label className="form-label required">Designation</label>
                     <select
                       className="form-input"
                       style={{ border: '1px solid #cbd5e1', borderRadius: '6px', padding: '10px' }}
@@ -821,7 +856,7 @@ function Employees() {
                   </div>
                 ) : (
                   <div className="form-group" style={{ marginBottom: 0 }}>
-                    <label className="form-label">Commission Percentage (%) *</label>
+                    <label className="form-label">Commission Percentage (%) <span style={{ color: 'var(--danger)' }}>*</span></label>
                     <input
                       type="number"
                       min="0"
@@ -834,17 +869,6 @@ function Employees() {
                     />
                   </div>
                 )}
-
-                <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label className="form-label">Joining Date *</label>
-                  <input
-                    type="date"
-                    className="form-input"
-                    style={{ border: '1px solid #cbd5e1', borderRadius: '6px', padding: '10px' }}
-                    value={newEmployee.joiningDate}
-                    onChange={(e) => setNewEmployee({ ...newEmployee, joiningDate: e.target.value })}
-                  />
-                </div>
 
                 <div className="form-group" style={{ gridColumn: 'span 2', marginBottom: 0 }}>
                   <label className="form-label">Address</label>
@@ -918,7 +942,7 @@ function Employees() {
             </div>
 
             <div className="modal-footer">
-              <button className="btn btn-secondary" onClick={() => { setIsAddModalOpen(false); setAddMessage({ text: '', type: '' }); setImageUploadMessage({ text: '', type: '' }); }}>Cancel</button>
+              <button className="btn btn-secondary" onClick={closeAddModal}>Cancel</button>
               <button className="btn btn-primary" onClick={handleAddEmployee}>Save Employee</button>
             </div>
           </div>
@@ -951,7 +975,7 @@ function Employees() {
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-md)' }}>
                 <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label className="form-label">Full Name *</label>
+                  <label className="form-label">Full Name <span style={{ color: 'var(--danger)' }}>*</span></label>
                   <input
                     className="form-input"
                     style={{ border: '1px solid #cbd5e1', borderRadius: '6px', padding: '10px' }}
@@ -963,20 +987,16 @@ function Employees() {
                 </div>
 
                 <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label className="form-label">Email Address *</label>
-                  <div style={{ position: 'relative', width: '100%', display: 'flex', alignItems: 'center' }}>
-                    <input
-                      className="form-input"
-                      style={{ paddingRight: '85px', border: '1px solid #cbd5e1', borderRadius: '6px', padding: '10px', width: '100%' }}
-                      value={editEmployee.emailPrefix}
-                      onChange={(e) => setEditEmployee({ ...editEmployee, emailPrefix: e.target.value.replace(/@.*/, '') })}
-                      onKeyDown={(e) => handleInputKeyDown(e, handleUpdateEmployee)}
-                      placeholder="username"
-                    />
-                    <span style={{ position: 'absolute', right: '12px', color: 'var(--text-light)', fontSize: '13px', pointerEvents: 'none' }}>
-                      @gmail.com
-                    </span>
-                  </div>
+                  <label className="form-label">Email Address <span style={{ color: 'var(--danger)' }}>*</span></label>
+                  <input
+                    type="email"
+                    className="form-input"
+                    style={{ border: '1px solid #cbd5e1', borderRadius: '6px', padding: '10px', width: '100%', boxSizing: 'border-box' }}
+                    value={editEmployee.email}
+                    onChange={(e) => setEditEmployee({ ...editEmployee, email: e.target.value })}
+                    onKeyDown={(e) => handleInputKeyDown(e, handleUpdateEmployee)}
+                    placeholder="employee@domain.com"
+                  />
                 </div>
 
                 <div className="form-group" style={{ marginBottom: 0 }}>
@@ -1003,9 +1023,36 @@ function Employees() {
                   />
                 </div>
 
+                {/* City Dropdown */}
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label">City</label>
+                  <select
+                    className="form-input"
+                    style={{ border: '1px solid #cbd5e1', borderRadius: '6px', padding: '10px' }}
+                    value={editEmployee.city}
+                    onChange={(e) => setEditEmployee({ ...editEmployee, city: e.target.value })}
+                  >
+                    <option value="">-- Select City --</option>
+                    {cities.map(city => (
+                      <option key={city._id} value={city.name}>{city.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label">Joining Date <span style={{ color: 'var(--danger)' }}>*</span></label>
+                  <input
+                    type="date"
+                    className="form-input"
+                    style={{ border: '1px solid #cbd5e1', borderRadius: '6px', padding: '10px' }}
+                    value={editEmployee.joiningDate || ''}
+                    onChange={(e) => setEditEmployee({ ...editEmployee, joiningDate: e.target.value })}
+                  />
+                </div>
+
                 {/* Employee Role Field */}
                 <div className="form-group" style={{ gridColumn: 'span 2', marginBottom: 0 }}>
-                  <label className="form-label">Employee Role *</label>
+                  <label className="form-label">Employee Role <span style={{ color: 'var(--danger)' }}>*</span></label>
                   <div style={{ display: 'flex', gap: '24px', alignItems: 'center', marginTop: '4px', padding: '8px', backgroundColor: '#f8fafc', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
                     <label style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-main)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <input
@@ -1043,7 +1090,7 @@ function Employees() {
                 {/* Conditionally show Designation OR Commission */}
                 {editEmployee.employeeType === 'Employee' ? (
                   <div className="form-group" style={{ marginBottom: 0 }}>
-                    <label className="form-label">Designation *</label>
+                    <label className="form-label">Designation <span style={{ color: 'var(--danger)' }}>*</span></label>
                     <select
                       className="form-input"
                       style={{ border: '1px solid #cbd5e1', borderRadius: '6px', padding: '10px' }}
@@ -1060,7 +1107,7 @@ function Employees() {
                   </div>
                 ) : (
                   <div className="form-group" style={{ marginBottom: 0 }}>
-                    <label className="form-label">Commission Percentage (%) *</label>
+                    <label className="form-label">Commission Percentage (%) <span style={{ color: 'var(--danger)' }}>*</span></label>
                     <input
                       type="number"
                       min="0"
@@ -1073,17 +1120,6 @@ function Employees() {
                     />
                   </div>
                 )}
-
-                <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label className="form-label">Joining Date *</label>
-                  <input
-                    type="date"
-                    className="form-input"
-                    style={{ border: '1px solid #cbd5e1', borderRadius: '6px', padding: '10px' }}
-                    value={editEmployee.joiningDate || ''}
-                    onChange={(e) => setEditEmployee({ ...editEmployee, joiningDate: e.target.value })}
-                  />
-                </div>
 
                 <div className="form-group" style={{ gridColumn: 'span 2', marginBottom: 0 }}>
                   <label className="form-label">Address</label>
@@ -1164,71 +1200,78 @@ function Employees() {
         </div>
       )}
 
-      {/* VIEW MODAL */}
+   {/* VIEW MODAL */}
       {viewEmployee && (
         <div className="modal-overlay" onClick={() => setViewEmployee(null)}>
-          <div className="modal-container" style={{ maxWidth: '580px', width: '90%', padding: 0, overflow: 'hidden', borderRadius: '16px', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)' }} onClick={(e) => e.stopPropagation()}>
+          <div className="modal-container" style={{ width: '750px', padding: 0, overflow: 'hidden' }} onClick={(e) => e.stopPropagation()}>
 
-            <div style={{ backgroundColor: 'var(--primary-other)', padding: '12px 16px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', position: 'relative' }}>
-              <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                <AvatarImage pic={viewEmployee.pic} name={viewEmployee.name} size={64} />
+            {/* Profile Header */}
+            <div style={{ backgroundColor: 'var(--primary-other)', padding: '10px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
+              <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', border: '3px solid rgba(255,255,255,0.3)', borderRadius: '50%', padding: '4px' }}>
+                <AvatarImage pic={viewEmployee.pic} name={viewEmployee.name} size={80} />
               </div>
-              <h3 style={{ color: 'white', margin: 0, fontSize: '18px', fontWeight: '700', letterSpacing: '0.5px' }}>{viewEmployee.name}</h3>
-              <div style={{ display: 'flex', gap: '6px' }}>
-
+              <h3 style={{ color: 'white', margin: 0, fontSize: '20px', fontWeight: '600' }}>{viewEmployee.name}</h3>
+              <div style={{ display: 'flex', gap: '8px' }}>
                 {viewEmployee.employeeType === 'Employee' && (
-                  <span style={{ fontSize: '11px', background: 'rgba(255,255,255,0.15)', color: '#fff', padding: '2px 10px', borderRadius: '20px', fontWeight: '500' }}>
+                  <span style={{ fontSize: '12px', background: 'rgba(255,255,255,0.2)', color: 'white', padding: '4px 12px', borderRadius: '20px', fontWeight: '500' }}>
                     {viewEmployee.designation ? (typeof viewEmployee.designation === 'object' ? viewEmployee.designation.designation : viewEmployee.designation) : 'Staff'}
                   </span>
                 )}
-
-                <span style={{ fontSize: '11px', background: viewEmployee.employeeType === 'Salesman' ? '#e0fffc' : '#577470', color: viewEmployee.employeeType === 'Salesman' ? '#465e59' : '#ceeee6', padding: '2px 10px', borderRadius: '20px', fontWeight: '600' }}>
+                <span style={{ fontSize: '12px', background: 'var(--primary-light)', color: 'var(--primary)', padding: '4px 12px', borderRadius: '20px', fontWeight: '600' }}>
                   {viewEmployee.employeeType === 'Salesman' ? 'Salesman' : 'Employee'}
                 </span>
-
               </div>
             </div>
 
-            <div className="modal-body" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px', padding: '20px', backgroundColor: '#f8fafc' }}>
-
-              <div style={compactCardStyle}>
-                <span style={compactLabelStyle}>Email Address</span>
-                <span style={compactValueStyle}>{viewEmployee.email || 'N/A'}</span>
-              </div>
-
-              <div style={compactCardStyle}>
-                <span style={compactLabelStyle}>Phone Number</span>
-                <span style={compactValueStyle}>{viewEmployee.phone || 'N/A'}</span>
-              </div>
-
-              <div style={compactCardStyle}>
-                <span style={compactLabelStyle}>CNIC</span>
-                <span style={compactValueStyle}>{viewEmployee.cnic || 'N/A'}</span>
-              </div>
-
-              <div style={compactCardStyle}>
-                <span style={compactLabelStyle}>Joining Date</span>
-                <span style={compactValueStyle}>
-                  {viewEmployee.joiningDate ? new Date(viewEmployee.joiningDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A'}
-                </span>
-              </div>
-
-              {viewEmployee.employeeType === 'Salesman' && (
-                <div style={{ display: 'flex', alignItems: 'center', gridColumn: 'span 2', padding: '8px 4px', borderBottom: '1px solid #e2e8f0' }}>
-                  <span style={compactLabelStyle}>Sales Commission</span>
-                  <span style={{ fontSize: '13px', color: 'var(--primary)', textAlign: 'center', marginLeft: '28px', fontWeight: '700' }}>{viewEmployee.commission}%</span>
+            <div className="modal-body" style={{ padding: '10px 64px',textAlign: 'left', maxHeight: '75vh', overflowY: 'auto' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 0.5fr', gap: '10px' }}>
+                
+                <div>
+                  <label style={{ display: 'block', fontSize: '14px', color: 'var(--text-main)', fontWeight: '600', marginBottom: '4px', textTransform: 'uppercase' }}>Email Address</label>
+                  <div style={{ fontSize: '13px', color: 'var(--text-muted)', fontWeight: '500' }}>{viewEmployee.email || 'N/A'}</div>
                 </div>
-              )}
 
-              <div style={{ ...compactCardStyle, gridColumn: 'span 2' }}>
-                <span style={compactLabelStyle}>Address</span>
-                <span style={compactValueStyle}>{viewEmployee.address || 'N/A'}</span>
+                <div>
+                  <label style={{ display: 'block', fontSize: '14px', color: 'var(--text-main)', fontWeight: '600', marginBottom: '4px', textTransform: 'uppercase' }}>Phone Number</label>
+                  <div style={{ fontSize: '13px', color: 'var(--text-muted)', fontWeight: '500' }}>{viewEmployee.phone || 'N/A'}</div>
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '14px', color: 'var(--text-main)', fontWeight: '600', marginBottom: '4px', textTransform: 'uppercase' }}>CNIC</label>
+                  <div style={{ fontSize: '13px', color: 'var(--text-muted)', fontWeight: '500' }}>{viewEmployee.cnic || 'N/A'}</div>
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '14px', color: 'var(--text-main)', fontWeight: '600', marginBottom: '4px', textTransform: 'uppercase' }}>City</label>
+                  <div style={{ fontSize: '13px', color: 'var(--text-muted)', fontWeight: '500' }}>{viewEmployee.city || 'N/A'}</div>
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '14px', color: 'var(--text-main)', fontWeight: '600', marginBottom: '4px', textTransform: 'uppercase' }}>Joining Date</label>
+                  <div style={{ fontSize: '13px', color: 'var(--text-muted)', fontWeight: '500' }}>
+                    {viewEmployee.joiningDate ? new Date(viewEmployee.joiningDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A'}
+                  </div>
+                </div>
+
+                {viewEmployee.employeeType === 'Salesman' && (
+                  <div>
+                    <label style={{ display: 'block', fontSize: '14px', color: 'var(--text-main)', fontWeight: '600', marginBottom: '4px', textTransform: 'uppercase' }}>Commission</label>
+                    <div style={{ fontSize: '13px', color: 'var(--text-muted)', fontWeight: '500' }}>{viewEmployee.commission}%</div>
+                  </div>
+                )}
+
+                <div style={{ gridColumn: 'span 2', paddingTop: '16px' }}>
+                  <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-main)', fontWeight: '600', marginBottom: '8px', textTransform: 'uppercase' }}>Address</label>
+                  <div style={{ fontSize: '13px', color: 'var(--text-muted)', fontWeight: '500', backgroundColor: 'var(--bg-app)', padding: '12px', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
+                    {viewEmployee.address || 'No Address Provided'}
+                  </div>
+                </div>
+
               </div>
-
             </div>
 
-            <div className="modal-footer" style={{ padding: '12px 20px', backgroundColor: '#fff', borderTop: '1px solid var(--border-color)', display: 'flex', justifyContent: 'flex-end' }}>
-              <button className="btn btn-secondary" onClick={() => setViewEmployee(null)} style={{ padding: '8px 24px', fontWeight: '600' }}>Close</button>
+            <div className="modal-footer" style={{ borderTop: '1px solid var(--border-color)' }}>
+              <button className="btn btn-secondary" onClick={() => setViewEmployee(null)}>Close</button>
             </div>
 
           </div>
@@ -1291,7 +1334,6 @@ const tableStyles = {
   }
 };
 
-// Strict Actions Rule Enforced
 const actionStyles = {
   iconBtnView: {
     backgroundColor: 'var(--success-bg)',

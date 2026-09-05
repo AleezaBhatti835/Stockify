@@ -563,14 +563,39 @@ const StockAdjustment = () => {
                   borderRadius: 'var(--radius-sm)', backgroundColor: 'var(--bg-surface)', 
                   height: '38px', boxSizing: 'border-box' 
                 }}>
-                  <label style={{ fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', color: 'var(--text-main)', fontWeight: 500 }}>
-                    <input type="radio" name="viewMode" value="summary" checked={viewMode === 'summary'} onChange={(e) => setViewMode(e.target.value)} />
-                    Abstract
-                  </label>
-                  <label style={{ fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', color: 'var(--text-main)', fontWeight: 500 }}>
-                    <input type="radio" name="viewMode" value="detailed" checked={viewMode === 'detailed'} onChange={(e) => setViewMode(e.target.value)} />
-                    Product
-                  </label>
+                  <label style={{ fontSize: '13px', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', color: 'var(--text-main)', fontWeight: 600 }}>
+  <input 
+    type="radio" 
+    name="viewMode" 
+    value="summary" 
+    checked={viewMode === 'summary'} 
+    onChange={(e) => setViewMode(e.target.value)} 
+    style={{
+      appearance: 'none', WebkitAppearance: 'none', width: '12px', height: '12px', borderRadius: '50%', margin: 0, cursor: 'pointer',
+      backgroundColor: viewMode === 'summary' ? 'var(--primary)' : '#fff',
+      border: viewMode === 'summary' ? '2px solid #fff' : '1px solid #ccc',
+      boxShadow: viewMode === 'summary' ? '0 0 0 1px var(--primary)' : 'none'
+    }}
+  />
+  Abstract
+</label>
+
+<label style={{ fontSize: '13px', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', color: 'var(--text-main)', fontWeight: 600 }}>
+  <input 
+    type="radio" 
+    name="viewMode" 
+    value="detailed" 
+    checked={viewMode === 'detailed'} 
+    onChange={(e) => setViewMode(e.target.value)} 
+    style={{
+      appearance: 'none', WebkitAppearance: 'none', width: '12px', height: '12px', borderRadius: '50%', margin: 0, cursor: 'pointer',
+      backgroundColor: viewMode === 'detailed' ? 'var(--primary)' : '#fff',
+      border: viewMode === 'detailed' ? '2px solid #fff' : '1px solid #ccc',
+      boxShadow: viewMode === 'detailed' ? '0 0 0 1px var(--primary)' : 'none'
+    }}
+  />
+  Product
+</label>
                 </div>
               </div>
 
@@ -788,7 +813,7 @@ const StockAdjustment = () => {
 
             <form onSubmit={handleAddToList}>
               <div className="form-group" style={{ position: 'relative' }} ref={dropdownRef}>
-                <label className="form-label">Product *</label>
+                <label className="form-label">Product <span className="star-red">*</span></label>
                 <input
                   className="form-input"
                   type="text" value={searchTerm} onChange={handleSearchChange}
@@ -829,7 +854,7 @@ const StockAdjustment = () => {
 
               <div style={{ display: 'flex', gap: 'var(--space-md)', marginBottom: 'var(--space-md)' }}>
                 <div className="form-group" style={{ flex: 1, marginBottom: 0 }}>
-                  <label className="form-label">Quantity *</label>
+                  <label className="form-label">Quantity<span className="star-red">*</span> </label>
                   <input
                     className="form-input"
                     ref={quantityRef}
@@ -860,7 +885,7 @@ const StockAdjustment = () => {
                 />
               </div>
 
-              <button type="submit" className="btn btn-primary" style={{ width: '13%',marginLeft:'43%' }}>
+              <button type="submit" className="btn btn-primary" style={{ width: '13%'}}>
                 Add to Cart
               </button>
             </form>

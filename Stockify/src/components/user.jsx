@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import {  faEye, faEyeSlash } from '@fortawesome/free-solid-svg-icons';
+import { faEye, faEyeSlash } from '@fortawesome/free-solid-svg-icons';
 
 const API_BASE_URL = 'http://localhost:5000';
 
@@ -35,6 +35,45 @@ function MessagePopup({ message, onClose }) {
   );
 }
 
+const getImageUrl = (pic) => {
+  if (!pic) return null;
+  if (pic.startsWith('http://') || pic.startsWith('https://')) return pic;
+  return `${API_BASE_URL}${pic.startsWith('/') ? '' : '/'}${pic}`;
+};
+
+const getInitials = (name = '') =>
+  name.trim().split(/\s+/).slice(0, 2).map(w => w[0]).join('').toUpperCase();
+
+function AvatarImage({ pic, name, size }) {
+  const [failed, setFailed] = useState(false);
+  const url = getImageUrl(pic);
+  const showImage = url && !failed;
+
+  if (showImage) {
+    return (
+      <img
+        src={url}
+        alt={name}
+        onError={() => setFailed(true)}
+        style={{
+          width: size, height: size, borderRadius: '50%', objectFit: 'cover',
+          border: '1px solid var(--border-color)', flexShrink: 0
+        }}
+      />
+    );
+  }
+
+  return (
+    <div style={{
+      width: size, height: size, borderRadius: '50%', backgroundColor: 'var(--primary-light)',
+      color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+      fontSize: `${size * 0.35}px`, fontWeight: 600, flexShrink: 0
+    }}>
+      {getInitials(name)}
+    </div>
+  );
+}
+
 function Users() {
   const [users, setUsers] = useState([]);
   const [roles, setRoles] = useState([]);
@@ -43,19 +82,20 @@ function Users() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  const [showEditPassword, setShowEditPassword] = useState(false);
-  const [showEditConfirmPassword, setShowEditConfirmPassword] = useState(false);
   const [creationMode, setCreationMode] = useState('new');
 
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(5);
+  const [itemsPerPage] = useState(10);
 
   const [message, setMessage] = useState({ text: '', type: '' });
 
   const [userToDelete, setUserToDelete] = useState(null);
+  const [uploading, setUploading] = useState({ add: false, edit: false });
+
+  const [showPermissions, setShowPermissions] = useState(false);
 
   const initialState = {
-    name: '', emailPrefix: '', password: '', confirmPassword: '', cnic: '',
+    name: '', email: '', password: '', confirmPassword: '', cnic: '',
     contact: '+92', address: '', status: 'Active', role: '', pic: '', employeeId: ''
   };
 
@@ -162,6 +202,7 @@ function Users() {
 
   const openView = (user) => {
     setViewUser(user);
+    setShowPermissions(false);
   };
 
   const closeView = () => {
@@ -247,13 +288,7 @@ function Users() {
   const handleEmployeeSelect = (empId) => {
     const emp = employees.find(e => e._id === empId);
     if (emp) {
-      let emailPre = '';
-      if (emp.email) {
-        emailPre = emp.email.replace(/@.*/, '');
-      }
-
       let matchedRoleId = '';
-
       const empRole = emp.role?._id || emp.role;
       const empDesig = emp.designation?._id || emp.designationId || emp.designation;
 
@@ -279,7 +314,7 @@ function Users() {
         ...newUser,
         employeeId: emp._id,
         name: emp.name || '',
-        emailPrefix: emailPre,
+        email: emp.email || '',
         role: matchedRoleId,
         contact: emp.contact ? formatContact(emp.contact) : '+92',
         cnic: emp.cnic ? formatCNIC(emp.cnic) : '',
@@ -290,7 +325,7 @@ function Users() {
         ...newUser,
         employeeId: '',
         name: '',
-        emailPrefix: '',
+        email: '',
         role: '',
         contact: '+92',
         cnic: '',
@@ -298,6 +333,7 @@ function Users() {
       });
     }
   };
+
   // ================= HANDLE IMAGE UPLOAD =================
   const handleImageUpload = async (e, isEditing) => {
     const file = e.target.files[0];
@@ -305,6 +341,7 @@ function Users() {
 
     const formData = new FormData();
     formData.append('image', file);
+    setUploading(prev => ({ ...prev, [isEditing ? 'edit' : 'add']: true }));
 
     try {
       const token = localStorage.getItem('token');
@@ -325,12 +362,16 @@ function Users() {
     } catch (error) {
       console.error("Error uploading image:", error);
       showMessage('Server error during image upload.', 'error');
+    } finally {
+      setUploading(prev => ({ ...prev, [isEditing ? 'edit' : 'add']: false }));
     }
   };
 
   const checkDuplicates = (payload, userIdToExclude = null) => {
-    const duplicateEmail = users.find(u => u.email === payload.email && u._id !== userIdToExclude);
-    if (duplicateEmail) return "This Email is already registered.";
+    if (payload.email) {
+      const duplicateEmail = users.find(u => u.email && u.email.toLowerCase() === payload.email.toLowerCase() && u._id !== userIdToExclude);
+      if (duplicateEmail) return "This Email is already registered.";
+    }
 
     if (payload.cnic && payload.cnic.trim() !== '') {
       const duplicateCnic = users.find(u => u.cnic && u.cnic === payload.cnic && u._id !== userIdToExclude);
@@ -352,8 +393,8 @@ function Users() {
       return;
     }
 
-    if (!newUser.name || !newUser.emailPrefix || !newUser.password || !newUser.role) {
-      showMessage('Name, Email prefix, Password and Role are required!', 'error');
+    if (!newUser.name || !newUser.email || !newUser.password || !newUser.role) {
+      showMessage('Name, Email, Password and Role are required!', 'error');
       return;
     }
 
@@ -367,8 +408,7 @@ function Users() {
       return;
     }
 
-    const fullEmail = `${newUser.emailPrefix.trim()}@gmail.com`;
-    const payloadObj = { ...newUser, email: fullEmail };
+    const payloadObj = { ...newUser, email: newUser.email.trim() };
     const duplicateError = checkDuplicates(payloadObj);
     if (duplicateError) {
       showMessage(duplicateError, 'error');
@@ -377,7 +417,7 @@ function Users() {
 
     try {
       const token = localStorage.getItem('token');
-      const { confirmPassword, emailPrefix, ...payload } = payloadObj;
+      const { confirmPassword, ...payload } = payloadObj;
 
       if (!payload.employeeId) delete payload.employeeId;
 
@@ -420,7 +460,9 @@ function Users() {
       return;
     }
 
-    const duplicateError = checkDuplicates(editUser, editUserId);
+    const payload = { ...editUser, email: editUser.email.trim() };
+
+    const duplicateError = checkDuplicates(payload, editUserId);
     if (duplicateError) {
       showMessage(duplicateError, 'error');
       return;
@@ -428,11 +470,11 @@ function Users() {
 
     try {
       const token = localStorage.getItem('token');
-      const { confirmPassword, ...payload } = editUser;
+      const { confirmPassword, ...finalPayload } = payload;
 
-      if (!payload.password) delete payload.password;
-      if (!payload.role) delete payload.role;
-      if (!payload.employeeId) payload.employeeId = null;
+      if (!finalPayload.password) delete finalPayload.password;
+      if (!finalPayload.role) delete finalPayload.role;
+      if (!finalPayload.employeeId) finalPayload.employeeId = null;
 
       const res = await fetch(`${API_BASE_URL}/api/users/${editUserId}`, {
         method: 'PUT',
@@ -440,7 +482,7 @@ function Users() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify(payload)
+        body: JSON.stringify(finalPayload)
       });
 
       const responseData = await res.json().catch(() => null);
@@ -481,15 +523,9 @@ function Users() {
     clearMessage();
     setEditUserId(user._id);
 
-    let emailPrefixVal = user.email || '';
-    if (emailPrefixVal.endsWith('@gmail.com')) {
-      emailPrefixVal = emailPrefixVal.replace('@gmail.com', '');
-    }
-
     setEditUser({
       name: user.name || '',
       email: user.email || '',
-      emailPrefix: emailPrefixVal,
       cnic: user.cnic || '',
       contact: user.contact || '+92',
       address: user.address || '',
@@ -525,9 +561,6 @@ function Users() {
 
       {/* TABLE SECTION */}
       <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-        <div style={{ padding: 'var(--space-sm) var(--space-md)', textAlign: 'right', fontSize: '13px', color: 'var(--text-muted)', borderBottom: '1px solid var(--border-color)' }}>
-          <span>Showing {currentItems.length} of {filteredUsers.length} users</span>
-        </div>
 
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
@@ -563,8 +596,11 @@ function Users() {
                       onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                     >
                       <td style={{ ...tableStyles.td, textAlign: 'center', color: 'var(--text-muted)', fontWeight: 500 }}>{serialNumber}</td>
-                      <td style={{ ...tableStyles.td, fontWeight: 600, color: 'var(--text-main)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {u.name || 'N/A'}
+                      <td style={{ ...tableStyles.td, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          <AvatarImage pic={u.pic} name={u.name} size={32} />
+                          <span style={{ fontWeight: 600, color: 'var(--text-main)' }}>{u.name || 'N/A'}</span>
+                        </div>
                       </td>
                       <td style={{ ...tableStyles.td, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {u.email || 'N/A'}
@@ -638,7 +674,6 @@ function Users() {
         )}
       </div>
 
-      {/* CUSTOM DELETE CONFIRMATION MODAL */}
       {userToDelete && (
         <div className="modal-overlay" onClick={() => setUserToDelete(null)}>
           <div className="modal-container" style={{ maxWidth: '380px', textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
@@ -664,41 +699,40 @@ function Users() {
         </div>
       )}
 
-      {/* VIEW USER MODAL */}
       {viewUser && (
         <div className="modal-overlay" onClick={closeView}>
-          <div className="modal-container" style={{ width: '550px', padding: 0, overflow: 'hidden' }} onClick={(e) => e.stopPropagation()}>
-            <div style={{ backgroundColor: 'var(--primary)', padding:'10px',display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 'var(--space-sm)' }}>
+          <div className="modal-container" style={{ maxWidth: '700px', width: '90%', padding: 0, overflow: 'hidden', borderRadius: '12px' }} onClick={(e) => e.stopPropagation()}>
+            <div style={{ backgroundColor: 'var(--primary-other)', padding: '24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', borderTopLeftRadius: '12px', borderTopRightRadius: '12px' }}>
               {viewUser.pic ? (
-                <img src={viewUser.pic} alt={viewUser.name} style={{ width: '80px', height: '80px', borderRadius: '50%', objectFit: 'cover', border: '3px solid white', boxShadow: 'var(--shadow-sm)' }} />
+                <img src={viewUser.pic} alt={viewUser.name} style={{ width: '90px', height: '90px', borderRadius: '50%', objectFit: 'cover', border: '3px solid white', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }} />
               ) : (
                 <div style={{
-                  width: '80px', height: '80px', borderRadius: '50%', backgroundColor: 'rgba(255,255,255,0.2)',
+                  width: '90px', height: '90px', borderRadius: '50%', backgroundColor: 'rgba(255,255,255,0.2)',
                   color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '32px', fontWeight: 700,
-                  border: '3px solid white', boxShadow: 'var(--shadow-sm)'
+                  border: '3px solid white', boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
                 }}>
-                  {viewUser.name?.split(" ").map(word => word[0]).join("").toUpperCase()}
+                  {getInitials(viewUser.name)}
                 </div>
               )}
-              <h3 style={{ color: 'white', margin: 0, fontSize: '18px' }}>{viewUser.name}</h3>
+              <h3 style={{ color: 'white', margin: 0, fontSize: '22px', fontWeight: '600' }}>{viewUser.name}</h3>
             </div>
 
-            <div className="modal-body" style={{ display: 'grid',textAlign:'left', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-md)' }}>
+            <div className="modal-body" style={{ display: 'grid', textAlign: 'left', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-md)', padding: '14px 54px', overflowY: 'auto', height: '55vh' }}>
               <div>
-                <label style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-main)', fontWeight: 600 }}>Email</label>
-                <p style={{ fontSize: '12px', margin: '4px 0 0', color: 'var(--text-muted)', fontWeight: 500, wordBreak: 'break-word' }}>{viewUser.email || "N/A"}</p>
+                <label style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-main)', fontWeight: 600 }}>Email Address</label>
+                <p style={{ fontSize: '13px', margin: '4px 0 0', color: 'var(--text-muted)', fontWeight: 500, wordBreak: 'break-word' }}>{viewUser.email || "N/A"}</p>
               </div>
               <div>
                 <label style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-main)', fontWeight: 600 }}>Contact Number</label>
-                <p style={{ fontSize: '12px', margin: '4px 0 0', color: 'var(--text-muted)', fontWeight: 500 }}>{viewUser.contact || "N/A"}</p>
+                <p style={{ fontSize: '13px', margin: '4px 0 0', color: 'var(--text-muted)', fontWeight: 500 }}>{viewUser.contact || "N/A"}</p>
               </div>
               <div>
                 <label style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-main)', fontWeight: 600 }}>CNIC</label>
-                <p style={{ fontSize: '12px', margin: '4px 0 0', color: 'var(--text-muted)', fontWeight: 500 }}>{viewUser.cnic || "N/A"}</p>
+                <p style={{ fontSize: '13px', margin: '4px 0 0', color: 'var(--text-muted)', fontWeight: 500 }}>{viewUser.cnic || "N/A"}</p>
               </div>
               <div>
                 <label style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-main)', fontWeight: 600 }}>Role</label>
-                <p style={{ fontSize: '12px', margin: '4px 0 0', color: 'var(--text-muted)', fontWeight: 500 }}>
+                <p style={{ fontSize: '13px', margin: '4px 0 0', color: 'var(--text-muted)', fontWeight: 500 }}>
                   {(() => {
                     if (!viewUser.role) return "N/A";
                     if (typeof viewUser.role === 'object' && viewUser.role.role) return viewUser.role.role;
@@ -708,52 +742,24 @@ function Users() {
                 </p>
               </div>
 
-              <div style={{ gridColumn: 'span 2' }}>
-                <label style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-main)', fontWeight: 600, display: 'block', marginBottom: '4px' }}>Assigned Capabilities</label>
-                <div style={{
-                  display: 'flex', flexWrap: 'wrap', gap: '6px',
-                  backgroundColor: 'var(--bg-app)', padding: '10px',
-                  borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)'
-                }}>
-                  {(() => {
-                    let userRoleObj = null;
-                    if (typeof viewUser.role === 'object') {
-                      userRoleObj = viewUser.role;
-                    } else {
-                      userRoleObj = roles.find(r => r._id === viewUser.role);
-                    }
-
-                    if (userRoleObj && userRoleObj.permissions && userRoleObj.permissions.length > 0) {
-                      return userRoleObj.permissions.map(p => (
-                        <span key={p} style={{
-                          fontSize: '11px', backgroundColor: 'var(--success-bg)',
-                          color: 'var(--success)', padding: '2px 8px', borderRadius: '12px',
-                          border: '1px solid var(--success)', fontWeight: 600
-                        }}>
-                          {p.replace(/_/g, ' ').toUpperCase()}
-                        </span>
-                      ));
-                    }
-                    return <span style={{ color: 'var(--text-muted)', fontSize: '13px' }}>No specific permissions assigned.</span>;
-                  })()}
-                </div>
-              </div>
+             
 
               <div style={{ gridColumn: 'span 2' }}>
                 <label style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-main)', fontWeight: 600 }}>Address</label>
-                <p style={{ fontSize: '12px', margin: '4px 0 0', color: 'var(--text-muted)', fontWeight: 500, backgroundColor: 'var(--bg-app)', padding: '10px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)' }}>
+                <p style={{ fontSize: '13px', margin: '4px 0 0', color: 'var(--text-muted)', fontWeight: 500, backgroundColor: 'var(--bg-app)', padding: '12px', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
                   {viewUser.address || "No Address Provided"}
                 </p>
               </div>
             </div>
 
-            <div className="modal-footer">
-              <button className="btn btn-secondary" onClick={closeView}>Close</button>
+            <div className="modal-footer" style={{ backgroundColor: '#fff', borderTop: '1px solid var(--border-color)', padding: '16px 24px', display: 'flex', justifyContent: 'flex-end' }}>
+              <button className="btn btn-secondary" onClick={closeView}>Close Window</button>
             </div>
           </div>
         </div>
       )}
 
+      {/* ADD MODAL */}
       {isAddModalOpen && (
         <div className="modal-overlay" onClick={() => setIsAddModalOpen(false)}>
           <div className="modal-container modal-container-wide" onClick={(e) => e.stopPropagation()}>
@@ -765,7 +771,6 @@ function Users() {
             <div className="modal-body" style={{ maxHeight: '75vh', overflowY: 'auto' }}>
               <MessagePopup message={message} onClose={clearMessage} />
 
-              {/*  SLEEK SEGMENTED CONTROL FOR MODE */}
               <div style={{ backgroundColor: 'var(--bg-app)', width: '55%', marginLeft: '22%', padding: '6px', borderRadius: '2px', display: 'flex', gap: '4px', marginBottom: '24px', border: '1px solid var(--btn-border)' }}>
                 <button
                   type="button"
@@ -782,6 +787,7 @@ function Users() {
                   Link Existing Employee
                 </button>
               </div>
+
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-md)' }}>
 
                 {creationMode === 'employee' && (
@@ -790,7 +796,7 @@ function Users() {
                       className="form-input"
                       value={newUser.employeeId || ''}
                       onChange={(e) => handleEmployeeSelect(e.target.value)}
-                      style={{ marginTop: '6px', border: '1px solid var(--btn-border) ', width: '100%' }}
+                      style={{ marginTop: '6px', border: '1px solid var(--btn-border) ', width: '100%', padding: '10px', borderRadius: '6px' }}
                     >
                       <option value="">-- Choose an Employee --</option>
                       {employees.map(emp => <option key={emp._id} value={emp._id}>{emp.name} ({emp.designation?.designation || 'Staff'})</option>)}
@@ -798,40 +804,49 @@ function Users() {
                   </div>
                 )}
 
-                {/* Email with right-side @gmail.com suffix */}
                 <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label className="form-label">Email Address *</label>
-                  <div style={{ position: 'relative', width: '100%', display: 'flex', alignItems: 'center' }}>
-                    <input
-                      className="form-input"
-                      placeholder="e.g. username"
-                      autoComplete="off"
-                      value={newUser.emailPrefix}
-                      onChange={(e) => setNewUser({ ...newUser, emailPrefix: e.target.value.replace(/@.*/, '') })}
-                      onKeyDown={(e) => handleInputKeyDown(e, handleAddUser)}
-                      style={{ paddingRight: '85px' }}
-                    />
-                    <span style={{ position: 'absolute', right: '12px', color: 'var(--text-light)', fontSize: '13px', pointerEvents: 'none' }}>
-                      @gmail.com
-                    </span>
-                  </div>
+                  <label className="form-label required">Full Name </label>
+                  <input
+                    className="form-input"
+                    placeholder="e.g. John Doe"
+                    autoComplete="off"
+                    value={newUser.name}
+                    onChange={(e) => setNewUser({ ...newUser, name: e.target.value })}
+                    onKeyDown={(e) => handleInputKeyDown(e, handleAddUser)}
+                    style={{ border: '1px solid #cbd5e1', borderRadius: '6px', padding: '10px', width: '100%', boxSizing: 'border-box' }}
+                  />
                 </div>
 
                 <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label className="form-label">User Role *</label>
+                  <label className="form-label required">Email Address </label>
+                  <input
+                    type="email"
+                    className="form-input"
+                    placeholder="user@domain.com"
+                    autoComplete="off"
+                    value={newUser.email}
+                    onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
+                    onKeyDown={(e) => handleInputKeyDown(e, handleAddUser)}
+                    style={{ border: '1px solid #cbd5e1', borderRadius: '6px', padding: '10px', width: '100%', boxSizing: 'border-box' }}
+                  />
+                </div>
+
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label required">User Role </label>
                   <select
                     className="form-input"
                     value={newUser.role}
                     onChange={(e) => setNewUser({ ...newUser, role: e.target.value })}
+                    style={{ border: '1px solid #cbd5e1', borderRadius: '6px', padding: '10px', width: '100%', boxSizing: 'border-box' }}
                   >
-                    <option value="">-- Select Role * --</option>
+                    <option value="">-- Select Role  --</option>
                     {Array.isArray(roles) && roles.map(r => <option key={r._id} value={r._id}>{r.role}</option>)}
                   </select>
                 </div>
 
                 {/* Password Field */}
                 <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label className="form-label">Password *</label>
+                  <label className="form-label required">Password </label>
                   <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
                     <input
                       type={showPassword ? 'text' : 'password'}
@@ -841,21 +856,20 @@ function Users() {
                       value={newUser.password}
                       onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
                       onKeyDown={(e) => handleInputKeyDown(e, handleAddUser)}
-                      style={{ paddingRight: '40px' }}
+                      style={{ paddingRight: '40px', border: '1px solid #cbd5e1', borderRadius: '6px', padding: '10px', width: '100%', boxSizing: 'border-box' }}
                     />
                     <span
                       onClick={() => setShowPassword(!showPassword)}
                       style={{ position: 'absolute', right: '12px', cursor: 'pointer', color: 'var(--text-muted)', fontSize: '14px' }}
                     >
                      <FontAwesomeIcon icon={showPassword ? faEyeSlash : faEye} />      
-
                     </span>
                   </div>
                 </div>
 
                 {/* Confirm Password Field */}
                 <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label className="form-label">Confirm Password *</label>
+                  <label className="form-label required">Confirm Password </label>
                   <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
                     <input
                       type={showConfirmPassword ? 'text' : 'password'}
@@ -865,34 +879,17 @@ function Users() {
                       value={newUser.confirmPassword}
                       onChange={(e) => setNewUser({ ...newUser, confirmPassword: e.target.value })}
                       onKeyDown={(e) => handleInputKeyDown(e, handleAddUser)}
-                      style={{ paddingRight: '40px' }}
+                      style={{ paddingRight: '40px', border: '1px solid #cbd5e1', borderRadius: '6px', padding: '10px', width: '100%', boxSizing: 'border-box' }}
                     />
                     <span
                       onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                       style={{ position: 'absolute', right: '12px', cursor: 'pointer', color: 'var(--text-muted)', fontSize: '14px' }}
                     >
-<FontAwesomeIcon icon={showPassword ? faEyeSlash : faEye} />                    </span>
+                      <FontAwesomeIcon icon={showConfirmPassword ? faEyeSlash : faEye} />                   
+                    </span>
                   </div>
                 </div>
 
-                {/* --- PERSONAL DETAILS SECTION --- */}
-                <div style={{ gridColumn: 'span 2', marginTop: '16px' }}>
-                  <h4 style={{ margin: '0 0 12px 0', fontSize: '15px', color: 'var(--primary)', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>Personal Details</h4>
-                </div>
-
-                <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label className="form-label">Full Name *</label>
-                  <input
-                    className="form-input"
-                    placeholder="e.g. John Doe"
-                    autoComplete="off"
-                    value={newUser.name}
-                    onChange={(e) => setNewUser({ ...newUser, name: e.target.value })}
-                    onKeyDown={(e) => handleInputKeyDown(e, handleAddUser)}
-                  />
-                </div>
-
-                {/* Contact Number with default +92 */}
                 <div className="form-group" style={{ marginBottom: 0 }}>
                   <label className="form-label">Contact Number</label>
                   <input
@@ -902,12 +899,13 @@ function Users() {
                     value={newUser.contact}
                     onChange={(e) => setNewUser({ ...newUser, contact: formatContact(e.target.value) })}
                     onKeyDown={(e) => handleInputKeyDown(e, handleAddUser)}
+                    style={{ border: '1px solid #cbd5e1', borderRadius: '6px', padding: '10px', width: '100%', boxSizing: 'border-box' }}
                   />
                 </div>
 
                 {/* CNIC Automatic Formatting */}
                 <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label className="form-label">CNIC</label>
+                  <label className="form-label required">CNIC</label>
                   <input
                     className="form-input"
                     placeholder="64822-1648208-2"
@@ -916,14 +914,8 @@ function Users() {
                     value={newUser.cnic}
                     onChange={(e) => setNewUser({ ...newUser, cnic: formatCNIC(e.target.value) })}
                     onKeyDown={(e) => handleInputKeyDown(e, handleAddUser)}
+                    style={{ border: '1px solid #cbd5e1', borderRadius: '6px', padding: '10px', width: '100%', boxSizing: 'border-box' }}
                   />
-                </div>
-
-                <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label className="form-label">Upload Profile Image</label>
-                  <div style={{ border: '1px dashed var(--border-color)', borderRadius: 'var(--radius-sm)', padding: '6px 12px', backgroundColor: 'var(--bg-app)' }}>
-                    <input type="file" accept="image/*" onChange={(e) => handleImageUpload(e, false)} style={{ fontSize: '13px', width: '100%' }} />
-                  </div>
                 </div>
 
                 <div className="form-group" style={{ gridColumn: 'span 2', marginBottom: 0 }}>
@@ -941,8 +933,38 @@ function Users() {
                         handleAddUser();
                       }
                     }}
-                    style={{ resize: 'vertical' }}
+                    style={{ resize: 'vertical', border: '1px solid #cbd5e1', borderRadius: '6px', padding: '10px', width: '100%', boxSizing: 'border-box' }}
                   />
+                </div>
+
+                <div className="form-group" style={{ gridColumn: 'span 2', marginBottom: 0 }}>
+                  <label className="form-label" style={{ display: 'block', marginBottom: '6px' }}>Upload Profile Image</label>
+                  <div style={{ 
+                    display: 'flex', alignItems: 'center', gap: '12px', border: '1px solid #cbd5e1', 
+                    borderRadius: '6px', padding: '6px', backgroundColor: 'white', width: '100%', justifyContent: 'flex-start'
+                  }}>
+                    <label style={{
+                      backgroundColor: 'var(--header)', color: 'white', padding: '6px 24px', borderRadius: '4px',
+                      cursor: uploading.add ? 'not-allowed' : 'pointer', fontSize: '13px', fontWeight: '500',
+                      display: 'inline-flex', alignItems: 'center', justifyContent: 'center', margin: 0, border: 'none', transition: 'opacity 0.2s'
+                    }}>
+                      Choose File
+                      <input type="file" accept="image/*" onChange={(e) => handleImageUpload(e, false)} disabled={uploading.add} style={{ display: 'none' }} />
+                    </label>
+                    <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
+                      {newUser.pic ? 'File selected' : 'No file chosen'}
+                    </span>
+                  </div>
+                  {uploading.add ? (
+                    <span style={{ fontSize: '13px', color: 'var(--text-muted)', display: 'block', marginTop: '8px' }}>Uploading image…</span>
+                  ) : (
+                    newUser.pic && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '12px' }}>
+                        <AvatarImage pic={newUser.pic} name={newUser.name} size={40} />
+                        <span style={{ fontSize: '13px', color: 'var(--success)' }}>✓ Image ready</span>
+                      </div>
+                    )
+                  )}
                 </div>
 
               </div>
@@ -976,62 +998,64 @@ function Users() {
 
                 <div className="form-group" style={{ marginBottom: 0 }}>
                   <label className="form-label">Email <span style={{ fontSize: '11px', color: 'var(--text-light)' }}>(view only)</span></label>
-                  <input type="email" readOnly disabled className="form-input" value={editUser.email} style={{ backgroundColor: 'var(--bg-app)', cursor: 'not-allowed' }} />
+                  <input type="email" readOnly disabled className="form-input" value={editUser.email} style={{ backgroundColor: 'var(--bg-app)', cursor: 'not-allowed', border: '1px solid #cbd5e1', borderRadius: '6px', padding: '10px', width: '100%', boxSizing: 'border-box' }} />
                 </div>
 
                 <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label className="form-label">User Role *</label>
+                  <label className="form-label required">User Role </label>
                   <select
                     className="form-input"
                     value={editUser.role}
                     onChange={(e) => setEditUser({ ...editUser, role: e.target.value })}
+                    style={{ border: '1px solid #cbd5e1', borderRadius: '6px', padding: '10px', width: '100%', boxSizing: 'border-box' }}
                   >
-                    <option value="">-- Select Role * --</option>
+                    <option value="">-- Select Role  --</option>
                     {Array.isArray(roles) && roles.map(r => <option key={r._id} value={r._id}>{r.role}</option>)}
                   </select>
                 </div>
 
                 {/* Password Field */}
                 <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label className="form-label">New Password *</label>
+                  <label className="form-label required">New Password </label>
                   <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
                     <input
                       type={showPassword ? 'text' : 'password'}
                       className="form-input"
                       placeholder="Min 8 characters"
                       autoComplete="new-password"
-                      value={newUser.password}
-                      onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
-                      onKeyDown={(e) => handleInputKeyDown(e, handleAddUser)}
-                      style={{ paddingRight: '40px' }}
+                      value={editUser.password}
+                      onChange={(e) => setEditUser({ ...editUser, password: e.target.value })}
+                      onKeyDown={(e) => handleInputKeyDown(e, handleUpdateUser)}
+                      style={{ paddingRight: '40px', border: '1px solid #cbd5e1', borderRadius: '6px', padding: '10px', width: '100%', boxSizing: 'border-box' }}
                     />
                     <span
                       onClick={() => setShowPassword(!showPassword)}
                       style={{ position: 'absolute', right: '12px', cursor: 'pointer', color: 'var(--text-muted)', fontSize: '14px' }}
                     >
-                      <FontAwesomeIcon icon={showPassword ? faEyeSlash : faEye} />                    </span>
+                      <FontAwesomeIcon icon={showPassword ? faEyeSlash : faEye} />                    
+                    </span>
                   </div>
                 </div>
 
                 {/* Confirm Password Field */}
                 <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label className="form-label">Confirm new Password *</label>
+                  <label className="form-label required">Confirm new Password </label>
                   <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
                     <input
                       type={showConfirmPassword ? 'text' : 'password'}
                       className="form-input"
                       placeholder="Min 8 characters"
                       autoComplete="new-password"
-                      value={newUser.confirmPassword}
-                      onChange={(e) => setNewUser({ ...newUser, confirmPassword: e.target.value })}
-                      onKeyDown={(e) => handleInputKeyDown(e, handleAddUser)}
-                      style={{ paddingRight: '40px' }}
+                      value={editUser.confirmPassword}
+                      onChange={(e) => setEditUser({ ...editUser, confirmPassword: e.target.value })}
+                      onKeyDown={(e) => handleInputKeyDown(e, handleUpdateUser)}
+                      style={{ paddingRight: '40px', border: '1px solid #cbd5e1', borderRadius: '6px', padding: '10px', width: '100%', boxSizing: 'border-box' }}
                     />
                     <span
                       onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                       style={{ position: 'absolute', right: '12px', cursor: 'pointer', color: 'var(--text-muted)', fontSize: '14px' }}
                     >
-                     <FontAwesomeIcon icon={showPassword ? faEyeSlash : faEye} />      
+                      <FontAwesomeIcon icon={showConfirmPassword ? faEyeSlash : faEye} />      
                     </span>
                   </div>
                 </div>
@@ -1042,13 +1066,14 @@ function Users() {
                 </div>
 
                 <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label className="form-label">Full Name *</label>
+                  <label className="form-label required">Full Name </label>
                   <input
                     className="form-input"
                     placeholder="e.g. John Doe"
                     value={editUser.name}
                     onChange={(e) => setEditUser({ ...editUser, name: e.target.value })}
                     onKeyDown={(e) => handleInputKeyDown(e, handleUpdateUser)}
+                    style={{ border: '1px solid #cbd5e1', borderRadius: '6px', padding: '10px', width: '100%', boxSizing: 'border-box' }}
                     autoFocus
                   />
                 </div>
@@ -1061,6 +1086,7 @@ function Users() {
                     value={editUser.contact}
                     onChange={(e) => setEditUser({ ...editUser, contact: formatContact(e.target.value) })}
                     onKeyDown={(e) => handleInputKeyDown(e, handleUpdateUser)}
+                    style={{ border: '1px solid #cbd5e1', borderRadius: '6px', padding: '10px', width: '100%', boxSizing: 'border-box' }}
                   />
                 </div>
 
@@ -1073,6 +1099,7 @@ function Users() {
                     value={editUser.cnic}
                     onChange={(e) => setEditUser({ ...editUser, cnic: formatCNIC(e.target.value) })}
                     onKeyDown={(e) => handleInputKeyDown(e, handleUpdateUser)}
+                    style={{ border: '1px solid #cbd5e1', borderRadius: '6px', padding: '10px', width: '100%', boxSizing: 'border-box' }}
                   />
                 </div>
 
@@ -1082,6 +1109,7 @@ function Users() {
                     className="form-input"
                     value={editUser.employeeId}
                     onChange={(e) => setEditUser({ ...editUser, employeeId: e.target.value })}
+                    style={{ border: '1px solid #cbd5e1', borderRadius: '6px', padding: '10px', width: '100%', boxSizing: 'border-box' }}
                   >
                     <option value="">-- Unlinked --</option>
                     {employees.map(emp => <option key={emp._id} value={emp._id}>{emp.name}</option>)}
@@ -1101,15 +1129,38 @@ function Users() {
                         handleUpdateUser();
                       }
                     }}
-                    style={{ minHeight: '60px', resize: 'vertical' }}
+                    style={{ minHeight: '60px', resize: 'vertical', border: '1px solid #cbd5e1', borderRadius: '6px', padding: '10px', width: '100%', boxSizing: 'border-box' }}
                   />
                 </div>
 
                 <div className="form-group" style={{ marginBottom: 0, gridColumn: 'span 2' }}>
-                  <label className="form-label">Update Profile Image</label>
-                  <div style={{ border: '1px dashed var(--border-color)', borderRadius: 'var(--radius-sm)', padding: '6px 12px', backgroundColor: 'var(--bg-app)' }}>
-                    <input type="file" accept="image/*" onChange={(e) => handleImageUpload(e, true)} style={{ fontSize: '13px', width: '100%' }} />
+                  <label className="form-label" style={{ display: 'block', marginBottom: '6px' }}>Update Profile Image</label>
+                  <div style={{ 
+                    display: 'flex', alignItems: 'center', gap: '12px', border: '1px solid #cbd5e1', 
+                    borderRadius: '6px', padding: '6px', backgroundColor: 'white', width: '100%', justifyContent: 'flex-start'
+                  }}>
+                    <label style={{
+                      backgroundColor: 'var(--header)', color: 'white', padding: '6px 24px', borderRadius: '4px',
+                      cursor: uploading.edit ? 'not-allowed' : 'pointer', fontSize: '13px', fontWeight: '500',
+                      display: 'inline-flex', alignItems: 'center', justifyContent: 'center', margin: 0, border: 'none', transition: 'opacity 0.2s'
+                    }}>
+                      Choose File
+                      <input type="file" accept="image/*" onChange={(e) => handleImageUpload(e, true)} disabled={uploading.edit} style={{ display: 'none' }} />
+                    </label>
+                    <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
+                      {editUser.pic ? 'File selected' : 'No file chosen'}
+                    </span>
                   </div>
+                  {uploading.edit ? (
+                    <span style={{ fontSize: '13px', color: 'var(--text-muted)', display: 'block', marginTop: '8px' }}>Uploading image…</span>
+                  ) : (
+                    editUser.pic && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '12px' }}>
+                        <AvatarImage pic={editUser.pic} name={editUser.name} size={40} />
+                        <span style={{ fontSize: '13px', color: 'var(--success)' }}>✓ Current image — pick a new file to replace it</span>
+                      </div>
+                    )
+                  )}
                 </div>
               </div>
             </div>

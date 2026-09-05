@@ -602,7 +602,6 @@ const styles = {
 
 const styleSheet = document.createElement("style");
 styleSheet.textContent = `
-  /* 💡 Removed animations to fix glitching */
   ::-webkit-scrollbar { width: 8px; }
   ::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 4px; }
   ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }

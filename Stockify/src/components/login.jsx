@@ -13,11 +13,21 @@ function Login({ onLoginSuccess }) {
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
 
-  // --- FORGOT PASSWORD NAYI STATES ---
+  // --- FORGOT PASSWORD STATES ---
   const [isForgotMode, setIsForgotMode] = useState(false);
   const [forgotEmail, setForgotEmail] = useState('');
   const [forgotLoading, setForgotLoading] = useState(false);
   const [forgotMessage, setForgotMessage] = useState({ text: '', type: '' });
+  const [resendCooldown, setResendCooldown] = useState(0); // 💡 Nayi state timer ke liye
+
+  // 💡 Timer logic for Resend Cooldown
+  useEffect(() => {
+    let timer;
+    if (resendCooldown > 0) {
+      timer = setInterval(() => setResendCooldown(prev => prev - 1), 1000);
+    }
+    return () => clearInterval(timer);
+  }, [resendCooldown]);
 
   useEffect(() => {
     const rememberedEmail = localStorage.getItem('rememberedEmail');
@@ -84,6 +94,10 @@ function Login({ onLoginSuccess }) {
 
   const handleForgotPassword = async (e) => {
     e.preventDefault();
+    
+    // Agar timer chal raha hai toh return kar jao
+    if (resendCooldown > 0) return; 
+
     setForgotMessage({ text: '', type: '' });
 
     if (!forgotEmail.trim()) {
@@ -101,7 +115,7 @@ function Login({ onLoginSuccess }) {
 
       if (res.ok && data.success) {
         setForgotMessage({ text: 'Reset link sent to your email!', type: 'success' });
-        setForgotEmail('');
+        setResendCooldown(90);
       } else {
         setForgotMessage({ text: data.message || 'Error sending email.', type: 'error' });
       }
@@ -232,13 +246,42 @@ function Login({ onLoginSuccess }) {
                 <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <FontAwesomeIcon icon={faEnvelope} style={{ color: 'var(--text-muted)' }} /> Email Address
                 </label>
-                <input type="email" className="form-input clean-input" placeholder="admin@stockify.com" value={forgotEmail} onChange={(e) => setForgotEmail(e.target.value)} required autoFocus />
+                <input 
+                  type="email" 
+                  className="form-input clean-input" 
+                  placeholder="admin@stockify.com" 
+                  value={forgotEmail} 
+                  onChange={(e) => {
+                    setForgotEmail(e.target.value);
+                    if(forgotMessage.type === 'success'){
+                      setForgotMessage({text:'', type:''});
+                      setResendCooldown(0); // 💡 Email change karein tou reset kardo
+                    }
+                  }} 
+                  required 
+                  autoFocus 
+                />
               </div>
-              <button type="submit" className="btn btn-primary animate-stagger-3" style={{ width: '100%', padding: '12px', fontSize: '14px', marginBottom: '16px' }} disabled={forgotLoading}>
-                {forgotLoading ? 'Sending...' : 'Send Reset Link'}
+
+              {/* 💡 Yahan Resend aur Cooldown Logic lagai hai */}
+              <button 
+                type="submit" 
+                className="btn btn-primary animate-stagger-3" 
+                style={{ 
+                  width: '100%', padding: '12px', fontSize: '14px', marginBottom: '16px',
+                  backgroundColor: resendCooldown > 0 ? 'var(--text-muted)' : 'var(--primary)',
+                  borderColor: resendCooldown > 0 ? 'var(--text-muted)' : 'var(--primary)',
+                  cursor: resendCooldown > 0 ? 'not-allowed' : 'pointer'
+                }} 
+                disabled={forgotLoading || resendCooldown > 0}
+              >
+                {forgotLoading ? 'Sending...' : 
+                 resendCooldown > 0 ? `Resend Link in ${resendCooldown}s` : 
+                 forgotMessage.type === 'success' ? 'Resend Link' : 'Send Reset Link'}
               </button>
+              
               <div className="animate-stagger-4" style={{ textAlign: 'center' }}>
-                <button type="button" onClick={() => { setIsForgotMode(false); setForgotMessage({text:'', type:''}); }} style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', fontSize: '13px', fontWeight: '600' }}>
+                <button type="button" onClick={() => { setIsForgotMode(false); setForgotMessage({text:'', type:''}); setResendCooldown(0); setForgotEmail(''); }} style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', fontSize: '13px', fontWeight: '600' }}>
                   &larr; Back to Login
                 </button>
               </div>

@@ -205,7 +205,6 @@ function ConfigureSalary() {
                 </div>
             )}
 
-            {/* PAGE HEADER & CONFIGURE BUTTON */}
             <div className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '15px' }}>
                 <div>
                     <h4 style={{ margin: 0, color: 'var(--primary)', fontSize: '18px' }}>Salary Configuration</h4>
@@ -230,7 +229,6 @@ function ConfigureSalary() {
                 </div>
             </div>
 
-            {/* CONFIGURE SALARY MODAL */}
             {isModalOpen && (
                 <div className="modal-overlay" onClick={() => setIsModalOpen(false)}>
                     <div className="modal-container" style={{ width: '650px', maxWidth: '95%' }} onClick={e => e.stopPropagation()}>
@@ -243,9 +241,8 @@ function ConfigureSalary() {
                             <div className="modal-body" style={{ maxHeight: '70vh', overflowY: 'auto' }}>
                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
 
-                                    {/* Employee Name */}
                                     <div className="form-group">
-                                        <label className="form-label">Employee Name *</label>
+                                        <label className="form-label required">Employee Name </label>
                                         <select
                                             className="form-input"
                                             value={formData.employeeId}
@@ -262,7 +259,7 @@ function ConfigureSalary() {
 
                                     {/* Employee Type */}
                                     <div className="form-group">
-                                        <label className="form-label">Employee Type *</label>
+                                        <label className="form-label required">Employee Type </label>
                                         <input
                                             type="text"
                                             className="form-input"
@@ -273,9 +270,8 @@ function ConfigureSalary() {
                                         />
                                     </div>
 
-                                    {/* Monthly Salary */}
                                     <div className="form-group">
-                                        <label className="form-label">Monthly Salary *</label>
+                                        <label className="form-label required">Monthly Salary </label>
                                         <input
                                             type="number"
                                             className="form-input"
@@ -287,9 +283,8 @@ function ConfigureSalary() {
                                         />
                                     </div>
 
-                                    {/* Allowance Amount */}
                                     <div className="form-group">
-                                        <label className="form-label">Allowance Amount *</label>
+                                        <label className="form-label required">Allowance Amount </label>
                                         <input
                                             type="number"
                                             className="form-input"
@@ -300,9 +295,8 @@ function ConfigureSalary() {
                                         />
                                     </div>
 
-                                    {/* Total Amount (Auto Calculated) */}
                                     <div className="form-group">
-                                        <label className="form-label">Total Amount</label>
+                                        <label className="form-label required">Total Amount </label>
                                         <input
                                             type="text"
                                             className="form-input"
@@ -312,9 +306,8 @@ function ConfigureSalary() {
                                         />
                                     </div>
 
-                                    {/* WEF Date with Minimum Joining Date constraint */}
                                     <div className="form-group">
-                                        <label className="form-label">WEF Date *</label>
+                                        <label className="form-label required">WEF Date </label>
                                         <input
                                             type="date"
                                             className="form-input"
@@ -325,9 +318,8 @@ function ConfigureSalary() {
                                         />
                                     </div>
 
-                                    {/* Salary With Attendance */}
                                     <div className="form-group" style={{ gridColumn: 'span 2' }}>
-                                        <label className="form-label">Salary With Attendance *</label>
+                                        <label className="form-label required">Salary With Attendance </label>
                                         <div style={{ display: 'flex', gap: '20px', marginTop: '8px' }}>
                                             <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
                                                 <input

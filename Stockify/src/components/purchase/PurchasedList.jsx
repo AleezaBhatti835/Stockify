@@ -320,7 +320,6 @@ const PurchasedList = () => {
               <p style={{ textAlign: 'left', margin: '4px 0', color: '#333' }}>Date: <strong>{formatDate(selectedPurchase.purchaseDate)}</strong></p>
               <p style={{ textAlign: 'left', margin: '4px 0', color: '#333' }}>Supplier: <strong>{selectedPurchase.supplier?.contactPerson || selectedPurchase.supplier?.name || 'Unknown'}</strong></p>
               
-              {/* 💡 Transporter Name if available */}
               {selectedPurchase.transporter && (
                 <p style={{ textAlign: 'left', margin: '4px 0', color: '#333' }}>
                   Transporter: <strong>{selectedPurchase.transporter?.name || 'Included'}</strong>
@@ -380,7 +379,6 @@ const PurchasedList = () => {
 
             <div style={{ borderTop: '2px dashed #000', margin: '14px 0' }}></div>
             
-            {/* 💡 BILLING SUMMARY WITH FREIGHT */}
             <div style={{ marginTop: '14px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', fontSize: '13px', color: '#000' }}>
                 <span>Items Total</span>
@@ -424,7 +422,6 @@ const PurchasedList = () => {
   return (
     <div className="dashboard-wrapper">
 
-      {/* FILTER SECTION */}
       <div className="card" style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', alignItems: 'flex-end' }}>
         <div className="form-group" style={{ flex: '1 1 200px', marginBottom: 0 }}>
           <label className="form-label">Supplier</label>
@@ -451,11 +448,8 @@ const PurchasedList = () => {
         </div>
       </div>
 
-      {/* TABLE SECTION */}
       <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
         
-      
-
         <div style={{ overflowX: 'auto', width: '100%' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '850px' }}>
             <thead>
@@ -485,7 +479,6 @@ const PurchasedList = () => {
                       <td style={{ padding: '10px 16px', fontSize: '13px', color: 'var(--text-muted)', textAlign: 'left' }}>{formatDate(purchase.purchaseDate)}</td>
                       <td style={{ padding: '10px 16px', fontSize: '13px', color: 'var(--text-main)', textAlign: 'left' }}>{purchase.supplier?.contactPerson || purchase.supplier?.name || 'Unknown'}</td>
                       
-                      {/* 💡 Freight Column */}
                       <td style={{ padding: '10px 16px', fontSize: '13px', color: 'var(--text-muted)', textAlign: 'left' }}>
                         Rs. {purchase.freightAmount || 0}
                       </td>
@@ -515,7 +508,6 @@ const PurchasedList = () => {
           </table>
         </div>
 
-        {/* PAGINATION */}
         {filteredPurchases.length > itemsPerPage && (
           <div style={{ display: 'flex', gap: '15px', justifyContent: 'center', alignItems: 'center', padding: '16px' }}>
             <button className="btn btn-secondary" disabled={currentPage === 1} onClick={() => setCurrentPage(prev => prev - 1)} style={{ padding: '6px 12px' }}>

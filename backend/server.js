@@ -67,6 +67,7 @@ export const authorize = (requiredPermission) => {
 };
 import User from './models/user.js';
 import Role from './models/Role.js';
+import City from './models/city.js';
 import SupplierCompany from './models/SupplierCompany.js';
 import Customer from './models/Customer.js';
 import Supplier from './models/Supplier.js';
@@ -503,54 +504,45 @@ app.delete('/api/designations/:id', authorize('settings_edit'), async (req, res)
 });
 
 // ==================== ADD EMPLOYEE (POST) ====================
-app.post('/api/employees', async (req, res) => {
-  const { name, email, phone, cnic, address, pic, designation, joiningDate, status, employeeType, commission } = req.body;
-
+app.post('/api/employees', authorize(), async (req, res) => {
   try {
-    const employeeData = {
-      name, email, phone, cnic, address, pic, joiningDate, status,
-      employeeType: employeeType || 'Employee',
-      commission: employeeType === 'Salesman' ? Number(commission) : 0
-    };
+    const { name, email, phone, cnic, city, address, pic, designation, joiningDate, status, employeeType, commission } = req.body;
+    
+    if (!name) return res.status(400).json({ success: false, message: 'Name is required' });
 
-    if (employeeType === 'Employee' && designation) {
-      employeeData.designation = designation;
-    }
-
-    const newEmployee = new Employee(employeeData);
-    const savedEmployee = await newEmployee.save();
-    res.status(201).json(savedEmployee);
+    const employee = new Employee({ 
+      name, email, phone, cnic, city, address, pic, 
+      designation: designation || null, 
+      joiningDate, status, employeeType, commission 
+    });
+    
+    await employee.save();
+    res.status(201).json({ success: true, message: 'Employee created successfully', data: employee });
   } catch (error) {
-    res.status(400).json({ message: error.message });
+    res.status(500).json({ success: false, message: error.message });
   }
 });
 
+
 // ==================== UPDATE EMPLOYEE (PUT) ====================
-app.put('/api/employees/:id', async (req, res) => {
-  const { name, email, phone, cnic, address, pic, designation, joiningDate, status, employeeType, commission } = req.body;
-
+app.put('/api/employees/:id', authorize(), async (req, res) => {
   try {
-    const updateData = {
-      name, email, phone, cnic, address, pic, joiningDate, status,
-      employeeType: employeeType || 'Employee',
-      commission: employeeType === 'Salesman' ? Number(commission) : 0
-    };
-
-    if (employeeType === 'Employee' && designation) {
-      updateData.designation = designation;
-    } else {
-      updateData.$unset = { designation: 1 };
-    }
-
-    const updatedEmployee = await Employee.findByIdAndUpdate(
+    const { name, email, phone, cnic, city, address, pic, designation, joiningDate, status, employeeType, commission } = req.body;
+        const updatedEmployee = await Employee.findByIdAndUpdate(
       req.params.id,
-      updateData,
-      { new: true, runValidators: true } 
-    );
+      { 
+        name, email, phone, cnic, city, address, pic, 
+        designation: designation || null, 
+        joiningDate, status, employeeType, commission 
+      },
+      { new: true }
+    ).populate('designation');
 
-    res.json(updatedEmployee);
+    if (!updatedEmployee) return res.status(404).json({ success: false, message: 'Employee not found' });
+    
+    res.json({ success: true, message: 'Employee updated successfully', data: updatedEmployee });
   } catch (error) {
-    res.status(400).json({ message: error.message });
+    res.status(500).json({ success: false, message: error.message });
   }
 });
 
@@ -6193,9 +6185,7 @@ app.post('/api/labour-payments', authorize(), async (req, res) => {
     res.status(400).json({ success: false, message: error.message });
   }
 });
-// ==================== SUPPLIER COMPANIES APIS ====================
 
-// 1. Get All Supplier Companies
 app.get('/api/supplier-companies', authorize('suppliers_view'), async (req, res) => {
   try {
     const companies = await SupplierCompany.find({ status: { $ne: 'inactive' } }).sort({ name: 1 });
@@ -6205,7 +6195,6 @@ app.get('/api/supplier-companies', authorize('suppliers_view'), async (req, res)
   }
 });
 
-// 2. Add Supplier Company
 app.post('/api/supplier-companies', authorize('suppliers_add'), async (req, res) => {
   try {
     const { name, contact, address,email } = req.body;
@@ -6230,7 +6219,6 @@ app.post('/api/supplier-companies', authorize('suppliers_add'), async (req, res)
   }
 });
 
-// 3. Update Supplier Company
 app.put('/api/supplier-companies/:id', authorize('suppliers_edit'), async (req, res) => {
   try {
     const { name, contact, address,email } = req.body;
@@ -6246,7 +6234,6 @@ app.put('/api/supplier-companies/:id', authorize('suppliers_edit'), async (req, 
   }
 });
 
-// 4. Delete Supplier Company
 app.delete('/api/supplier-companies/:id', authorize('suppliers_delete'), async (req, res) => {
   try {
     const inUse = await Supplier.findOne({ companyId: req.params.id, status: { $ne: 'inactive' } });
@@ -6266,7 +6253,6 @@ app.delete('/api/supplier-companies/:id', authorize('suppliers_delete'), async (
   }
 });
 
-// ==================== SUPPLIER COMPANY LEDGER ====================
 app.get('/api/supplier-company-ledger', authorize('supplier_account_view'), async (req, res) => {
   try {
     const { companyId, fromDate, toDate } = req.query;
@@ -6319,7 +6305,6 @@ app.get('/api/supplier-company-ledger', authorize('supplier_account_view'), asyn
     res.status(500).json({ success: false, message: 'Server error', error: error.message });
   }
 });
-// ==================== LEAVE MANAGEMENT SYSTEM ====================
 const leaveSchema = new mongoose.Schema({
   employee: { type: mongoose.Schema.Types.ObjectId, ref: 'Employee', required: true },
   leaveType: { type: String, enum: ['Sick', 'Casual', 'Annual', 'Other'], required: true },
@@ -6332,24 +6317,31 @@ const leaveSchema = new mongoose.Schema({
 
 const Leave = mongoose.model('Leave', leaveSchema);
 
+
 app.post('/api/leaves', authorize(), async (req, res) => {
   try {
     const { leaveType, startDate, endDate, reason } = req.body;
-    
     const employeeId = req.user.employeeId || req.user._id; 
 
     if (!leaveType || !startDate || !endDate || !reason) {
       return res.status(400).json({ success: false, message: 'All fields are required.' });
     }
-
-    const newLeave = new Leave({
-      employee: employeeId,
-      leaveType,
-      startDate,
-      endDate,
-      reason
+if (new Date(startDate) > new Date(endDate)) {
+      return res.status(400).json({ success: false, message: 'Start date cannot be after the end date.' });
+    }
+    const existingLeave = await Leave.findOne({
+      employee: { $in: [req.user.employeeId, req.user._id].filter(Boolean) },
+      status: { $ne: 'Rejected' },
+      $or: [
+        { startDate: { $lte: new Date(endDate) }, endDate: { $gte: new Date(startDate) } }
+      ]
     });
 
+    if (existingLeave) {
+      return res.status(400).json({ success: false, message: 'You have already applied for a leave on these dates.' });
+    }
+
+    const newLeave = new Leave({ employee: employeeId, leaveType, startDate, endDate, reason });
     await newLeave.save();
     res.status(201).json({ success: true, message: 'Leave application submitted successfully.', leave: newLeave });
   } catch (error) {
@@ -6359,8 +6351,10 @@ app.post('/api/leaves', authorize(), async (req, res) => {
 
 app.get('/api/my-leaves', authorize(), async (req, res) => {
   try {
-    const employeeId = req.user.employeeId || req.user._id;
-    const leaves = await Leave.find({ employee: employeeId }).sort({ createdAt: -1 });
+    const ids = [req.user._id];
+    if (req.user.employeeId) ids.push(req.user.employeeId);
+
+    const leaves = await Leave.find({ employee: { $in: ids } }).sort({ createdAt: -1 });
 
     const totalQuota = 15;
     const usedLeaves = leaves
@@ -6377,30 +6371,18 @@ app.get('/api/my-leaves', authorize(), async (req, res) => {
     res.json({
       success: true,
       leaves,
-      quota: {
-        total: totalQuota,
-        used: usedLeaves,
-        remaining: remainingQuota
-      }
+      quota: { total: totalQuota, used: usedLeaves, remaining: remainingQuota }
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
 });
 
-// 3. Get All Leaves (Admin / HR Panel)
-app.get('/api/admin/leaves', authorize(), async (req, res) => {
-  try {
-    const leaves = await Leave.find().populate('employee', 'name email phone').sort({ createdAt: -1 });
-    res.json({ success: true, leaves });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-});
+
 
 app.put('/api/admin/leaves/:id', authorize(), async (req, res) => {
   try {
-    const { status, adminRemarks } = req.body; 
+    const { status, adminRemarks } = req.body;
     const updatedLeave = await Leave.findByIdAndUpdate(
       req.params.id,
       { status, adminRemarks: adminRemarks || '' },
@@ -6408,6 +6390,174 @@ app.put('/api/admin/leaves/:id', authorize(), async (req, res) => {
     );
     if (!updatedLeave) return res.status(404).json({ success: false, message: 'Leave not found.' });
     res.json({ success: true, message: `Leave ${status} successfully.`, leave: updatedLeave });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+// ==================== ADMIN LEAVES API ====================
+app.get('/api/admin/leaves', authorize(), async (req, res) => {
+  try {
+    const Employee = mongoose.model('Employee');
+    const User = mongoose.model('User');
+    
+    let leaves = await Leave.find().sort({ createdAt: -1 }).lean();
+    
+    for (let i = 0; i < leaves.length; i++) {
+      let empData = { name: 'Unknown User', phone: 'No Contact' };
+      let empId = leaves[i].employee;
+      
+      if (empId) {
+        try {
+          let emp = await Employee.findById(empId).select('name phone contact');
+          if (emp) {
+            empData = { name: emp.name, phone: emp.phone || emp.contact || 'No Contact' };
+          } else {
+            let user = await User.findById(empId).select('name contact email');
+            if (user) {
+              empData = { name: user.name, phone: user.contact || user.email || 'No Contact' };
+            }
+          }
+        } catch (err) {
+        }
+      }
+      leaves[i].employee = empData;
+    }
+    
+    res.json({ success: true, leaves });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+
+// ==================== UNIFIED NOTIFICATIONS ROUTE ====================
+app.get('/api/notifications', authorize(), async (req, res) => {
+  try {
+    const userId = req.user?.id || req.user?._id;
+    const employeeId = req.user?.employeeId;
+    const ids = [userId, employeeId].filter(Boolean);
+
+    const userEmail = String(req.user?.email || '').trim().toLowerCase();
+    const roleName = String(req.user?.role?.role || req.user?.role || '').toLowerCase();
+    const permissions = req.user?.permissions || req.user?.role?.permissions || [];
+    
+    // Check if user has admin/HR leave view rights
+    const hasAdminAccess = 
+      userEmail === 'admin@gmail.com' || 
+      roleName === 'admin' || 
+      roleName.includes('admin') || 
+      permissions.includes('leave_requests_view');
+
+    let notifications = [];
+
+    if (hasAdminAccess) {
+      const pendingLeaves = await Leave.find({ 
+        status: 'Pending'
+      }).sort({ createdAt: -1 }).lean();
+      
+      const Employee = mongoose.model('Employee');
+      const User = mongoose.model('User');
+
+      for (let leave of pendingLeaves) {
+         let empName = 'An employee';
+         let empId = leave.employee;
+         
+         if (empId) {
+            try {
+               let emp = await Employee.findById(empId).select('name');
+               if (emp) empName = emp.name;
+               else {
+                  let u = await User.findById(empId).select('name');
+                  if (u) empName = u.name;
+               }
+            } catch (err) {}
+         }
+
+         notifications.push({
+            id: leave._id,
+            type: 'admin_leave',
+            title: 'New Leave Request',
+            message: `${empName} applied for ${leave.leaveType} leave.`,
+            time: leave.createdAt,
+            link: 'admin-leaves',
+            status: 'Pending'
+         });
+      }
+    }
+
+    const processedLeaves = await Leave.find({ 
+      employee: { $in: ids }, 
+      status: { $in: ['Approved', 'Rejected'] } 
+    }).sort({ updatedAt: -1 }).limit(5).lean();
+
+    const leaveNotifs = processedLeaves.map(leave => ({
+      id: leave._id,
+      type: 'employee_leave',
+      title: `Leave ${leave.status}`,
+      message: `Your ${leave.leaveType} leave request has been ${leave.status.toLowerCase()}.`,
+      time: leave.updatedAt,
+      link: 'my-leaves',
+      status: leave.status
+    }));
+
+    notifications = [...notifications, ...leaveNotifs].sort((a, b) => new Date(b.time) - new Date(a.time));
+
+    res.json({ success: true, notifications });
+  } catch (error) {
+    console.error("Notification API Error:", error.message);
+    res.status(500).json({ success: false, notifications: [] });
+  }
+});
+
+app.get('/api/cities', authorize(), async (req, res) => {
+  try {
+    const cities = await City.find().sort({ name: 1 });
+    res.json({ success: true, data: cities });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// Add new city
+app.post('/api/cities', authorize(), async (req, res) => {
+  try {
+    const { name } = req.body;
+    if (!name) return res.status(400).json({ success: false, message: 'City name is required' });
+    
+    // Check duplicate
+    const existing = await City.findOne({ name: { $regex: new RegExp(`^${name.trim()}$`, 'i') } });
+    if (existing) return res.status(400).json({ success: false, message: 'City already exists.' });
+
+    const city = new City({ name: name.trim() });
+    await city.save();
+    res.status(201).json({ success: true, message: 'City added successfully', data: city });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// Update city
+app.put('/api/cities/:id', authorize(), async (req, res) => {
+  try {
+    const { name } = req.body;
+    const existing = await City.findOne({ 
+      name: { $regex: new RegExp(`^${name.trim()}$`, 'i') }, 
+      _id: { $ne: req.params.id } 
+    });
+    if (existing) return res.status(400).json({ success: false, message: 'City already exists.' });
+
+    const city = await City.findByIdAndUpdate(req.params.id, { name: name.trim() }, { new: true });
+    res.json({ success: true, message: 'City updated successfully', data: city });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// Delete city
+app.delete('/api/cities/:id', authorize(), async (req, res) => {
+  try {
+    await City.findByIdAndDelete(req.params.id);
+    res.json({ success: true, message: 'City deleted successfully' });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

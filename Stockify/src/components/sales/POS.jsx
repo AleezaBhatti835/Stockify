@@ -1294,7 +1294,6 @@ function POS({ onExit, initialOpenRegister = false }) {
                   Customer: <strong>{sale.customer?.name || sale.customer?.customerName || 'Walk-in Customer'}</strong>
                 </p>
 
-                {/* 💡 Display Salesman */}
                 {sale.salesman && (
                   <p style={{ margin: '4px 0', color: '#333' }}>
                     Salesman: <strong>{sale.salesman.name}</strong>
@@ -1386,7 +1385,6 @@ function POS({ onExit, initialOpenRegister = false }) {
                   <span>Rs. {dAmt.toFixed(2)}</span>
                 </div>
 
-                {/* 💡 Show Payment Party info in receipt */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', fontSize: '13px', color: '#000' }}>
                   <span>Freight Amount</span>
                   <span>Rs. {fAmt.toFixed(2)} {sale.freightPaidBy === 'Company' ? '(Company Paid)' : ''}</span>
@@ -1646,7 +1644,6 @@ function POS({ onExit, initialOpenRegister = false }) {
 
       {isHoldListModalOpen && renderHoldListModal()}
 
-      {/* ==================== SEARCH INVOICES MODAL ==================== */}
       {isInvoiceModalOpen && (
         <div className="modal-overlay" onClick={() => setIsInvoiceModalOpen(false)}>
           <div className="modal-container" style={{ maxWidth: '400px' }} onClick={(e) => e.stopPropagation()}>
@@ -1711,7 +1708,6 @@ function POS({ onExit, initialOpenRegister = false }) {
         </div>
       )}
 
-      {/* ==================== ADD PRODUCT MODAL ==================== */}
       {isAddProductModalOpen && (
         <div className="modal-overlay" onClick={() => setIsAddProductModalOpen(false)}>
           <div className="modal-container modal-container-wide" onClick={(e) => e.stopPropagation()}>
@@ -1725,7 +1721,7 @@ function POS({ onExit, initialOpenRegister = false }) {
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-md)' }}>
                 <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label className="form-label">Category *</label>
+                  <label className="form-label required">Category </label>
                   <div style={{ display: 'flex', gap: '6px' }}>
                     <select
                       className="form-input"
@@ -1740,7 +1736,7 @@ function POS({ onExit, initialOpenRegister = false }) {
                 </div>
 
                 <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label className="form-label">UOM *</label>
+                  <label className="form-label required">UOM </label>
                   <div style={{ display: 'flex', gap: '6px' }}>
                     <select
                       className="form-input"
@@ -1755,7 +1751,7 @@ function POS({ onExit, initialOpenRegister = false }) {
                 </div>
 
                 <div className="form-group" style={{ gridColumn: 'span 2', marginBottom: 0 }}>
-                  <label className="form-label">Product Name *</label>
+                  <label className="form-label required">Product Name </label>
                   <input
                     className="form-input"
                     value={newProduct.name}
@@ -1765,7 +1761,7 @@ function POS({ onExit, initialOpenRegister = false }) {
                 </div>
 
                 <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label className="form-label">Cost Price</label>
+                  <label className="form-label required">Cost Price</label>
                   <input
                     type="number" min="0" placeholder="0" className="form-input"
                     value={newProduct.costPrice}
@@ -1868,10 +1864,8 @@ function POS({ onExit, initialOpenRegister = false }) {
       {/* Body: Split Layout */}
       <div style={{ display: 'flex', flex: 1, gap: '16px', padding: '16px', overflow: 'hidden', boxSizing: 'border-box' }}>
 
-        {/* ==================== LEFT COLUMN (35% Width) ==================== */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', flex: '0 0 35%', height: '100%', overflowY: 'auto', paddingRight: '4px' }}>
 
-          {/* 1. Product Section (MOVED UP) */}
           <div className="card" style={{ display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>
               <span style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--primary)', fontWeight: 700, fontSize: '13px', textTransform: 'uppercase' }}>
@@ -2209,7 +2203,7 @@ function POS({ onExit, initialOpenRegister = false }) {
                 />
               </div>
 
-              {/* 💡 Labour Settings */}
+              {/*  Labour Settings */}
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px dashed var(--border-color)' }}>
                 <div style={{ display: 'flex', flexDirection: 'column' }}>
                   <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-main)', textAlign: 'left', textTransform: 'uppercase' }}>Labour Charges</span>
@@ -2310,7 +2304,6 @@ function POS({ onExit, initialOpenRegister = false }) {
 
       </div>
 
-      {/* ==================== INLINE CATEGORY MODAL ==================== */}
       {isAddCategoryModalOpen && (
         <div className="modal-overlay" onClick={() => setIsAddCategoryModalOpen(false)}>
           <div className="modal-container" style={{ maxWidth: '400px' }} onClick={(e) => e.stopPropagation()}>
@@ -2334,7 +2327,6 @@ function POS({ onExit, initialOpenRegister = false }) {
         </div>
       )}
 
-      {/* ==================== INLINE UOM MODAL ==================== */}
       {isAddUomModalOpen && (
         <div className="modal-overlay" onClick={() => setIsAddUomModalOpen(false)}>
           <div className="modal-container" style={{ maxWidth: '400px' }} onClick={(e) => e.stopPropagation()}>
@@ -2408,7 +2400,6 @@ const styles = {
 
 const styleSheet = document.createElement("style");
 styleSheet.textContent = `
-  /* 💡 Animations Hata di gai hain taake Modal screen par freeze rahay */
   ::-webkit-scrollbar { width: 8px; }
   ::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 4px; }
   ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }

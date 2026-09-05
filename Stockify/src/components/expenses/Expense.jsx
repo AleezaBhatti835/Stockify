@@ -209,13 +209,11 @@ function Expense() {
       
       <InlineMessage msg={message} />
 
-      {/* HEADER SECTION */}
       <div className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h2 style={{ margin: 0, color: 'var(--text-main)', fontSize: '20px', fontWeight: '600' }}>Expenses</h2>
         <button className="btn btn-primary" onClick={openAddModal}>+ Add Expense</button>
       </div>
 
-      {/* TABLE SECTION */}
       <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
        
 
@@ -287,7 +285,6 @@ function Expense() {
         </div>
       </div>
 
-      {/* ADD/EDIT MODAL */}
       {isModalOpen && (
         <div className="modal-overlay" onClick={() => setIsModalOpen(false)}>
           <div className="modal-container" onClick={(e) => e.stopPropagation()}>
@@ -305,7 +302,7 @@ function Expense() {
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                 <div className="form-group" style={{ gridColumn: 'span 2', marginBottom: 0 }}>
-                  <label className="form-label">Expense Category *</label>
+                  <label className="form-label required">Expense Category </label>
                   <select className="form-input" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}>
                     <option value="">Select Category</option>
                     {categories.map(c => (
@@ -315,22 +312,22 @@ function Expense() {
                 </div>
 
                 <div className="form-group" style={{ gridColumn: 'span 2', marginBottom: 0 }}>
-                  <label className="form-label">Expense Name *</label>
+                  <label className="form-label required">Expense Name </label>
                   <input type="text" className="form-input" placeholder="e.g. Office Rent, Electricity Bill" value={form.expenseName} onChange={(e) => setForm({ ...form, expenseName: e.target.value })} />
                 </div>
 
                 <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label className="form-label">Date *</label>
+                  <label className="form-label required">Date </label>
                   <input type="date" className="form-input" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
                 </div>
                 
                 <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label className="form-label">Amount *</label>
+                  <label className="form-label required">Amount </label>
                   <input type="number" min="0" className="form-input" placeholder="0" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} onKeyDown={(e) => { if (e.key === 'Enter') handleSave(); }} />
                 </div>
 
                 <div className="form-group" style={{ gridColumn: 'span 2', marginBottom: 0 }}>
-                  <label className="form-label">Added By *</label>
+                  <label className="form-label ">Added By </label>
                   <input type="text" className="form-input" placeholder="Enter name" value={form.addedBy} onChange={(e) => setForm({ ...form, addedBy: e.target.value })} onKeyDown={(e) => { if (e.key === 'Enter') handleSave(); }} />
                 </div>
 
@@ -351,7 +348,6 @@ function Expense() {
         </div>
       )}
 
-      {/* VIEW MODAL */}
       {viewExpense && (
         <div className="modal-overlay" onClick={() => setViewExpense(null)}>
           <div className="modal-container" onClick={(e) => e.stopPropagation()} style={{ padding: 0 }}>
@@ -398,7 +394,6 @@ function Expense() {
         </div>
       )}
 
-      {/* DELETE CONFIRM MODAL */}
       {deleteConfirmId && (
         <div className="modal-overlay" onClick={() => setDeleteConfirmId(null)}>
           <div className="modal-container" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '400px', textAlign: 'center' }}>

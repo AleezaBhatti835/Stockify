@@ -8,7 +8,6 @@ const SalaryPayments = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [message, setMessage] = useState({ text: '', type: '' });
 
-  // Custom Confirmation Modal State
   const [confirmModal, setConfirmModal] = useState({ isOpen: false, empId: null, amount: 0 });
 
   useEffect(() => { fetchBalances(); }, []);
@@ -127,7 +126,6 @@ const SalaryPayments = () => {
         </div>
       </div>
 
-      {/* CUSTOM CONFIRMATION MODAL */}
       {confirmModal.isOpen && (
         <div className="modal-overlay" onClick={() => setConfirmModal({ isOpen: false, empId: null, amount: 0 })}>
           <div className="modal-container" style={{ width: '400px' }} onClick={e => e.stopPropagation()}>

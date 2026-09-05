@@ -239,7 +239,6 @@ function Designations() {
                 </button>
             </div>
 
-            {/* MAIN SCREEN MESSAGE (Appears only when all modals are closed) */}
             {!isAddModalOpen && !editId && !isDeleteModalOpen && renderMessage()}
 
             {/* TABLE SECTION */}
@@ -248,7 +247,8 @@ function Designations() {
                     <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                         <thead>
                             <tr>
-                                <th style={{ ...tableStyles.th, width: '75%' }}>Designation</th>
+                                <th style={{ ...tableStyles.th, width: '10%' }}>Sr #</th>
+                                <th style={{ ...tableStyles.th, width: '65%' }}>Designation</th>
                                 <th style={{ ...tableStyles.th, width: '25%', textAlign: 'center' }}>Actions</th>
                             </tr>
                         </thead>
@@ -261,6 +261,9 @@ function Designations() {
                                         onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--bg-app)'}
                                         onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                                     >
+                                        <td style={{ ...tableStyles.td, color: 'var(--text-muted)', fontWeight: 500 }}>
+                                            {index + 1}
+                                        </td>
                                         <td style={{ ...tableStyles.td, fontWeight: 500 }}>
                                             {item.designation}
                                         </td>
@@ -289,7 +292,8 @@ function Designations() {
                                 ))
                             ) : (
                                 <tr>
-                                    <td colSpan="2" style={tableStyles.emptyCell}>
+                                    {/* 💡 Updated colSpan to 3 */}
+                                    <td colSpan="3" style={tableStyles.emptyCell}>
                                         No designations found. Click the button above to add one.
                                     </td>
                                 </tr>
@@ -311,7 +315,7 @@ function Designations() {
                         <div className="modal-body">
                             {renderMessage()}
                             <div className="form-group" style={{ marginBottom: 0 }}>
-                                <label className="form-label">Designation Name *</label>
+                                <label className="form-label required">Designation Name </label>
                                 <input
                                     type="text"
                                     className="form-input"
@@ -344,7 +348,7 @@ function Designations() {
                         <div className="modal-body">
                             {renderMessage()}
                             <div className="form-group" style={{ marginBottom: 0 }}>
-                                <label className="form-label">Designation Name *</label>
+                                <label className="form-label required">Designation Name</label>
                                 <input
                                     type="text"
                                     className="form-input"
@@ -428,7 +432,7 @@ const styles = {
     },
     iconBtnEdit: {
         background: 'var(--edit)',
-        color: 'var(--primary)',
+        color: 'var(--primary-other)',
         border: 'none',
         padding: '6px',
         borderRadius: '4px',

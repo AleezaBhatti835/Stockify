@@ -283,7 +283,7 @@ const ClientDetails = () => {
 
                         <form onSubmit={handleSave} className="modal-body">
                             <div className="form-group">
-                                <label className="form-label">Business Name *</label>
+                                <label className="form-label required">Business Name </label>
                                 <input
                                     type="text"
                                     name="businessName"
@@ -296,7 +296,7 @@ const ClientDetails = () => {
                             </div>
 
                             <div className="form-group">
-                                <label className="form-label">Contact Info</label>
+                                <label className="form-label required">Contact Info</label>
                                 <input
                                     type="text"
                                     name="contact"

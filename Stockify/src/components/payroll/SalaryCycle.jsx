@@ -201,7 +201,6 @@ const SalaryCycle = () => {
         </div>
       </div>
 
-      {/* 1. ADD YEAR MODAL */}
       {isAddYearModalOpen && (
         <div className="modal-overlay" onClick={() => setIsAddYearModalOpen(false)}>
           <div className="modal-container" style={{ width: '400px' }} onClick={e => e.stopPropagation()}>
@@ -212,7 +211,7 @@ const SalaryCycle = () => {
             <form onSubmit={handleAddYear}>
               <div className="modal-body">
                 <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label className="form-label">Year *</label>
+                  <label className="form-label required">Year </label>
                   <input type="number" className="form-input" value={yearToGenerate} onChange={e => setYearToGenerate(e.target.value)} placeholder="e.g. 2026" min="2000" required autoFocus />
                 </div>
               </div>
@@ -225,7 +224,6 @@ const SalaryCycle = () => {
         </div>
       )}
 
-      {/* 2. RUN CYCLE MODAL */}
       {isRunModalOpen && (
         <div className="modal-overlay" onClick={() => setIsRunModalOpen(false)}>
           <div className="modal-container" style={{ width: '450px' }} onClick={e => e.stopPropagation()}>
@@ -237,11 +235,11 @@ const SalaryCycle = () => {
               <div className="modal-body">
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
                   <div className="form-group" style={{ marginBottom: 0 }}>
-                    <label className="form-label">Year *</label>
+                    <label className="form-label required">Year </label>
                     <input type="number" className="form-input" value={selectedYear} onChange={e => setSelectedYear(e.target.value)} placeholder="e.g. 2026" min="2000" required />
                   </div>
                   <div className="form-group" style={{ marginBottom: 0 }}>
-                    <label className="form-label">Month *</label>
+                    <label className="form-label required">Month </label>
                     <select className="form-input" value={selectedMonth} onChange={e => setSelectedMonth(e.target.value)} required>
                       <option value="">Select</option>
                       <option value="January">January</option><option value="February">February</option><option value="March">March</option>

@@ -7,7 +7,6 @@ function WelcomeScreen({ onComplete }) {
   const [progress, setProgress] = useState(0);
   const [loadingText, setLoadingText] = useState('Initializing system...');
 
-  // CORE ARCHITECTURE: Asynchronous loader simulation managing initialization progress states and timed transition triggers.
   useEffect(() => {
     let currentProgress = 0;
     const interval = setInterval(() => {

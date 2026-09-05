@@ -12,6 +12,8 @@ import UOM from './catalogue/UOM.jsx';
 import LabourAccount from './accounts/LabourAccount.jsx';
 import SupplierCompanies from './SupplierCompanies.jsx';
 import TransporterAccount from './accounts/TransporterAccount.jsx';
+import MyLeaves from './employee-based/MyLeaves.jsx';
+import AdminLeaves from './employee-based/AdminLeaves.jsx';
 import Category from './catalogue/Category.jsx';
 import SalaryCycle from './payroll/SalaryCycle.jsx';
 import YearlyCalendar from './payroll/YearlyCalendar.jsx';
@@ -19,6 +21,7 @@ import Product from './catalogue/Product.jsx';
 import SalaryPayments from './payroll/SalaryPayments.jsx';
 import Stock from './catalogue/Stock.jsx';
 import AddPurchase from './purchase/AddPurchase.jsx';
+import City from './City.jsx';
 import PurchasedList from './purchase/PurchasedList.jsx';
 import AddPurchaseReturn from './purchase/AddPurchaseReturn.jsx';
 import PurchaseReturnList from './purchase/Purchasereturnlist.jsx';
@@ -75,8 +78,9 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
   faBank, faBoxOpen, faCartPlus, faChartBar, faCirclePause, faCoins, faCubes,
   faDashboard, faGear, faHandHoldingDollar, faMoneyCheckDollar, faReceipt,
-  faScrewdriver, faUser, faUserGroup, faUsers, faTruckMoving, faUserTie, faBoxesStacked, faCashRegister, faMoneyBillWave
-  , faWallet, faCalendarCheck, faFileInvoiceDollar
+  faScrewdriver, faUser, faUserGroup, faUsers, faTruckMoving, faUserTie, faBoxesStacked, faCashRegister, faMoneyBillWave,
+  faWallet, faCalendarCheck, faFileInvoiceDollar,
+  faBell, faCalendarDays
 } from '@fortawesome/free-solid-svg-icons';
 import {
   BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, AreaChart, Area, PieChart, Pie, Cell
@@ -117,14 +121,16 @@ function Dashboard({ user, onLogout }) {
   const profileRef = useRef(null);
   const fileInputRef = useRef(null);
   const [currentTime, setCurrentTime] = useState(new Date());
-
+  const [notifications, setNotifications] = useState([]);
+  const [isNotifOpen, setIsNotifOpen] = useState(false);
+  const notifRef = useRef(null);
   const [isViewProfileOpen, setIsViewProfileOpen] = useState(false);
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
   const [isResetPasswordOpen, setIsResetPasswordOpen] = useState(false);
   const [isResettingPassword, setIsResettingPassword] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-
+  const [readNotificationIds, setReadNotificationIds] = useState([]);
   const [userInfo, setUserInfo] = useState({
     _id: currentUser?._id || currentUser?.id || '',
     name: currentUser?.name || 'User',
@@ -180,6 +186,33 @@ function Dashboard({ user, onLogout }) {
       }
     }
   }, [userInfo._id, userPermissions, isAdmin, activeTab, isDashLoading]);
+  useEffect(() => {
+    const fetchNotifications = async () => {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/notifications`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Cache-Control': 'no-cache'
+          }
+        });
+        const data = await res.json();
+        if (data.success) {
+          setNotifications(data.notifications || []);
+        } else {
+          setNotifications([]);
+        }
+      } catch (err) {
+        console.error("Failed to fetch notifications:", err);
+      }
+    };
+
+    fetchNotifications();
+    const notifInterval = setInterval(fetchNotifications, 10000);
+    return () => clearInterval(notifInterval);
+  }, [userInfo._id]);
   useEffect(() => {
     const fetchDashboardSummary = async () => {
       setIsDashLoading(true);
@@ -427,7 +460,7 @@ function Dashboard({ user, onLogout }) {
       'StockMovementReport': 'Stock Movement Report', 'salary-payment': 'Salary Payment', 'payablereceivable': 'Payable & Receivable Report',
       'BusinessCapitalReport': 'Business Capital Report', 'batch-manage': 'Batch Management', 'access-control': 'Access Control',
       'employee-attendance': 'Employee Attendance', 'salary-report': 'Salary Report', 'product-supp': 'Product-Supplier Report', 'calendar': 'Calendar', 'employee-loan': 'Employee Loan',
-      'my-ledger': 'My Dashboard','supplier-company-ledger':'Supplier Company Ledger', 'supplier-company': 'Supplier Company', 'labour-account': 'Labour Account', 'transporter-account': 'Transporter Account', 'labour': 'Labour', 'transporter': 'Transporter'
+      'my-ledger': 'My Dashboard','cities': 'City Configuration', 'my-leaves': 'Leave Management', 'admin-leaves': 'Leave Requests', 'supplier-company-ledger': 'Supplier Company Ledger', 'supplier-company': 'Supplier Company', 'labour-account': 'Labour Account', 'transporter-account': 'Transporter Account', 'labour': 'Labour', 'transporter': 'Transporter'
     };
     return titles[activeTab] || 'Dashboard';
   };
@@ -459,7 +492,6 @@ function Dashboard({ user, onLogout }) {
         <div className="sidebar-nav-wrapper">
           <ul className="sidebar-nav" style={{ margin: 0, padding: '10px 10px' }}>
 
-            {/* 💡 --- PERSONAL WORKSPACE SECTION --- 💡 */}
             {userInfo.employeeId && (
               <>
 
@@ -471,6 +503,10 @@ function Dashboard({ user, onLogout }) {
                 </li>
                 <li className={activeTab === 'my-salary' ? 'active' : ''} onClick={() => { handleTabChange('my-salary'); if (isMobile) setIsSidebarOpen(false); }} style={{ cursor: 'pointer', textAlign: 'left', padding: '10px 10px', borderRadius: '6px', marginBottom: '4px' }}>
                   <span className="nav-icon"><FontAwesomeIcon icon={faFileInvoiceDollar} /></span> Salary Slips
+
+                </li>
+                <li className={activeTab === 'my-leaves' ? 'active' : ''} onClick={() => { handleTabChange('my-leaves'); if (isMobile) setIsSidebarOpen(false); }} style={{ cursor: 'pointer', textAlign: 'left', padding: '10px 10px', borderRadius: '6px', marginBottom: '4px' }}>
+                  <span className="nav-icon"><FontAwesomeIcon icon={faBell} /></span> Apply For Leave
                 </li>
                 <li className={activeTab === 'my-ledger' ? 'active' : ''} onClick={() => { handleTabChange('my-ledger'); if (isMobile) setIsSidebarOpen(false); }} style={{ cursor: 'pointer', textAlign: 'left', padding: '10px 10px', borderRadius: '6px', marginBottom: '10px' }}>
                   <span className="nav-icon"><FontAwesomeIcon icon={faWallet} /></span> My Account
@@ -496,7 +532,6 @@ function Dashboard({ user, onLogout }) {
                       <ul className="submenu" style={{ paddingLeft: '20px', listStyleType: 'none', margin: 0 }}>
                         {checkAccess(['customers_view']) && <li className={activeTab === 'customers' ? 'active' : ''} onClick={() => { handleTabChange('customers'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Customers</li>}
                         {checkAccess(['suppliers_view']) && <li className={activeTab === 'suppliers' ? 'active' : ''} onClick={() => { handleTabChange('suppliers'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Suppliers</li>}
-                         {checkAccess(['supplier-company']) && <li className={activeTab === 'supplier-company' ? 'active' : ''} onClick={() => { handleTabChange('supplier-company'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Supplier Companies</li>}                     
                         {checkAccess(['employees_view']) && <li className={activeTab === 'employees' ? 'active' : ''} onClick={() => { handleTabChange('employees'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Employees</li>}
                         {checkAccess(['transporter']) && <li className={activeTab === 'transporter' ? 'active' : ''} onClick={() => { handleTabChange('transporter'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Transporter</li>}
                         {checkAccess(['labour']) && <li className={activeTab === 'labour' ? 'active' : ''} onClick={() => { handleTabChange('labour'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Labour</li>}
@@ -543,7 +578,7 @@ function Dashboard({ user, onLogout }) {
                         {checkAccess(['uom_view']) && <li className={activeTab === 'uom' ? 'active' : ''} onClick={() => { handleTabChange('uom'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Units of Measure</li>}
                         {checkAccess(['categories_view']) && <li className={activeTab === 'category' ? 'active' : ''} onClick={() => { handleTabChange('category'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Categories</li>}
                         {checkAccess(['products_view']) && <li className={activeTab === 'product' ? 'active' : ''} onClick={() => { handleTabChange('product'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Products</li>}
-                         {checkAccess(['batch-manage']) && <li className={activeTab === 'batch-manage' ? 'active' : ''} onClick={() => { handleTabChange('batch-manage'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Batch Management</li>}                     
+                        {checkAccess(['batch-manage']) && <li className={activeTab === 'batch-manage' ? 'active' : ''} onClick={() => { handleTabChange('batch-manage'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Batch Management</li>}
                       </ul>
                     )}
                   </>
@@ -692,7 +727,19 @@ function Dashboard({ user, onLogout }) {
                     )}
                   </>
                 )}
-
+                {checkAccess(['leave_requests_view']) && (
+                  <>
+                    <li className="parent-menu-item" onClick={() => toggleDropdown('notifications')} style={{ cursor: 'pointer', display: 'flex', justifyContent: 'space-between', textAlign: 'left', padding: '10px 10px', backgroundColor: openDropdown === 'notifications' ? 'rgba(255,255,255,0.15)' : 'transparent' }}>
+                      <span><span className="nav-icon"><FontAwesomeIcon icon={faBell} /></span> Notifications</span>
+                      <span className='drop'>{openDropdown === 'notifications' ? '<' : '>'}</span>
+                    </li>
+                    {openDropdown === 'notifications' && (
+                      <ul className="submenu" style={{ paddingLeft: '20px', listStyleType: 'none', margin: 0 }}>
+                        {checkAccess(['leave_requests_view']) && <li className={activeTab === 'admin-leaves' ? 'active' : ''} onClick={() => { handleTabChange('admin-leaves'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Leave Requests</li>}
+                      </ul>
+                    )}
+                  </>
+                )}
                 {checkAccess(['users_view', 'roles_view']) && (
                   <>
                     <li className="parent-menu-item" onClick={() => toggleDropdown('systemUsers')} style={{ cursor: 'pointer', display: 'flex', justifyContent: 'space-between', textAlign: 'left', padding: '10px 10px', backgroundColor: openDropdown === 'systemUsers' ? 'rgba(255,255,255,0.15)' : 'transparent' }}>
@@ -721,7 +768,8 @@ function Dashboard({ user, onLogout }) {
                         {checkAccess(['client_details_view']) && <li className={activeTab === 'client-details' ? 'active' : ''} onClick={() => { handleTabChange('client-details'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Client Details</li>}
                         {checkAccess(['customer_types_view']) && <li className={activeTab === 'customer-types' ? 'active' : ''} onClick={() => { handleTabChange('customer-types'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Customer Types</li>}
                         {checkAccess(['access_control_view']) && <li className={activeTab === 'access-control' ? 'active' : ''} onClick={() => { handleTabChange('access-control'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Access Control</li>}
-
+                        {checkAccess(['supplier-company']) && <li className={activeTab === 'supplier-company' ? 'active' : ''} onClick={() => { handleTabChange('supplier-company'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Supplier Companies</li>}
+                        {checkAccess(['cities_view']) && <li className={activeTab === 'cities' ? 'active' : ''} onClick={() => { handleTabChange('cities'); if (isMobile) setIsSidebarOpen(false); }} ><div style={{ marginRight: '10px' }}>⋄</div>Cities</li>}
                       </ul>
                     )}
                   </>
@@ -734,7 +782,7 @@ function Dashboard({ user, onLogout }) {
 
       <main className={`main-content ${isSidebarOpen ? 'sidebar-open' : 'sidebar-closed'}`}>
         <header className="top-header">
-          <div className="header-left" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div className="header-left" style={{ display: 'flex', alignItems: 'left', textAlign: 'left', gap: '12px' }}>
             {!isSidebarOpen && (
               <button className="hamburger-btn" onClick={toggleSidebar} style={{ color: 'var(--text-main)' }}>
                 <span className="hamburger-line"></span>
@@ -749,36 +797,119 @@ function Dashboard({ user, onLogout }) {
             <h1 className="page-title">{getPageTitle()}</h1>
           </div>
 
-          <div className="header-right" style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+          <div className="header-right" style={{ display: 'flex', textAlign: 'left', gap: '20px' }}>
             <div className="header-date-time" style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', fontWeight: '500', color: 'var(--text-muted)' }}>
               <span>{formattedDate}</span>
               <span style={{ color: 'var(--border-color)' }}>|</span>
               <span>{formattedTime}</span>
             </div>
 
-            <div className="profile-trigger" onClick={toggleProfile}>
-              <div className="profile-avatar">
-                {userInfo.pic ? (
-                  <img src={getImageUrl(userInfo.pic)} alt="Profile" />
-                ) : (
-                  <span className="avatar-text">{userInfo.name.charAt(0).toUpperCase()}</span>
+            <div className="notification-trigger" ref={notifRef} style={{ position: 'relative' }}>
+              <div 
+                onClick={() => setIsNotifOpen(!isNotifOpen)} 
+                style={{ 
+                  cursor: 'pointer', 
+                  width: '38px', 
+                  height: '38px', 
+                  borderRadius: '50%', 
+                  backgroundColor: 'var(--bg-app)', 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  justifyContent: 'center', 
+                  border: '1px solid var(--border-color)' 
+                }}
+              >
+                <FontAwesomeIcon icon={faBell} style={{ fontSize: '18px', color: 'var(--text-muted)' }} />
+                
+                {notifications.filter(n => !readNotificationIds.includes(n.id)).length > 0 && (
+                  <span style={{ 
+                    position: 'absolute', top: '-2px', right: '-2px', backgroundColor: 'var(--danger)', color: 'white', 
+                    borderRadius: '50%', width: '18px', height: '18px', display: 'flex', alignItems: 'center', 
+                    justifyContent: 'center', fontSize: '10px', fontWeight: 'bold', border: '2px solid white' 
+                  }}>
+                    {notifications.filter(n => !readNotificationIds.includes(n.id)).length}
+                  </span>
                 )}
               </div>
+              {isNotifOpen && (
+                <div style={{ position: 'absolute', top: '48px', right: '-50px', backgroundColor: '#fff', borderRadius: '8px', boxShadow: '0 10px 25px rgba(0,0,0,0.1)', width: '320px', zIndex: 100, border: '1px solid var(--border-color)', overflow: 'hidden' }}>
+                  
+                  {(() => {
+                    const activeNotifications = notifications.filter(n => !readNotificationIds.includes(n.id));
+                    return (
+                      <>
+                        <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--border-color)', backgroundColor: 'var(--header)', color: 'white', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span style={{ fontWeight: '600', fontSize: '14px' }}>Notifications</span>
+                          <span style={{ fontSize: '12px', backgroundColor: 'rgba(255,255,255,0.2)', padding: '2px 8px', borderRadius: '12px' }}>{activeNotifications.length} New</span>
+                        </div>
+                        
+                        <div style={{ maxHeight: '320px', overflowY: 'auto' }}>
+                          {activeNotifications.length === 0 ? (
+                            <div style={{ padding: '30px 20px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>
+                              No new notifications
+                            </div>
+                          ) : (
+                            activeNotifications.map((notif) => (
+                              <div 
+                                key={notif.id} 
+                                onClick={() => { 
+                                  setReadNotificationIds(prev => [...prev, notif.id]);
+                                  handleTabChange(notif.link); 
+                                  setIsNotifOpen(false); 
+                                }}
+                                style={{ padding: '12px 16px', borderBottom: '1px solid var(--border-color)', cursor: 'pointer', transition: 'background-color 0.2s', display: 'flex', gap: '12px' }}
+                                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--bg-app)'}
+                                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                              >
+                                <div style={{ 
+                                  width: '8px', height: '8px', borderRadius: '50%', marginTop: '6px', flexShrink: 0,
+                                  backgroundColor: 'var(--primary)' 
+                                }}></div>
+                                <div>
+                                  <div style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-main)', marginBottom: '4px' }}>{notif.title}</div>
+                                  <div style={{ fontSize: '12px', color: 'var(--text-muted)', lineHeight: '1.4' }}>{notif.message}</div>
+                                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '6px', opacity: 0.8 }}>
+                                    {new Date(notif.time).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                  </div>
+                                </div>
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      </>
+                    );
+                  })()}
+                </div>
+              )}
+             
             </div>
 
-            {isProfileOpen && (
-              <div className="profile-dropdown" style={{ position: 'absolute', top: '70px', right: '20px', backgroundColor: '#fff', borderRadius: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', padding: '10px', width: '200px', zIndex: 100, border: '1px solid var(--border-color)' }}>
-                <div style={{ padding: '10px', borderBottom: '1px solid var(--border-color)', marginBottom: '10px' }}>
-                  <div style={{ fontWeight: '600', color: 'var(--text-main)' }}>{userInfo.name}</div>
-                  <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{userInfo.email}</div>
+            <div ref={profileRef} style={{ position: 'relative' }}>
+
+              <div className="profile-trigger" onClick={toggleProfile} style={{ cursor: 'pointer' }}>
+                <div className="profile-avatar">
+                  {userInfo.pic ? (
+                    <img src={getImageUrl(userInfo.pic)} alt="Profile" />
+                  ) : (
+                    <span className="avatar-text">{userInfo.name.charAt(0).toUpperCase()}</span>
+                  )}
                 </div>
-                <button onClick={() => { setIsProfileOpen(false); setIsViewProfileOpen(true); }} style={{ width: '100%', textAlign: 'left', padding: '8px 10px', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-main)', fontSize: '14px' }}>👤 View Profile</button>
-                <button onClick={() => { setIsProfileOpen(false); setEditForm({ ...userInfo }); setIsEditProfileOpen(true); }} style={{ width: '100%', textAlign: 'left', padding: '8px 10px', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-main)', fontSize: '14px' }}>✏️ Edit Profile</button>
-                <button onClick={() => { setIsProfileOpen(false); setIsResetPasswordOpen(true); }} style={{ width: '100%', textAlign: 'left', padding: '8px 10px', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-main)', fontSize: '14px' }}>🔒 Reset Password</button>
-                <div style={{ borderTop: '1px solid var(--border-color)', margin: '8px 0' }}></div>
-                <button onClick={() => { setIsProfileOpen(false); onLogout(); }} style={{ width: '100%', textAlign: 'left', padding: '8px 10px', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--danger)', fontSize: '14px', fontWeight: '600' }}>🚪 Logout</button>
               </div>
-            )}
+
+              {isProfileOpen && (
+                <div className="profile-dropdown" onClick={(e) => e.stopPropagation()} style={{ position: 'absolute', top: '50px', right: '0px', backgroundColor: '#fff', borderRadius: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', padding: '10px', width: '200px', zIndex: 100, border: '1px solid var(--border-color)' }}>
+                  <div style={{ padding: '10px', borderBottom: '1px solid var(--border-color)', marginBottom: '10px' }}>
+                    <div style={{ fontWeight: '600', color: 'var(--text-main)' }}>{userInfo.name}</div>
+                    <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{userInfo.email}</div>
+                  </div>
+                  <button onClick={() => { setIsProfileOpen(false); setIsViewProfileOpen(true); }} style={{ width: '100%', textAlign: 'left', padding: '8px 10px', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-main)', fontSize: '14px' }}>👤 View Profile</button>
+                  <button onClick={() => { setIsProfileOpen(false); setEditForm({ ...userInfo }); setIsEditProfileOpen(true); }} style={{ width: '100%', textAlign: 'left', padding: '8px 10px', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-main)', fontSize: '14px' }}>✏️ Edit Profile</button>
+                  <button onClick={() => { setIsProfileOpen(false); setIsResetPasswordOpen(true); }} style={{ width: '100%', textAlign: 'left', padding: '8px 10px', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-main)', fontSize: '14px' }}>🔒 Reset Password</button>
+                  <div style={{ borderTop: '1px solid var(--border-color)', margin: '8px 0' }}></div>
+                  <button onClick={() => { setIsProfileOpen(false); onLogout(); }} style={{ width: '100%', textAlign: 'left', padding: '8px 10px', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--danger)', fontSize: '14px', fontWeight: '600' }}>🚪 Logout</button>
+                </div>
+              )}
+            </div>
           </div>
         </header>
 
@@ -834,7 +965,7 @@ function Dashboard({ user, onLogout }) {
                       display: 'flex',
                       alignItems: 'center',
                       gap: '16px',
-                      border: '1px solid #91b9b0',
+                      border: '1px solid #c6e3dd',
                       borderRadius: '10px',
                       boxShadow: 'var(--shadow-md)'
                     }}
@@ -945,16 +1076,15 @@ function Dashboard({ user, onLogout }) {
                 </div>
               </div>
 
-              {/* CHARTS GRID */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '16px' }}>
+         {/* CHARTS GRID */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: '16px' }}>
 
-                {/* 1. Sales Trend (Area Chart) */}
                 {checkAccess(['invoice_list_view', 'report_sales_view']) && (
                   <div className="card">
                     <h3 className="card-title">Sales Trend</h3>
                     {chartData.length > 0 ? (
                       <ResponsiveContainer width="100%" height={260}>
-                        <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                        <AreaChart data={chartData} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
                           <defs>
                             <linearGradient id="colorSales" x1="0" y1="0" x2="0" y2="1">
                               <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.3} />
@@ -963,25 +1093,24 @@ function Dashboard({ user, onLogout }) {
                           </defs>
                           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border-color)" />
                           <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: 'var(--text-muted)', fontSize: 12 }} dy={10} />
-                          <YAxis axisLine={false} tickLine={false} tick={{ fill: 'var(--text-muted)', fontSize: 12 }} dx={-10} />
+                          <YAxis axisLine={false} tickLine={false} tick={{ fill: 'var(--text-muted)', fontSize: 12 }} dx={0} tickFormatter={(value) => value >= 1000000 ? `${(value / 1000000).toFixed(1)}M` : value >= 1000 ? `${(value / 1000).toFixed(0)}k` : value} />
                           <Tooltip contentStyle={{ borderRadius: '8px', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-md)' }} />
                           <Area type="monotone" dataKey="sales" name="Sales" stroke="var(--primary)" strokeWidth={3} fillOpacity={1} fill="url(#colorSales)" />
                         </AreaChart>
                       </ResponsiveContainer>
-                    ) : (<div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-muted)' }}>{isDashLoading ? 'Loading...' : 'No data'}</div>)}
+                    ) : (<div style={{ padding: '20px',  textAlign: 'center', color: 'var(--text-muted)' }}>{isDashLoading ? 'Loading...' : 'No data'}</div>)}
                   </div>
                 )}
 
-                {/* 2. Income vs Expenses (Line Chart) */}
                 {checkAccess(['report_profit_loss_view']) && (
                   <div className="card">
                     <h3 className="card-title">Income vs Expenses</h3>
                     {chartData.length > 0 ? (
                       <ResponsiveContainer width="100%" height={260}>
-                        <LineChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                        <LineChart data={chartData} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
                           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border-color)" />
                           <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: 'var(--text-muted)', fontSize: 12 }} dy={10} />
-                          <YAxis axisLine={false} tickLine={false} tick={{ fill: 'var(--text-muted)', fontSize: 12 }} dx={-10} />
+                          <YAxis axisLine={false} tickLine={false} tick={{ fill: 'var(--text-muted)', fontSize: 12 }} dx={0} tickFormatter={(value) => value >= 1000000 ? `${(value / 1000000).toFixed(1)}M` : value >= 1000 ? `${(value / 1000).toFixed(0)}k` : value} />
                           <Tooltip contentStyle={{ borderRadius: '8px', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-md)' }} formatter={(value) => `Rs ${value.toLocaleString()}`} />
                           <Legend verticalAlign="top" height={36} iconType="circle" />
                           <Line type="monotone" dataKey="sales" name="Income" stroke="var(--success)" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} />
@@ -992,43 +1121,49 @@ function Dashboard({ user, onLogout }) {
                   </div>
                 )}
 
-                {/* 3. Purchases Overview (Bar Chart) */}
                 {checkAccess(['purchase_list_view', 'report_purchase_view']) && (
                   <div className="card">
                     <h3 className="card-title">Purchases Overview</h3>
                     {chartData.length > 0 ? (
                       <ResponsiveContainer width="100%" height={260}>
-                        <BarChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                        <BarChart data={chartData} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
                           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border-color)" />
                           <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: 'var(--text-muted)', fontSize: 12 }} dy={10} />
-                          <YAxis axisLine={false} tickLine={false} tick={{ fill: 'var(--text-muted)', fontSize: 12 }} dx={-10} />
+                          <YAxis axisLine={false} tickLine={false} tick={{ fill: 'var(--text-muted)', fontSize: 12 }} dx={0} tickFormatter={(value) => value >= 1000000 ? `${(value / 1000000).toFixed(1)}M` : value >= 1000 ? `${(value / 1000).toFixed(0)}k` : value} />
                           <Tooltip cursor={{ fill: 'var(--bg-app)' }} contentStyle={{ borderRadius: '8px', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-md)' }} formatter={(value) => `Rs ${value.toLocaleString()}`} />
-                          <Bar dataKey="purchases" name="Purchases" fill="#40847c" radius={[4, 4, 0, 0]} maxBarSize={40} />
+                          <Bar dataKey="purchases" name="Purchases" fill="#45bfb1" radius={[4, 4, 0, 0]} maxBarSize={40} />
                         </BarChart>
                       </ResponsiveContainer>
                     ) : (<div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-muted)' }}>{isDashLoading ? 'Loading...' : 'No data'}</div>)}
                   </div>
                 )}
 
-                {/* 4. Net Profit Trend (Bar Chart) */}
                 {checkAccess(['report_profit_loss_view']) && (
                   <div className="card">
                     <h3 className="card-title">Net Profit Trend</h3>
                     {chartData.length > 0 ? (
                       <ResponsiveContainer width="100%" height={260}>
-                        <BarChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                        <BarChart data={chartData} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
                           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border-color)" />
                           <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: 'var(--text-muted)', fontSize: 12 }} dy={10} />
-                          <YAxis axisLine={false} tickLine={false} tick={{ fill: 'var(--text-muted)', fontSize: 12 }} dx={-10} />
+                          <YAxis axisLine={false} tickLine={false} tick={{ fill: 'var(--text-muted)', fontSize: 12 }} dx={0} tickFormatter={(value) => value >= 1000000 ? `${(value / 1000000).toFixed(1)}M` : value >= 1000 ? `${(value / 1000).toFixed(0)}k` : value} />
                           <Tooltip cursor={{ fill: 'var(--bg-app)' }} contentStyle={{ borderRadius: '8px', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-md)' }} formatter={(value) => `Rs ${value.toLocaleString()}`} />
-                          <Bar dataKey="profit" name="Net Profit" fill="var(--success)" radius={[4, 4, 0, 0]} maxBarSize={40} />
+                          
+                          <Bar dataKey="profit" name="Net Profit" radius={[4, 4, 0, 0]} maxBarSize={40}>
+                            {chartData.map((entry, index) => (
+                              <Cell 
+                                key={`cell-${index}`} 
+                                fill={entry.profit < 0 ? 'var(--danger-two)' : 'var(--success)'} 
+                              />
+                            ))}
+                          </Bar>
+
                         </BarChart>
                       </ResponsiveContainer>
                     ) : (<div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-muted)' }}>{isDashLoading ? 'Loading...' : 'No data'}</div>)}
                   </div>
                 )}
 
-                {/* 5. Financial Distribution (Pie Chart) */}
                 {checkAccess(['report_profit_loss_view', 'report_business_capital_view']) && (
                   <div className="card" style={{ gridColumn: '1 / -1' }}>
                     <h3 className="card-title">Financial Distribution</h3>
@@ -1127,6 +1262,9 @@ function Dashboard({ user, onLogout }) {
             {activeTab === 'labour-account' && <LabourAccount />}
             {activeTab === 'supplier-company' && <SupplierCompanies />}
             {activeTab === 'supplier-company-ledger' && <SupplierCompanyLedger />}
+            {activeTab === 'my-leaves' && <MyLeaves />}
+            {activeTab === 'admin-leaves' && <AdminLeaves />}
+            {activeTab === 'cities' && <City />}
           </PrintSettingsProvider>
         </div>
       </main>
@@ -1135,8 +1273,8 @@ function Dashboard({ user, onLogout }) {
 
       {isViewProfileOpen && (
         <div className="modal-overlay" onClick={() => setIsViewProfileOpen(false)}>
-          <div className="modal-container modal-container-wide" style={{ display: 'flex', gap: '16px', backgroundColor: 'transparent', boxShadow: 'none' }} onClick={(e) => e.stopPropagation()}>
-            <div className="card" style={{ flex: '0 0 320px', padding: 0, overflow: 'hidden' }}>
+          <div className="modal-container modal-container-wide" style={{ width: '70%', display: 'flex', gap: '16px', backgroundColor: 'transparent', boxShadow: 'none' }} onClick={(e) => e.stopPropagation()}>
+            <div className="card" style={{ flex: '0 0 320px', width: '70%', padding: 0, overflow: 'hidden' }}>
               <div style={{ height: '120px', backgroundColor: 'var(--primary)' }}></div>
               <div style={{ position: 'relative', display: 'flex', justifyContent: 'center', marginTop: '-70px' }}>
                 <div style={{ width: '120px', height: '120px', borderRadius: '50%', backgroundColor: '#fff', border: '5px solid #fff', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '48px', color: 'var(--primary)' }}>

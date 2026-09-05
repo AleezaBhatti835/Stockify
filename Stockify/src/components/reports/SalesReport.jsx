@@ -572,7 +572,7 @@ function SalesReport() {
             <button
               key={t.key}
               className={activeTab === t.key ? "btn btn-primary" : "btn btn-secondary"}
-              style={{ borderRadius: '3px', padding: '8px 20px' }}
+              style={{ borderRadius: '3px', padding: '10px 20px' }}
               onClick={() => setActiveTab(t.key)}
             >
               {t.label}

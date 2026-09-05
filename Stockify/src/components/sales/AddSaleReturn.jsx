@@ -1,8 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
 
-// ==========================================
-// INLINE MESSAGE COMPONENT
-// ==========================================
 const InlineMessage = ({ message, type }) => {
   if (!message) return null;
   
@@ -525,7 +522,6 @@ const SalesReturnByInvoice = () => {
       
       <InlineMessage message={message.text} type={message.type} />
 
-      {/* Mode Toggle Buttons */}
       <div className="card" style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
         <button
           className={`btn ${returnMode === 'with' ? 'btn-primary' : 'btn-secondary'}`}
@@ -541,15 +537,12 @@ const SalesReturnByInvoice = () => {
         </button>
       </div>
 
-      {/* ========================================== */}
-      {/* RENDER: WITH INVOICE */}
-      {/* ========================================== */}
       {returnMode === 'with' && (
         <>
           <div className="card" style={{ position: 'relative' }}>
             <div style={{ display: 'flex', gap: '10px', position: 'relative' }}>
               <div style={{ flex: 1, position: 'relative' }} ref={withInvSearchRef}>
-                <label className="form-label">Search Invoice Number *</label>
+                <label className="form-label required">Search Invoice Number </label>
                 <input
                   type="text"
                   className="form-input"
@@ -693,19 +686,15 @@ const SalesReturnByInvoice = () => {
         </>
       )}
 
-      {/* ========================================== */}
-      {/* RENDER: WITHOUT INVOICE */}
-      {/* ========================================== */}
       {returnMode === 'without' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-md)' }}>
           <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap', alignItems: 'stretch' }}>
             
-            {/* LEFT CARD: ADD PRODUCTS */}
             <div className="card" style={{ flex: 1, minWidth: '300px', display: 'flex', flexDirection: 'column' }}>
               <h3 className="card-title">Add Products</h3>
               
               <div className="form-group" style={{ position: 'relative', marginBottom: '16px' }} ref={woSearchRef}>
-                <label className="form-label">Search Product *</label>
+                <label className="form-label required">Search Product </label>
                 <input
                   type="text"
                   className="form-input"
@@ -746,7 +735,7 @@ const SalesReturnByInvoice = () => {
               </div>
 
               <div className="form-group" style={{ marginBottom: '16px' }}>
-                <label className="form-label">Quantity *</label>
+                <label className="form-label required">Quantity </label>
                 <input
                   className="form-input"
                   ref={woQtyInputRef}
@@ -777,12 +766,11 @@ const SalesReturnByInvoice = () => {
               </div>
             </div>
 
-            {/* RIGHT CARD: CUSTOMER DETAILS */}
             <div className="card" style={{ flex: 1, minWidth: '300px', display: 'flex', flexDirection: 'column' }}>
               <h3 className="card-title">Customer Details</h3>
 
               <div className="form-group">
-                <label className="form-label">Select Customer *</label>
+                <label className="form-label required">Select Customer </label>
                 <select
                   className="form-input"
                   value={woCustomerId}
@@ -795,7 +783,7 @@ const SalesReturnByInvoice = () => {
 
               <div style={{ display: 'flex', gap: '16px' }}>
                 <div className="form-group" style={{ flex: 1 }}>
-                  <label className="form-label">Phone</label>
+                  <label className="form-label required">Phone</label>
                   <input 
                     type="text" 
                     className="form-input"
@@ -821,7 +809,7 @@ const SalesReturnByInvoice = () => {
               </div>
 
               <div className="form-group" style={{ marginBottom: 0 }}>
-                <label className="form-label">Return Date *</label>
+                <label className="form-label required">Return Date </label>
                 <input 
                   type="date" 
                   className="form-input"
@@ -833,7 +821,6 @@ const SalesReturnByInvoice = () => {
 
           </div>
 
-          {/* TABLE SECTION */}
           <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
             <div style={{ overflowX: 'auto', width: '100%' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '800px' }}>
@@ -919,9 +906,6 @@ const SalesReturnByInvoice = () => {
         </div>
       )}
 
-      {/* ========================================== */}
-      {/* CUSTOM CONFIRMATION MODAL */}
-      {/* ========================================== */}
       {confirmDialog.isOpen && (
         <div className="modal-overlay" onClick={closeConfirmDialog}>
           <div className="modal-container" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '420px', borderTop: '6px solid var(--primary)' }}>

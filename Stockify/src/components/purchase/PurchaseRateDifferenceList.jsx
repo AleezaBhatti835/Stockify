@@ -371,7 +371,6 @@ const PurchaseRateDifferenceList = () => {
     return (
         <div className="dashboard-wrapper">
 
-            {/* FILTER SECTION */}
             <div className="card" style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-md)', alignItems: 'flex-end' }}>
                 <div className="form-group" style={{ flex: '1', minWidth: '200px', marginBottom: 0 }}>
                     <label className="form-label">Supplier</label>
@@ -421,7 +420,6 @@ const PurchaseRateDifferenceList = () => {
                 </div>
             </div>
 
-            {/* MAIN SUMMARY TABLE */}
             <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
 
                 <div style={{ overflowX: 'auto' }}>
@@ -484,7 +482,6 @@ const PurchaseRateDifferenceList = () => {
                     </table>
                 </div>
 
-                {/* Pagination */}
                 {filteredDifferences.length > itemsPerPage && (
                     <div style={{ display: 'flex', gap: 'var(--space-md)', justifyContent: 'center', alignItems: 'center', padding: 'var(--space-md)' }}>
                         <button
@@ -510,13 +507,11 @@ const PurchaseRateDifferenceList = () => {
                 )}
             </div>
 
-            {/* DETAILED RECEIPT VIEW MODAL */}
             {isModalOpen && selectedDifference && renderReceipt()}
         </div>
     );
 };
 
-// Strict Table Styles Rule
 const tableStyles = {
     th: {
         padding: '12px 16px',

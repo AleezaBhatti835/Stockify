@@ -196,7 +196,6 @@ function Labour() {
         </table>
       </div>
 
-      {/* VIEW MODAL (Professional Style) */}
       {viewRecord && (
         <div className="modal-overlay" onClick={() => setViewRecord(null)}>
           <div className="modal-container" onClick={(e) => e.stopPropagation()} style={{ width: '520px', textAlign: 'left', padding: 0 }}>
@@ -244,19 +243,18 @@ function Labour() {
             <form onSubmit={handleSave}>
               <div className="modal-body" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                 <div className="form-group">
-                  <label className="form-label">Name *</label>
+                  <label className="form-label required">Name </label>
                   <input className="form-input" style={{ width: '100%', boxSizing: 'border-box', border: '1px solid #cbd5e1', borderRadius: '6px', padding: '10px' }} value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} required autoFocus />
                 </div>
                 <div className="form-group">
-                  <label className="form-label">Contact *</label>
+                  <label className="form-label required">Contact </label>
                   <input className="form-input" style={{ width: '100%', boxSizing: 'border-box', border: '1px solid #cbd5e1', borderRadius: '6px', padding: '10px' }} value={formData.contact} onChange={e => setFormData({...formData, contact: formatContact(e.target.value)})} required />
                 </div>
                 <div className="form-group">
-                  <label className="form-label">CNIC</label>
+                  <label className="form-label required">CNIC</label>
                   <input className="form-input" style={{ width: '100%', boxSizing: 'border-box', border: '1px solid #cbd5e1', borderRadius: '6px', padding: '10px' }} value={formData.cnic} onChange={e => setFormData({...formData, cnic: formatCNIC(e.target.value)})} placeholder="00000-0000000-0" />
                 </div>
                 
-                {/* --- CUSTOM BORDERED & LEFT-ALIGNED FILE UPLOADER --- */}
                 <div className="form-group">
                   <label className="form-label" style={{ display: 'block', marginBottom: '4px' }}>Image</label>
                   

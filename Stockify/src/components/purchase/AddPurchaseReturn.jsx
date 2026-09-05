@@ -581,7 +581,6 @@ const PurchaseReturnByInvoice = () => {
 
       <InlineMessage msg={message} />
 
-      {/* Mode Toggle Buttons */}
       <div style={{ display: 'flex', gap: 'var(--space-sm)', marginBottom: 'var(--space-sm)', flexWrap: 'wrap' }}>
         <button 
           onClick={() => { setReturnMode('with'); setMessage({ text: '', type: '' }); }}
@@ -606,15 +605,11 @@ const PurchaseReturnByInvoice = () => {
           Return without Invoice
         </button>
       </div>
-
-      {/* ========================================== */}
-      {/* RENDER: WITH INVOICE */}
-      {/* ========================================== */}
       {returnMode === 'with' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-md)' }}>
           <div className="card" style={{ position: 'relative', zIndex: 100 }}>
             <div className="form-group" style={{ marginBottom: 0, position: 'relative' }} ref={withInvoiceWrapperRef}>
-              <label className="form-label">Search Invoice Number *</label>
+              <label className="form-label required">Search Invoice Number </label>
               <div style={{ display: 'flex', gap: 'var(--space-sm)' }}>
                 <input 
                   type="text" 
@@ -769,19 +764,15 @@ const PurchaseReturnByInvoice = () => {
         </div>
       )}
 
-      {/* ========================================== */}
-      {/* RENDER: WITHOUT INVOICE */}
-      {/* ========================================== */}
       {returnMode === 'without' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-md)' }}>
           <div style={{ display: 'flex', gap: 'var(--space-md)', flexWrap: 'wrap', alignItems: 'stretch' }}>
             
-            {/* LEFT CARD: ADD PRODUCTS */}
             <div className="card" style={{ flex: 1, minWidth: '300px', display: 'flex', flexDirection: 'column' }}>
               <h4 style={{ margin: '0 0 var(--space-md) 0', color: 'var(--primary)', fontSize: '15px', borderBottom: '1px solid var(--border-color)', paddingBottom: 'var(--space-sm)' }}>Add Products</h4>
               
               <div className="form-group" style={{ position: 'relative' }} ref={woProductWrapperRef}>
-                <label className="form-label">Search Product *</label>
+                <label className="form-label required">Search Product </label>
                 <input 
                   type="text" 
                   className="form-input"
@@ -826,7 +817,7 @@ const PurchaseReturnByInvoice = () => {
               </div>
 
               <div className="form-group" style={{ marginBottom: 'var(--space-lg)' }}>
-                <label className="form-label">Quantity *</label>
+                <label className="form-label required">Quantity </label>
                 <input 
                   ref={woQtyInputRef}
                   type="number" 
@@ -850,12 +841,11 @@ const PurchaseReturnByInvoice = () => {
               </div>
             </div>
 
-            {/* RIGHT CARD: SUPPLIER DETAILS */}
             <div className="card" style={{ flex: 1, minWidth: '300px', display: 'flex', flexDirection: 'column' }}>
               <h4 style={{ margin: '0 0 var(--space-md) 0', color: 'var(--primary)', fontSize: '15px', borderBottom: '1px solid var(--border-color)', paddingBottom: 'var(--space-sm)' }}>Supplier Details</h4>
 
               <div className="form-group">
-                <label className="form-label">Select Supplier *</label>
+                <label className="form-label required">Select Supplier </label>
                 <select className="form-input" value={woSupplierId} onChange={e => setWoSupplierId(e.target.value)}>
                   <option value="">-- Choose Supplier --</option>
                   {suppliers.map(s => <option key={s._id} value={s._id}>{s.contactPerson} {s.companyName ? `(${s.companyName})` : ''}</option>)}
@@ -874,7 +864,7 @@ const PurchaseReturnByInvoice = () => {
               </div>
 
               <div className="form-group" style={{ marginBottom: 0 }}>
-                <label className="form-label">Return Date *</label>
+                <label className="form-label required">Return Date </label>
                 <input type="date" className="form-input" value={woDate} onChange={e => setWoDate(e.target.value)} />
               </div>
             </div>
@@ -959,9 +949,6 @@ const PurchaseReturnByInvoice = () => {
         </div>
       )}
 
-      {/* ========================================== */}
-      {/* CUSTOM CONFIRMATION MODAL */}
-      {/* ========================================== */}
       {confirmDialog.isOpen && (
         <div className="modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) closeConfirmDialog(); }}>
           <div className="modal-container" style={{ borderTop: '6px solid var(--primary)', padding: 'var(--space-xl)', maxWidth: '450px' }}>

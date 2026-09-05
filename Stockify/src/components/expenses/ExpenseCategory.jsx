@@ -139,13 +139,11 @@ function ExpenseCategory() {
       
       <InlineMessage msg={message} />
 
-      {/* HEADER SECTION */}
       <div className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h2 style={{ margin: 0, color: 'var(--text-main)', fontSize: '20px', fontWeight: '600' }}>Expense Categories</h2>
         <button className="btn btn-primary" onClick={openAddModal}>+ Add Category</button>
       </div>
 
-      {/* TABLE SECTION */}
       <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
         <div style={{ overflowX: 'auto', width: '100%' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '600px' }}>
@@ -192,7 +190,6 @@ function ExpenseCategory() {
         </div>
       </div>
 
-      {/* ADD/EDIT MODAL */}
       {isModalOpen && (
         <div className="modal-overlay" onClick={() => setIsModalOpen(false)}>
           <div className="modal-container" onClick={(e) => e.stopPropagation()}>
@@ -209,7 +206,7 @@ function ExpenseCategory() {
               )}
 
               <div className="form-group" style={{ marginBottom: 0 }}>
-                <label className="form-label">Category Name *</label>
+                <label className="form-label required">Category Name </label>
                 <input 
                   type="text" 
                   className="form-input" 
@@ -230,7 +227,6 @@ function ExpenseCategory() {
         </div>
       )}
 
-      {/* DELETE CONFIRM MODAL */}
       {deleteConfirmId && (
         <div className="modal-overlay" onClick={() => setDeleteConfirmId(null)}>
           <div className="modal-container" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '400px', textAlign: 'center' }}>

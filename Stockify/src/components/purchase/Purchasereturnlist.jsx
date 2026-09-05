@@ -340,7 +340,6 @@ const PurchaseReturnList = () => {
             </div>
           </div>
 
-          {/* Workflow Action Buttons Footer */}
           <div className="modal-footer" style={{ borderTop: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)', flexWrap: 'wrap', justifyContent: 'center' }}>
             {selectedReturn.status === 'Draft' && (
               <>
@@ -397,7 +396,6 @@ const PurchaseReturnList = () => {
   return (
     <div className="dashboard-wrapper">
       
-      {/* FILTER SECTION */}
       <div className="card" style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', alignItems: 'flex-end' }}>
         <div className="form-group" style={{ flex: '1 1 200px', marginBottom: 0 }}>
           <label className="form-label">Select Supplier</label>
@@ -426,7 +424,6 @@ const PurchaseReturnList = () => {
         </div>
       </div>
 
-      {/* TABLE SECTION */}
       <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
 
         <div style={{ overflowX: 'auto', width: '100%' }}>
@@ -487,7 +484,6 @@ const PurchaseReturnList = () => {
           </table>
         </div>
 
-        {/* PAGINATION */}
         {filteredReturns.length > itemsPerPage && (
           <div style={{ display: 'flex', gap: '15px', justifyContent: 'center', alignItems: 'center', padding: '16px' }}>
             <button className="btn btn-secondary" disabled={currentPage === 1} onClick={() => setCurrentPage(prev => prev - 1)} style={{ padding: '6px 12px' }}>

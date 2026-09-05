@@ -1,8 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
 const API_BASE_URL = 'http://localhost:5000';
 
-// ====== AVATAR COMPONENT ======
 function AvatarImage({ pic, name, size }) {
   const getInitials = (name) => {
     if (!name) return 'S';
@@ -43,19 +42,20 @@ function AvatarImage({ pic, name, size }) {
 
 function Suppliers() {
   const [suppliers, setSuppliers] = useState([]);
-  const [supplierCompanies, setSupplierCompanies] = useState([]); // 💡 Supplier Companies list state
+  const [supplierCompanies, setSupplierCompanies] = useState([]); 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+const [cities, setCities] = useState([]);
+  const addModalBodyRef = useRef(null);
+  const editModalBodyRef = useRef(null);
 
-  // Pagination states
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
 
   const initialState = {
-    companyId: '', // 💡 Changed from companyName to companyId reference
+    companyId: '', 
     contactPerson: '',
     phone: '+92',
-    emailPrefix: '',
     email: '',
     address: '',
     city: '',
@@ -70,13 +70,11 @@ function Suppliers() {
   const [deleteTargetId, setDeleteTargetId] = useState(null);
   const [viewSupplier, setViewSupplier] = useState(null);
 
-  // Inline message states for modals
   const [addMessage, setAddMessage] = useState({ text: '', type: '' });
   const [editMessage, setEditMessage] = useState({ text: '', type: '' });
   const [deleteMessage, setDeleteMessage] = useState({ text: '', type: '' });
   const [imageMessage, setImageMessage] = useState({ text: '', type: '' });
 
-  // Helper functions for formatting CNIC and Contact
   const formatCNIC = (value) => {
     const numbers = value.replace(/\D/g, '').slice(0, 13);
     if (numbers.length <= 5) {
@@ -97,16 +95,19 @@ function Suppliers() {
     return `+92${numbers}`;
   };
 
-  // Keyboard shortcut handler
+  const closeAddModal = () => {
+    setIsAddModalOpen(false);
+    setNewSupplier(initialState);
+    setAddMessage({ text: '', type: '' });
+    setImageMessage({ text: '', type: '' });
+  };
+
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key === 'Escape') {
         if (isAddModalOpen) {
           e.preventDefault();
-          setIsAddModalOpen(false);
-          setNewSupplier(initialState);
-          setAddMessage({ text: '', type: '' });
-          setImageMessage({ text: '', type: '' });
+          closeAddModal();
         }
         if (editSupplierId) {
           e.preventDefault();
@@ -156,9 +157,23 @@ function Suppliers() {
 
   useEffect(() => {
     fetchSuppliers();
-    fetchSupplierCompanies(); // 💡 Fetch companies on mount
+    fetchSupplierCompanies(); 
+    fetchCities();
   }, []);
-
+const fetchCities = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${API_BASE_URL}/api/cities`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (data.success) {
+        setCities(data.data);
+      }
+    } catch (error) {
+      console.error('Error fetching cities:', error);
+    }
+  };
   const fetchSuppliers = async () => {
     try {
       const token = localStorage.getItem('token');
@@ -187,13 +202,21 @@ function Suppliers() {
     }
   };
 
+  const scrollToTop = (ref) => {
+    if (ref && ref.current) {
+      ref.current.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
   const showAddMessage = (text, type) => {
     setAddMessage({ text, type });
+    scrollToTop(addModalBodyRef);
     setTimeout(() => setAddMessage({ text: '', type: '' }), 3000);
   };
 
   const showEditMessage = (text, type) => {
     setEditMessage({ text, type });
+    scrollToTop(editModalBodyRef);
     setTimeout(() => setEditMessage({ text: '', type: '' }), 3000);
   };
 
@@ -202,8 +225,10 @@ function Suppliers() {
     setTimeout(() => setDeleteMessage({ text: '', type: '' }), 3000);
   };
 
-  const showImageMessage = (text, type) => {
+  const showImageMessage = (text, type, isEditing) => {
     setImageMessage({ text, type });
+    if (isEditing) scrollToTop(editModalBodyRef);
+    else scrollToTop(addModalBodyRef);
     setTimeout(() => setImageMessage({ text: '', type: '' }), 3000);
   };
 
@@ -225,12 +250,12 @@ function Suppliers() {
         isEditing
           ? setEditSupplier({ ...editSupplier, pic: data.imageUrl })
           : setNewSupplier({ ...newSupplier, pic: data.imageUrl });
-        showImageMessage('✅ Image uploaded successfully!', 'success');
+        showImageMessage('✅ Image uploaded successfully!', 'success', isEditing);
       } else {
-        showImageMessage('❌ Upload failed. Server error.', 'error');
+        showImageMessage('❌ Upload failed. Server error.', 'error', isEditing);
       }
     } catch (error) {
-      showImageMessage('❌ Upload failed. Could not reach server.', 'error');
+      showImageMessage('❌ Upload failed. Could not reach server.', 'error', isEditing);
     }
   };
 
@@ -253,75 +278,59 @@ function Suppliers() {
   };
 
   const validateSupplier = (supplierData, isEditing = false) => {
-    if (!supplierData.companyId || !supplierData.contactPerson || !supplierData.phone) {
-      return false;
-    }
+    if (!supplierData.companyId) return { isValid: false, error: 'Supplier Company is required.' };
+    if (!supplierData.contactPerson) return { isValid: false, error: 'Name is required.' };
+    if (!supplierData.phone || supplierData.phone === '+92') return { isValid: false, error: 'Phone number is required.' };
+
+    const phoneRegex = /^[0-9+\-\s()]{10,15}$/;
+    if (!phoneRegex.test(supplierData.phone.trim())) return { isValid: false, error: 'Invalid Phone Number format.' };
 
     if (supplierData.email && supplierData.email.trim() !== '') {
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(supplierData.email)) {
-        return false;
-      }
-    }
-
-    if (supplierData.phone && supplierData.phone !== '+92') {
-      const phoneRegex = /^[0-9+\-\s()]{10,15}$/;
-      if (!phoneRegex.test(supplierData.phone.trim())) {
-        return false;
-      }
+      if (!emailRegex.test(supplierData.email)) return { isValid: false, error: 'Invalid Email format.' };
     }
 
     const excludeId = isEditing ? editSupplierId : null;
-    if (supplierData.phone && supplierData.phone !== '+92') {
-      if (checkDuplicate('phone', supplierData.phone, excludeId)) {
-        return false;
-      }
+
+    if (checkDuplicate('phone', supplierData.phone, excludeId)) {
+      return { isValid: false, error: 'This Phone Number is already registered.' };
+    }
+    if (supplierData.email && supplierData.email.trim() !== '' && checkDuplicate('email', supplierData.email, excludeId)) {
+      return { isValid: false, error: 'This Email is already registered.' };
+    }
+    if (supplierData.cnic && supplierData.cnic.trim() !== '' && checkDuplicate('cnic', supplierData.cnic, excludeId)) {
+      return { isValid: false, error: 'This CNIC is already registered.' };
     }
 
-    if (supplierData.email && supplierData.email.trim() !== '') {
-      if (checkDuplicate('email', supplierData.email, excludeId)) {
-        return false;
-      }
-    }
-
-    if (supplierData.cnic && supplierData.cnic.trim() !== '') {
-      if (checkDuplicate('cnic', supplierData.cnic, excludeId)) {
-        return false;
-      }
-    }
-
-    return true;
+    return { isValid: true, error: '' };
   };
 
   const handleAddSupplier = async () => {
-    const fullEmail = newSupplier.emailPrefix.trim() ? `${newSupplier.emailPrefix.trim()}@gmail.com` : '';
-    const payload = { ...newSupplier, email: fullEmail };
+    const payload = { ...newSupplier };
 
-    if (!validateSupplier(payload, false)) {
-      showAddMessage('Supplier Company, Name and Phone are required!', 'error');
+    const validation = validateSupplier(payload, false);
+    if (!validation.isValid) {
+      showAddMessage(validation.error, 'error');
       return;
     }
 
     try {
       const token = localStorage.getItem('token');
-      const { emailPrefix, ...finalPayload } = payload;
       const res = await fetch(`${API_BASE_URL}/api/suppliers`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify(finalPayload)
+        body: JSON.stringify(payload)
       });
 
       if (res.ok) {
         showAddMessage('Supplier added successfully!', 'success');
         setTimeout(() => {
-          setNewSupplier(initialState);
-          setIsAddModalOpen(false);
-          setAddMessage({ text: '', type: '' });
+          closeAddModal();
           fetchSuppliers();
-        }, 500);
+        }, 800);
       } else {
         const errorData = await res.json();
         showAddMessage(errorData.message || 'Error saving supplier.', 'error');
@@ -331,30 +340,24 @@ function Suppliers() {
     }
   };
 
-const handleUpdateSupplier = async () => {
-    if (!editSupplier.companyId || !editSupplier.contactPerson || !editSupplier.phone) {
-      showEditMessage('Supplier Company, Name and Phone are required!', 'error');
-      return;
-    }
+  const handleUpdateSupplier = async () => {
+    const payload = { ...editSupplier };
 
-    const fullEmail = editSupplier.emailPrefix.trim() ? `${editSupplier.emailPrefix.trim()}@gmail.com` : '';
-    const payload = { ...editSupplier, email: fullEmail };
-
-    if (!validateSupplier(payload, true)) {
-      showEditMessage('Validation failed. Please check your inputs.', 'error');
+    const validation = validateSupplier(payload, true);
+    if (!validation.isValid) {
+      showEditMessage(validation.error, 'error');
       return;
     }
 
     try {
       const token = localStorage.getItem('token');
-      const { emailPrefix, ...finalPayload } = payload;
       const res = await fetch(`${API_BASE_URL}/api/suppliers/${editSupplierId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify(finalPayload)
+        body: JSON.stringify(payload)
       });
 
       if (res.ok) {
@@ -363,7 +366,7 @@ const handleUpdateSupplier = async () => {
           setEditSupplierId(null);
           setEditMessage({ text: '', type: '' });
           fetchSuppliers();
-        }, 500);
+        }, 800);
       } else {
         const errorData = await res.json();
         showEditMessage(errorData.message || 'Error updating supplier.', 'error');
@@ -413,15 +416,10 @@ const handleUpdateSupplier = async () => {
     }
   };
 
- const startEdit = (supplier) => {
+  const startEdit = (supplier) => {
     setEditMessage({ text: '', type: '' });
     setImageMessage({ text: '', type: '' });
     setEditSupplierId(supplier._id);
-
-    let emailPrefixVal = supplier.email || '';
-    if (emailPrefixVal.endsWith('@gmail.com')) {
-      emailPrefixVal = emailPrefixVal.replace('@gmail.com', '');
-    }
 
     let matchedCompanyId = '';
     if (supplier.companyId) {
@@ -436,7 +434,6 @@ const handleUpdateSupplier = async () => {
       contactPerson: supplier.contactPerson || '',
       phone: supplier.phone || '+92',
       email: supplier.email || '',
-      emailPrefix: emailPrefixVal,
       address: supplier.address || '',
       city: supplier.city || '',
       cnic: supplier.cnic || '',
@@ -489,6 +486,20 @@ const handleUpdateSupplier = async () => {
         gap: '8px'
       }}>
         <span>{icon}</span> {message}
+      </div>
+    );
+  };
+
+  const renderImagePreview = (picUrl) => {
+    if (!picUrl) return <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>No file chosen</span>;
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <img 
+          src={picUrl.startsWith('http') ? picUrl : `${API_BASE_URL}${picUrl.startsWith('/') ? '' : '/'}${picUrl}`} 
+          alt="Preview" 
+          style={{ width: '32px', height: '32px', borderRadius: '50%', objectFit: 'cover', border: '1px solid var(--border-color)' }}
+        />
+        <span style={{ fontSize: '13px', color: 'var(--success)', fontWeight: 600 }}>Uploaded</span>
       </div>
     );
   };
@@ -610,14 +621,14 @@ const handleUpdateSupplier = async () => {
 
       {/* ADD MODAL */}
       {isAddModalOpen && (
-        <div className="modal-overlay" onClick={() => setIsAddModalOpen(false)}>
+        <div className="modal-overlay" onClick={closeAddModal}>
           <div className="modal-container modal-container-wide" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3 className="modal-title">Add New Supplier</h3>
-              <button className="modal-close" onClick={() => { setIsAddModalOpen(false); setAddMessage({ text: '', type: '' }); setImageMessage({ text: '', type: '' }); }}>&times;</button>
+              <button className="modal-close" onClick={closeAddModal}>&times;</button>
             </div>
 
-            <div className="modal-body" style={{ maxHeight: '75vh', overflowY: 'auto' }}>
+            <div className="modal-body" ref={addModalBodyRef} style={{ maxHeight: '75vh', overflowY: 'auto' }}>
               <InlineMessage message={addMessage.text} type={addMessage.type} />
 
               {imageMessage.text && !addMessage.text && (
@@ -633,9 +644,9 @@ const handleUpdateSupplier = async () => {
               )}
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-md)' }}>
-                {/* 💡 Supplier Company Dropdown */}
+                
                 <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label className="form-label">Supplier Company *</label>
+                  <label className="form-label">Supplier Company <span style={{ color: 'var(--danger)' }}>*</span></label>
                   <select
                     className="form-input"
                     value={newSupplier.companyId}
@@ -650,7 +661,7 @@ const handleUpdateSupplier = async () => {
                 </div>
 
                 <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label className="form-label">Name *</label>
+                  <label className="form-label">Name <span style={{ color: 'var(--danger)' }}>*</span></label>
                   <input
                     className="form-input"
                     value={newSupplier.contactPerson}
@@ -658,8 +669,9 @@ const handleUpdateSupplier = async () => {
                     onKeyDown={(e) => handleInputKeyDown(e, handleAddSupplier)}
                   />
                 </div>
+
                 <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label className="form-label">Phone *</label>
+                  <label className="form-label">Phone <span style={{ color: 'var(--danger)' }}>*</span></label>
                   <input
                     className="form-input"
                     value={newSupplier.phone}
@@ -669,32 +681,30 @@ const handleUpdateSupplier = async () => {
                   />
                 </div>
 
-                {/* Email with suffix */}
                 <div className="form-group" style={{ marginBottom: 0 }}>
                   <label className="form-label">Email</label>
-                  <div style={{ position: 'relative', width: '100%', display: 'flex', alignItems: 'center' }}>
-                    <input
-                      className="form-input"
-                      style={{ paddingRight: '85px' }}
-                      value={newSupplier.emailPrefix}
-                      onChange={(e) => setNewSupplier({ ...newSupplier, emailPrefix: e.target.value.replace(/@.*/, '') })}
-                      placeholder="username"
-                      onKeyDown={(e) => handleInputKeyDown(e, handleAddSupplier)}
-                    />
-                    <span style={{ position: 'absolute', right: '12px', color: 'var(--text-light)', fontSize: '13px', pointerEvents: 'none' }}>
-                      @gmail.com
-                    </span>
-                  </div>
-                </div>
-
-                <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label className="form-label">City</label>
                   <input
+                    type="email"
+                    className="form-input"
+                    value={newSupplier.email}
+                    onChange={(e) => setNewSupplier({ ...newSupplier, email: e.target.value })}
+                    placeholder="supplier@company.com"
+                    onKeyDown={(e) => handleInputKeyDown(e, handleAddSupplier)}
+                  />
+                </div>
+<div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label">City</label>
+                  <select
                     className="form-input"
                     value={newSupplier.city}
                     onChange={(e) => setNewSupplier({ ...newSupplier, city: e.target.value })}
-                    onKeyDown={(e) => handleInputKeyDown(e, handleAddSupplier)}
-                  />
+                    style={{ border: '1px solid #cbd5e1', borderRadius: '6px', padding: '10px' }}
+                  >
+                    <option value="">-- Select City --</option>
+                    {cities.map(city => (
+                      <option key={city._id} value={city.name}>{city.name}</option>
+                    ))}
+                  </select>
                 </div>
 
                 <div className="form-group" style={{ marginBottom: 0 }}>
@@ -719,53 +729,34 @@ const handleUpdateSupplier = async () => {
                     style={{ resize: 'vertical' }}
                   />
                 </div>
+
                 <div className="form-group" style={{ gridColumn: 'span 2', marginBottom: 0 }}>
                   <label className="form-label" style={{ display: 'block', marginBottom: '6px' }}>Upload Logo / Image</label>
 
                   <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '12px',
-                    border: '1px solid #cbd5e1',
-                    borderRadius: '6px',
-                    padding: '4px 4px',
-                    backgroundColor: 'white',
-                    width: '100%',
-                    justifyContent: 'flex-start'
+                    display: 'flex', alignItems: 'center', gap: '12px', border: '1px solid #cbd5e1',
+                    borderRadius: '6px', padding: '8px', backgroundColor: 'white', width: '100%', justifyContent: 'flex-start'
                   }}>
                     <label style={{
-                      backgroundColor: 'var(--header)',
-                      color: 'white',
-                      padding: '6px 24px',
-                      borderRadius: '4px',
-                      cursor: 'pointer',
-                      fontSize: '13px',
-                      fontWeight: '500',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      margin: 0,
-                      border: 'none',
-                      transition: 'opacity 0.2s'
+                      backgroundColor: 'var(--header)', color: 'white', padding: '6px 24px', borderRadius: '4px',
+                      cursor: 'pointer', fontSize: '13px', fontWeight: '500', display: 'inline-flex',
+                      alignItems: 'center', justifyContent: 'center', margin: 0, border: 'none', transition: 'opacity 0.2s'
                     }}>
                       Choose File
                       <input
-                        type="file"
-                        accept="image/*"
+                        type="file" accept="image/*"
                         onChange={(e) => handleImageUpload(e, false)}
                         style={{ display: 'none' }}
                       />
                     </label>
-                    <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
-                      No file chosen
-                    </span>
+                    {renderImagePreview(newSupplier.pic)}
                   </div>
                 </div>
               </div>
             </div>
 
             <div className="modal-footer">
-              <button className="btn btn-secondary" onClick={() => { setIsAddModalOpen(false); setAddMessage({ text: '', type: '' }); setImageMessage({ text: '', type: '' }); }}>Cancel</button>
+              <button className="btn btn-secondary" onClick={closeAddModal}>Cancel</button>
               <button className="btn btn-primary" onClick={handleAddSupplier}>Save Supplier</button>
             </div>
           </div>
@@ -774,14 +765,14 @@ const handleUpdateSupplier = async () => {
 
       {/* EDIT MODAL */}
       {editSupplierId && (
-        <div className="modal-overlay" onClick={() => setEditSupplierId(null)}>
+        <div className="modal-overlay" onClick={() => { setEditSupplierId(null); setEditMessage({ text: '', type: '' }); setImageMessage({ text: '', type: '' }); }}>
           <div className="modal-container modal-container-wide" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3 className="modal-title">Edit Supplier</h3>
               <button className="modal-close" onClick={() => { setEditSupplierId(null); setEditMessage({ text: '', type: '' }); setImageMessage({ text: '', type: '' }); }}>&times;</button>
             </div>
 
-            <div className="modal-body" style={{ maxHeight: '75vh', overflowY: 'auto' }}>
+            <div className="modal-body" ref={editModalBodyRef} style={{ maxHeight: '75vh', overflowY: 'auto' }}>
               <InlineMessage message={editMessage.text} type={editMessage.type} />
 
               {imageMessage.text && !editMessage.text && (
@@ -797,9 +788,9 @@ const handleUpdateSupplier = async () => {
               )}
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-md)' }}>
-                {/* 💡 Supplier Company Dropdown */}
+                
                 <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label className="form-label">Supplier Company *</label>
+                  <label className="form-label">Supplier Company <span style={{ color: 'var(--danger)' }}>*</span></label>
                   <select
                     className="form-input"
                     value={editSupplier.companyId}
@@ -814,7 +805,7 @@ const handleUpdateSupplier = async () => {
                 </div>
 
                 <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label className="form-label">Name *</label>
+                  <label className="form-label">Name <span style={{ color: 'var(--danger)' }}>*</span></label>
                   <input
                     className="form-input"
                     value={editSupplier.contactPerson}
@@ -822,8 +813,9 @@ const handleUpdateSupplier = async () => {
                     onKeyDown={(e) => handleInputKeyDown(e, handleUpdateSupplier)}
                   />
                 </div>
+
                 <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label className="form-label">Phone *</label>
+                  <label className="form-label">Phone <span style={{ color: 'var(--danger)' }}>*</span></label>
                   <input
                     className="form-input"
                     value={editSupplier.phone}
@@ -833,32 +825,31 @@ const handleUpdateSupplier = async () => {
                   />
                 </div>
 
-                {/* Email with suffix */}
                 <div className="form-group" style={{ marginBottom: 0 }}>
                   <label className="form-label">Email</label>
-                  <div style={{ position: 'relative', width: '100%', display: 'flex', alignItems: 'center' }}>
-                    <input
-                      className="form-input"
-                      style={{ paddingRight: '85px' }}
-                      value={editSupplier.emailPrefix}
-                      onChange={(e) => setEditSupplier({ ...editSupplier, emailPrefix: e.target.value.replace(/@.*/, ''), email: `${e.target.value.replace(/@.*/, '')}@gmail.com` })}
-                      placeholder="username"
-                      onKeyDown={(e) => handleInputKeyDown(e, handleUpdateSupplier)}
-                    />
-                    <span style={{ position: 'absolute', right: '12px', color: 'var(--text-light)', fontSize: '13px', pointerEvents: 'none' }}>
-                      @gmail.com
-                    </span>
-                  </div>
+                  <input
+                    type="email"
+                    className="form-input"
+                    value={editSupplier.email}
+                    onChange={(e) => setEditSupplier({ ...editSupplier, email: e.target.value })}
+                    placeholder="supplier@company.com"
+                    onKeyDown={(e) => handleInputKeyDown(e, handleUpdateSupplier)}
+                  />
                 </div>
 
-                <div className="form-group" style={{ marginBottom: 0 }}>
+             <div className="form-group" style={{ marginBottom: 0 }}>
                   <label className="form-label">City</label>
-                  <input
+                  <select
                     className="form-input"
                     value={editSupplier.city}
                     onChange={(e) => setEditSupplier({ ...editSupplier, city: e.target.value })}
-                    onKeyDown={(e) => handleInputKeyDown(e, handleUpdateSupplier)}
-                  />
+                    style={{ border: '1px solid #cbd5e1', borderRadius: '6px', padding: '10px' }}
+                  >
+                    <option value="">-- Select City --</option>
+                    {cities.map(city => (
+                      <option key={city._id} value={city.name}>{city.name}</option>
+                    ))}
+                  </select>
                 </div>
 
                 <div className="form-group" style={{ marginBottom: 0 }}>
@@ -883,46 +874,27 @@ const handleUpdateSupplier = async () => {
                     style={{ resize: 'vertical' }}
                   />
                 </div>
+
                 <div className="form-group" style={{ gridColumn: 'span 2', marginBottom: 0 }}>
                   <label className="form-label" style={{ display: 'block', marginBottom: '6px' }}>Update Logo / Image</label>
 
                   <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '12px',
-                    border: '1px solid #cbd5e1',
-                    borderRadius: '6px',
-                    padding: '4px 4px',
-                    backgroundColor: 'white',
-                    width: '100%',
-                    justifyContent: 'flex-start'
+                    display: 'flex', alignItems: 'center', gap: '12px', border: '1px solid #cbd5e1',
+                    borderRadius: '6px', padding: '8px', backgroundColor: 'white', width: '100%', justifyContent: 'flex-start'
                   }}>
                     <label style={{
-                      backgroundColor: 'var(--header)',
-                      color: 'white',
-                      padding: '6px 24px',
-                      borderRadius: '4px',
-                      cursor: 'pointer',
-                      fontSize: '13px',
-                      fontWeight: '500',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      margin: 0,
-                      border: 'none',
-                      transition: 'opacity 0.2s'
+                      backgroundColor: 'var(--header)', color: 'white', padding: '6px 24px', borderRadius: '4px',
+                      cursor: 'pointer', fontSize: '13px', fontWeight: '500', display: 'inline-flex',
+                      alignItems: 'center', justifyContent: 'center', margin: 0, border: 'none', transition: 'opacity 0.2s'
                     }}>
                       Choose File
                       <input
-                        type="file"
-                        accept="image/*"
+                        type="file" accept="image/*"
                         onChange={(e) => handleImageUpload(e, true)}
                         style={{ display: 'none' }}
                       />
                     </label>
-                    <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
-                      No file chosen
-                    </span>
+                    {renderImagePreview(editSupplier.pic)}
                   </div>
                 </div>
               </div>
@@ -942,7 +914,11 @@ const handleUpdateSupplier = async () => {
           <div className="modal-container" style={{ width: '550px', padding: 0, overflow: 'hidden', textAlign: 'left' }} onClick={(e) => e.stopPropagation()}>
             <div style={{ backgroundColor: 'var(--primary-other)', padding: '24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 'var(--space-sm)' }}>
               {viewSupplier.pic ? (
-                <img src={viewSupplier.pic} alt={viewSupplier.companyId?.name || 'Company'} style={{ width: '80px', height: '80px', borderRadius: '50%', objectFit: 'cover', border: '3px solid white', boxShadow: 'var(--shadow-sm)' }} />
+                <img 
+                  src={viewSupplier.pic.startsWith('http') ? viewSupplier.pic : `${API_BASE_URL}${viewSupplier.pic.startsWith('/') ? '' : '/'}${viewSupplier.pic}`} 
+                  alt={viewSupplier.companyId?.name || 'Company'} 
+                  style={{ width: '80px', height: '80px', borderRadius: '50%', objectFit: 'cover', border: '3px solid white', boxShadow: 'var(--shadow-sm)' }} 
+                />
               ) : (
                 <div style={{
                   width: '60px', height: '80px', borderRadius: '50%', backgroundColor: 'rgba(255,255,255,0.2)',
@@ -987,7 +963,6 @@ const handleUpdateSupplier = async () => {
         </div>
       )}
 
-      {/* DELETE CONFIRMATION MODAL */}
       {isDeleteModalOpen && deleteTargetId && (
         <div className="modal-overlay" onClick={cancelDelete}>
           <div className="modal-container" style={{ maxWidth: '380px', textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>

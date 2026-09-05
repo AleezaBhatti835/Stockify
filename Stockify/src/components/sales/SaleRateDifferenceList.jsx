@@ -527,13 +527,11 @@ const SaleRateDifferenceList = () => {
                 )}
             </div>
 
-            {/* DETAILED RECEIPT VIEW MODAL */}
             {isModalOpen && selectedDifference && renderReceipt()}
         </div>
     );
 };
 
-// Strict Table Styles Rule
 const tableStyles = {
     th: {
         padding: '12px 16px',

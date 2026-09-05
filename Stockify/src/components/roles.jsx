@@ -63,6 +63,8 @@ const MODULE_LIST = [
   { key: 'users', label: 'Users' },
   { key: 'roles', label: 'Roles' },
   { key: 'settings', label: 'Settings' },
+  { key: 'leave_requests', label: 'Leave Requests / Notifications' },
+  { key: 'cities_view', label: 'City Configuration' },
 ];
 
 const ACTIONS = [
@@ -485,7 +487,7 @@ function Roles() {
 
             <div className="modal-body" style={{ maxHeight: '70vh', overflowY: 'auto' }}>
               <div className="form-group" style={{ marginBottom: '16px' }}>
-                <label className="form-label">Role Name *</label>
+                <label className="form-label required">Role Name </label>
                 <input
                   type="text"
                   className="form-input"
@@ -594,7 +596,7 @@ function Roles() {
 
             <div className="modal-body" style={{ maxHeight: '70vh', overflowY: 'auto' }}>
               <div className="form-group" style={{ marginBottom: '16px' }}>
-                <label className="form-label">Role Name *</label>
+                <label className="form-label required">Role Name </label>
                 <input
                   type="text"
                   className="form-input"

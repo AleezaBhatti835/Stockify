@@ -494,14 +494,39 @@ function StockBreakage() {
         <div className="form-group" style={{ marginBottom: 0, flex: '1 1 200px' }}>
           <label className="form-label">View Mode</label>
           <div style={{ display: 'flex', gap: '12px', alignItems: 'center', padding: '6px 12px', border: '1px solid #eaeaea', borderRadius: 'var(--radius-sm)', backgroundColor: 'var(--bg-surface)' }}>
-            <label style={{ fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', color: 'var(--text-main)', fontWeight: 500 }}>
-              <input type="radio" name="viewMode" value="summary" checked={viewMode === 'summary'} onChange={(e) => setViewMode(e.target.value)} />
-              Abstract
-            </label>
-            <label style={{ fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', color: 'var(--text-main)', fontWeight: 500 }}>
-              <input type="radio" name="viewMode" value="detailed" checked={viewMode === 'detailed'} onChange={(e) => setViewMode(e.target.value)} />
-              Product
-            </label>
+           <label style={{ fontSize: '13px', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', color: 'var(--text-main)', fontWeight: 600 }}>
+  <input 
+    type="radio" 
+    name="viewMode" 
+    value="summary" 
+    checked={viewMode === 'summary'} 
+    onChange={(e) => setViewMode(e.target.value)} 
+    style={{
+      appearance: 'none', WebkitAppearance: 'none', width: '12px', height: '12px', borderRadius: '50%', margin: 0, cursor: 'pointer',
+      backgroundColor: viewMode === 'summary' ? 'var(--primary)' : '#fff',
+      border: viewMode === 'summary' ? '2px solid #fff' : '1px solid #ccc',
+      boxShadow: viewMode === 'summary' ? '0 0 0 1px var(--primary)' : 'none'
+    }}
+  />
+  Abstract
+</label>
+
+<label style={{ fontSize: '13px', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', color: 'var(--text-main)', fontWeight: 600 }}>
+  <input 
+    type="radio" 
+    name="viewMode" 
+    value="detailed" 
+    checked={viewMode === 'detailed'} 
+    onChange={(e) => setViewMode(e.target.value)} 
+    style={{
+      appearance: 'none', WebkitAppearance: 'none', width: '12px', height: '12px', borderRadius: '50%', margin: 0, cursor: 'pointer',
+      backgroundColor: viewMode === 'detailed' ? 'var(--primary)' : '#fff',
+      border: viewMode === 'detailed' ? '2px solid #fff' : '1px solid #ccc',
+      boxShadow: viewMode === 'detailed' ? '0 0 0 1px var(--primary)' : 'none'
+    }}
+  />
+  Product
+</label>
           </div>
         </div>
 
@@ -716,7 +741,7 @@ function StockBreakage() {
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
                 <div className="form-group" style={{ position: 'relative' }} ref={searchRef}>
-                  <label className="form-label">Search Product *</label>
+                  <label className="form-label required">Search Product </label>
                   <input
                     ref={searchInputRef}
                     type="text"
@@ -795,7 +820,7 @@ function StockBreakage() {
 
                   <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-end' }}>
                     <div className="form-group" style={{ marginBottom: 0, flex: 1 }}>
-                      <label className="form-label">Broken Quantity *</label>
+                      <label className="form-label required">Broken Quantity </label>
                       <input
                         ref={qtyInputRef}
                         type="number" min="1" max={selectedProduct.quantity}

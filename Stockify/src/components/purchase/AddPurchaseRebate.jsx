@@ -309,16 +309,11 @@ const AddPurchaseRebate = () => {
 
   return (
     <div className="dashboard-wrapper" style={{ width: '100%' }}>
-      
-      {/* Inline Message */}
-      {message.text && <InlineMessage message={message.text} type={message.type} />}
+            {message.text && <InlineMessage message={message.text} type={message.type} />}
 
- 
-
-      {/* Search Section */}
-      <div className="card" style={{ position: 'relative', zIndex: 100 }}>
+       <div className="card" style={{ position: 'relative', zIndex: 100 }}>
         <div className="form-group" style={{ marginBottom: 0, position: 'relative' }} ref={searchWrapperRef}>
-          <label className="form-label">Search Invoice Number *</label>
+          <label className="form-label required">Search Invoice Number </label>
           <div style={{ display: 'flex', gap: 'var(--space-sm)' }}>
             <input
               type="text"
@@ -351,7 +346,6 @@ const AddPurchaseRebate = () => {
             </button>
           </div>
 
-          {/* Search Dropdown */}
           {showSuggestions && filteredSuggestions.length > 0 && (
             <ul style={{ 
               fontSize:'12px',
@@ -390,7 +384,6 @@ const AddPurchaseRebate = () => {
         </div>
       </div>
 
-      {/* Invoice Details Info */}
       {purchase && (
         <div className="card" style={{ display: 'flex', gap: 'var(--space-xl)', backgroundColor: 'var(--primary-light)', border: '1px dashed var(--btn-border)' }}>
           <span style={{ fontSize: '14px', color: 'var(--text-main)' }}><strong>Invoice #:</strong> {purchase.invoiceNumber}</span>
@@ -398,7 +391,6 @@ const AddPurchaseRebate = () => {
         </div>
       )}
 
-      {/* TABLE SECTION */}
       <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
@@ -469,7 +461,6 @@ const AddPurchaseRebate = () => {
         </div>
       </div>
 
-      {/* BOTTOM ACTION SECTION */}
       <div className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 'var(--space-md)' }}>
         <div style={{ padding: 'var(--space-sm) var(--space-md)', borderLeft: '4px solid var(--primary)', backgroundColor: 'var(--primary-light)', borderRadius: 'var(--radius-md)' }}>
           <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--primary)', letterSpacing: '0.5px' }}>TOTAL REBATE AMOUNT</div>
@@ -491,7 +482,6 @@ const AddPurchaseRebate = () => {
         </button>
       </div>
 
-      {/* CONFIRMATION MODAL */}
       {confirmDialog.isOpen && (
         <div className="modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) closeConfirmDialog(); }}>
           <div className="modal-container" style={{ borderTop: '6px solid var(--primary)', padding: 'var(--space-xl)', maxWidth: '450px' }}>
@@ -545,7 +535,6 @@ const tableStyles = {
   }
 };
 
-// Strict Actions Styles Enforced
 const actionStyles = {
   iconBtnDelete: {
     backgroundColor: 'var(--danger-bg)',

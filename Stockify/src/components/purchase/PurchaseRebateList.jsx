@@ -218,7 +218,6 @@ function PurchaseRebateList() {
         }, 300);
     };
 
-    // ================= PAGINATION LOGIC =================
     const indexOfLastItem = currentPage * itemsPerPage;
     const indexOfFirstItem = indexOfLastItem - itemsPerPage;
     const currentRebates = filteredRebates.slice(indexOfFirstItem, indexOfLastItem);
@@ -226,9 +225,6 @@ function PurchaseRebateList() {
 
     return (
         <div className="dashboard-wrapper">
-
-
-            {/* FILTER SECTION */}
             <div className="card" style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-md)', alignItems: 'flex-end' }}>
                 <div className="form-group" style={{ flex: '1', minWidth: '200px', marginBottom: 0 }}>
                     <label className="form-label">Supplier</label>
@@ -273,7 +269,6 @@ function PurchaseRebateList() {
                 </div>
             </div>
 
-            {/* MAIN SUMMARY TABLE */}
             <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
             <div style={{ overflowX: 'auto' }}>
                     <table style={{ width: '100%', borderCollapse: 'collapse' }}>
@@ -333,7 +328,6 @@ function PurchaseRebateList() {
                     </table>
                 </div>
 
-                {/* Pagination */}
                 {filteredRebates.length > itemsPerPage && (
                     <div style={{ display: 'flex', gap: 'var(--space-md)', justifyContent: 'center', alignItems: 'center', padding: 'var(--space-md)' }}>
                         <button
@@ -359,7 +353,6 @@ function PurchaseRebateList() {
                 )}
             </div>
 
-            {/* ==================== DETAILED RECEIPT VIEW MODAL ==================== */}
             {viewRebate && (
                 <div className="modal-overlay" onClick={() => { setViewRebate(null); setViewDetails([]); }}>
                     <div className="modal-container" style={{ width: '860px', padding: 0, overflow: 'hidden' }} onClick={(e) => e.stopPropagation()}>

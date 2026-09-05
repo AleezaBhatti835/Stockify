@@ -305,41 +305,73 @@ const AccessControl = () => {
         </div>
       )}
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+      <div style={{ 
+        display: 'grid', 
+        gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', 
+        gap: '20px' 
+      }}>
         {roles.map(role => {
           const isAdmin = role.role.toLowerCase() === 'admin';
           return (
             <div 
               key={role._id} 
               onClick={() => handleRoleSelect(role)}
-              className="card"
               style={{
                 cursor: 'pointer',
                 display: 'flex',
-                justifyContent: 'space-between',
                 alignItems: 'center',
-                padding: '16px 20px',
-                borderLeft: '5px solid var(--primary)',
-                transition: 'transform 0.15s ease'
+                gap: '16px',
+                padding: '20px',
+                backgroundColor: 'white',
+                borderRadius: '6px',
+                border: '1px solid #e2e8f0',
+                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)',
+                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                position: 'relative',
+                overflow: 'hidden'
               }}
-              onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; }}
-              onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; }}
+              onMouseEnter={(e) => { 
+                e.currentTarget.style.transform = 'translateY(-4px)';
+                e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)';
+                e.currentTarget.style.borderColor = 'var(--primary)';
+              }}
+              onMouseLeave={(e) => { 
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)';
+                e.currentTarget.style.borderColor = '#e2e8f0';
+              }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                <div style={{
-                  width: '40px', height: '40px', borderRadius: 'var(--radius-sm)', backgroundColor: 'var(--bg-app)', 
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px'
-                }}>
-                  {isAdmin ? '👑' : '🛡️'}
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column' }}>
-                  <h3 style={{ margin: '0 0 4px 0', textAlign: 'left', fontSize: '16px', color: 'var(--text-main)', fontWeight: '600' }}>{role.role}</h3>
-                  <p style={{ margin: 0, fontSize: '12px', color: 'var(--text-muted)', fontWeight: '500' }}>
-                    {isAdmin ? 'Full System Access' : 'Modules Assigned'}
-                  </p>
-                </div>
+
+
+              {/* Icon Container */}
+              <div style={{
+                width: '46px', height: '46px', borderRadius: '12px', 
+                backgroundColor: isAdmin ? '#fef2f2' : 'var(--primary-light)', 
+                color: isAdmin ? '#ef4444' : 'var(--primary)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px',
+                boxShadow: 'inset 0 4px 4px rgba(226, 243, 237, 0.91)'
+              }}>
+                {isAdmin ? '👑' : '⫸'}
               </div>
-              <div style={{ fontSize: '20px', color: 'var(--text-muted)', fontWeight: 'bold' }}>›</div>
+
+              {/* Text Content */}
+              <div style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
+                <h3 style={{ margin: '0 0 4px 0', fontSize: '17px', color: 'var(--text-main)', fontWeight: '700', letterSpacing: '0.3px' }}>
+                  {role.role}
+                </h3>
+                <span style={{ 
+                    fontSize: '12px', 
+                    fontWeight: '600', 
+                    color: isAdmin ? '#ef4444' : 'var(--primary-other)',
+                    backgroundColor: isAdmin ? '#fef2f2' : 'var(--primary-light)',
+                    padding: '2px 8px',
+                    borderRadius: '12px',
+                }}>
+                  {isAdmin ? 'Full System Access' : 'Custom Permissions'}
+                </span>
+              </div>
+              
+              <div style={{ fontSize: '24px', color: '#cbd5e1', fontWeight: 'bold' }}>›</div>
             </div>
           );
         })}
@@ -396,7 +428,6 @@ const AccessControl = () => {
                   {message.text}
                 </div>
               )}
-
               {selectedRole.role.toLowerCase() === 'admin' ? (
                 <div style={{ textAlign: 'center', padding: '50px', backgroundColor: 'var(--primary)', color: '#fff', borderRadius: 'var(--radius-md)' }}>
                   <h3 style={{ fontSize: '24px', margin: '0 0 10px 0' }}>👑 Full Control</h3>
