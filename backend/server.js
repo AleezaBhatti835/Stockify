@@ -125,18 +125,17 @@ app.use(cors({
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
-const isVercel = process.env.VERCEL === '1' || process.env.NODE_ENV === 'production';
-const uploadDir = isVercel
+const uploadDir = process.env.VERCEL
   ? path.join('/tmp', 'uploads')
   : path.join(process.cwd(), 'uploads');
 
 try {
   if (!fs.existsSync(uploadDir)) {
     fs.mkdirSync(uploadDir, { recursive: true });
-    console.log('Created uploads directory at', uploadDir);
+    console.log('Uploads directory ready at:', uploadDir);
   }
 } catch (err) {
-  console.warn('Could not create upload directory:', err.message);
+  console.warn('Upload directory creation skipped:', err.message);
 }
 
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
