@@ -280,9 +280,6 @@ const SaleRateDifference = () => {
 
             <InlineMessage message={message.text} type={message.type} />
 
-            <div className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <h2 style={{ margin: 0, color: 'var(--text-main)', fontSize: '20px', fontWeight: '600' }}>Sale Rate Difference</h2>
-            </div>
 
             {/* SEARCH SECTION */}
             <div className="card" style={{ position: 'relative', zIndex: 1000 }}>

@@ -316,9 +316,7 @@ const AddSalesRebate = () => {
 
   return (
     <div className="dashboard-wrapper" ref={messageRef}>
-      <div className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h4 style={{ margin: 0, color: 'var(--primary)', fontSize: '22px', fontWeight: 600 }}>Sales Rebate Management</h4>
-      </div>
+
 
       {message.text && <InlineMessage message={message.text} type={message.type} />}
 
