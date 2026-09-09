@@ -75,7 +75,7 @@ const PurchaseReturnList = () => {
   const fetchReturns = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch('http://localhost:5000/api/purchase-returns', {
+      const res = await fetch('https://stockify-indol.vercel.app/api/purchase-returns', {
         cache: 'no-store',
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -94,7 +94,7 @@ const PurchaseReturnList = () => {
   const fetchSuppliers = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch('http://localhost:5000/api/suppliers', {
+      const res = await fetch('https://stockify-indol.vercel.app/api/suppliers', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
@@ -175,7 +175,7 @@ const PurchaseReturnList = () => {
     setUpdatingStatus(true);
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`http://localhost:5000/api/purchase-returns/${returnId}/status`, {
+      const res = await fetch(`https://stockify-indol.vercel.app/api/purchase-returns/${returnId}/status`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

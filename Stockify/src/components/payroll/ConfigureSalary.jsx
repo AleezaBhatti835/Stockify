@@ -35,9 +35,9 @@ function ConfigureSalary() {
             const headers = { 'Authorization': `Bearer ${token}` };
 
             const [configRes, empRes, desigRes] = await Promise.all([
-                fetch('http://localhost:5000/api/salary-config', { headers }),
-                fetch('http://localhost:5000/api/employees', { headers }),
-                fetch('http://localhost:5000/api/designations', { headers })
+                fetch('https://stockify-indol.vercel.app/api/salary-config', { headers }),
+                fetch('https://stockify-indol.vercel.app/api/employees', { headers }),
+                fetch('https://stockify-indol.vercel.app/api/designations', { headers })
             ]);
 
             const configData = await configRes.json();
@@ -109,8 +109,8 @@ function ConfigureSalary() {
         try {
             const token = localStorage.getItem('token');
             const url = isEditing 
-                ? `http://localhost:5000/api/salary-config/${editId}` 
-                : 'http://localhost:5000/api/salary-config';
+                ? `https://stockify-indol.vercel.app/api/salary-config/${editId}` 
+                : 'https://stockify-indol.vercel.app/api/salary-config';
             
             const method = isEditing ? 'PUT' : 'POST';
 
@@ -146,7 +146,7 @@ function ConfigureSalary() {
         if (!window.confirm('Are you sure you want to delete this salary configuration?')) return;
         try {
             const token = localStorage.getItem('token');
-            const res = await fetch(`http://localhost:5000/api/salary-config/${id}`, {
+            const res = await fetch(`https://stockify-indol.vercel.app/api/salary-config/${id}`, {
                 method: 'DELETE',
                 headers: { 'Authorization': `Bearer ${token}` }
             });

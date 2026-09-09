@@ -5,7 +5,7 @@ import XLSX from 'xlsx-js-style';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPrint, faFilePdf, faFileExcel } from '@fortawesome/free-solid-svg-icons';
 
-const API_BASE_URL = 'http://localhost:5000';
+const API_BASE_URL = 'https://stockify-indol.vercel.app';
 
 const TABS = [
   { key: 'sale', label: 'Invoice List', endpoint: '/api/sales' },

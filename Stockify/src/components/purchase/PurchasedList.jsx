@@ -78,7 +78,7 @@ const PurchasedList = () => {
   const fetchPurchases = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:5000/api/purchases', {
+      const response = await fetch('https://stockify-indol.vercel.app/api/purchases', {
         cache: 'no-store',
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -106,7 +106,7 @@ const PurchasedList = () => {
   const fetchSuppliers = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:5000/api/suppliers', {
+      const response = await fetch('https://stockify-indol.vercel.app/api/suppliers', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await response.json();
@@ -119,7 +119,7 @@ const PurchasedList = () => {
   const fetchProducts = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:5000/api/products', {
+      const response = await fetch('https://stockify-indol.vercel.app/api/products', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await response.json();

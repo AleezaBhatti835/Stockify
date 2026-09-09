@@ -3,7 +3,7 @@ import * as XLSX from 'xlsx';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPrint, faFileExcel } from '@fortawesome/free-solid-svg-icons';
 
-const API_BASE_URL = 'http://localhost:5000';
+const API_BASE_URL = 'https://stockify-indol.vercel.app';
 
 const TABS = [
   { key: 'customer', label: 'Customers' },

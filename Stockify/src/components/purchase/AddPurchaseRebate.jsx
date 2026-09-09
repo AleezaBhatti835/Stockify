@@ -75,7 +75,7 @@ const AddPurchaseRebate = () => {
     const fetchInvoices = async () => {
       try {
         const token = localStorage.getItem('token');
-        const res = await fetch('http://localhost:5000/api/purchases', {
+        const res = await fetch('https://stockify-indol.vercel.app/api/purchases', {
           cache: 'no-store',
           headers: { 'Authorization': `Bearer ${token}` }
         });
@@ -173,14 +173,14 @@ const AddPurchaseRebate = () => {
 
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`http://localhost:5000/api/purchases/search?invoiceNumber=${encodeURIComponent(queryNumber.trim())}`, {
+      const res = await fetch(`https://stockify-indol.vercel.app/api/purchases/search?invoiceNumber=${encodeURIComponent(queryNumber.trim())}`, {
         cache: 'no-store',
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
 
       if (data.success) {
-        const rebRes = await fetch(`http://localhost:5000/api/purchases/${data.purchase._id}/rebatable-items`, {
+        const rebRes = await fetch(`https://stockify-indol.vercel.app/api/purchases/${data.purchase._id}/rebatable-items`, {
           cache: 'no-store',
           headers: { 'Authorization': `Bearer ${token}` }
         });
@@ -239,7 +239,7 @@ const AddPurchaseRebate = () => {
     setCompleting(true);
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch('http://localhost:5000/api/purchase-rebates/complete', {
+      const res = await fetch('https://stockify-indol.vercel.app/api/purchase-rebates/complete', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

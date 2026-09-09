@@ -5,7 +5,7 @@ import * as XLSX from 'xlsx';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPrint, faFilePdf, faFileExcel } from '@fortawesome/free-solid-svg-icons';
 
-const API_BASE_URL = 'http://localhost:5000';
+const API_BASE_URL = 'https://stockify-indol.vercel.app';
 
 function StockMovementReport() {
   const [movements, setMovements] = useState([]);

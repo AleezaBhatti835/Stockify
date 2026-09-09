@@ -77,7 +77,7 @@ const PurchaseRateDifferenceList = () => {
     const fetchDifferences = async () => {
         try {
             const token = localStorage.getItem('token');
-            const response = await fetch('http://localhost:5000/api/purchase-rate-difference', {
+            const response = await fetch('https://stockify-indol.vercel.app/api/purchase-rate-difference', {
                 cache: 'no-store',
                 headers: {
                     'Authorization': `Bearer ${token}`
@@ -105,7 +105,7 @@ const PurchaseRateDifferenceList = () => {
     const fetchSuppliers = async () => {
         try {
             const token = localStorage.getItem('token');
-            const response = await fetch('http://localhost:5000/api/suppliers', {
+            const response = await fetch('https://stockify-indol.vercel.app/api/suppliers', {
                 headers: {
                     'Authorization': `Bearer ${token}`
                 }

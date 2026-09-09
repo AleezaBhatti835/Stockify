@@ -176,7 +176,7 @@ const OpeningStock = () => {
     const fetchProducts = async () => {
         try {
             const token = localStorage.getItem('token');
-            const res = await fetch('http://localhost:5000/api/products', {
+            const res = await fetch('https://stockify-indol.vercel.app/api/products', {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             const data = await res.json();
@@ -248,7 +248,7 @@ const OpeningStock = () => {
         setLoading(true);
         try {
             const token = localStorage.getItem('token');
-            const res = await fetch(`http://localhost:5000/api/products/${selectedProduct._id}/opening-stocks`, {
+            const res = await fetch(`https://stockify-indol.vercel.app/api/products/${selectedProduct._id}/opening-stocks`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

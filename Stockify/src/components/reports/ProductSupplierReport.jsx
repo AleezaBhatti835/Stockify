@@ -23,7 +23,7 @@ function ProductSupplierReport() {
   const fetchReportData = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch('http://localhost:5000/api/reports/product-suppliers-matrix', {
+      const res = await fetch('https://stockify-indol.vercel.app/api/reports/product-suppliers-matrix', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const result = await res.json();

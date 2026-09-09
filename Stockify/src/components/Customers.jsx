@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import AddCustomerModal from './AddCustomerModal';
 
-const API_BASE_URL = 'http://localhost:5000';
+const API_BASE_URL = 'https://stockify-indol.vercel.app';
 
 const getImageUrl = (pic) => {
   if (!pic) return null;

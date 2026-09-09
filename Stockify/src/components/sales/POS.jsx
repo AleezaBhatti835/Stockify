@@ -4,7 +4,7 @@ import { usePrintSettings } from '../../context/PrintSettingsContext';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faCartShopping, faCirclePause, faCreditCard, faPrint, faTrash, faClipboardList, faFileLines, faCashRegister } from '@fortawesome/free-solid-svg-icons';
 
-const API_BASE_URL = 'http://localhost:5000';
+const API_BASE_URL = 'https://stockify-indol.vercel.app';
 
 const getImageUrl = (pic) => {
   if (!pic) return null;

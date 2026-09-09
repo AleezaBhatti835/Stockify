@@ -5,7 +5,7 @@ import { faMoneyBillWave, faPlus, faEye, faFilter } from '@fortawesome/free-soli
 // Ensure this path matches your project structure
 import { usePrintSettings } from '../../context/PrintSettingsContext';
 
-const API_BASE_URL = 'http://localhost:5000';
+const API_BASE_URL = 'https://stockify-indol.vercel.app';
 
 const getPaperConfig = (paperSize) => {
     switch (paperSize) {

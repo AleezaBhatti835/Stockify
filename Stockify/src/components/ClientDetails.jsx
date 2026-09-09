@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 
-const API_BASE = 'http://localhost:5000/api';
+const API_BASE = 'https://stockify-indol.vercel.app/api';
 
 const ClientDetails = () => {
     const [client, setClient] = useState(null);
@@ -161,7 +161,7 @@ const ClientDetails = () => {
     const getImageUrl = (pic) => {
         if (!pic) return null;
         if (pic.startsWith('http://') || pic.startsWith('https://')) return pic;
-        return `http://localhost:5000${pic.startsWith('/') ? '' : '/'}${pic}`;
+        return `https://stockify-indol.vercel.app${pic.startsWith('/') ? '' : '/'}${pic}`;
     };
 
     const hasClient = !!client;

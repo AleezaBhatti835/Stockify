@@ -117,9 +117,12 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const app = express();
 app.use(cors({
-  origin: 'http://localhost:5173',
-  methods: ['GET', 'POST', 'PUT', 'DELETE'],
-  credentials: true
+    origin: [
+        'http://localhost:5173', 
+        'https://stockify-erp.vercel.app' 
+    ],
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS']
 }));
 
 app.use(express.json({ limit: '50mb' }));
@@ -174,7 +177,7 @@ const upload = multer({ storage });
 app.post('/api/upload', authorize('settings_edit'), upload.single('image'), (req, res) => {  if (!req.file) {
     return res.status(400).json({ message: 'No file uploaded' });
   }
-  const imageUrl = `http://localhost:5000/uploads/${req.file.filename}`;
+  const imageUrl = `https://stockify-indol.vercel.app/uploads/${req.file.filename}`;
   res.json({ imageUrl });
 });
 
@@ -639,7 +642,7 @@ app.post('/api/employee-payments', authorize('employee_account_add'), async (req
     if (finalTxnType === 'Loan Recovery') prefix = 'LN-REC-';
     else if (finalTxnType === 'Payment') prefix = 'PAY-';
     else if (finalTxnType === 'Loan' || finalTxnType === 'Advance') prefix = 'LN-';
-    else if (finalTxnType === 'Commission Payout') prefix = 'COMM-'; // 💡 Salesman Commission Payout Prefix
+    else if (finalTxnType === 'Commission Payout') prefix = 'COMM-'; 
 
     const counter = await Counter.findOneAndUpdate(
       { name: `empEntry_${prefix}` },
@@ -716,11 +719,9 @@ app.get('/api/employee-ledger', authorize('employee_account_view'), async (req, 
         
         let attendanceStats = { absent: 0, leave: 0, halfDay: 0, deductionAmount: 0 };
         
-        // 💡 THE ULTIMATE FIX: Sirf Salary entries ke liye exact month ki attendance fetch karna
         if (entry.transactionType === 'Salary' && entry.employee) {
           let yearMonthPrefix = "";
           
-          // 1. Notes mein se exact Month aur Year nikalna (e.g. "Salary for August 2026")
           const noteMatch = entry.notes ? entry.notes.match(/Salary for ([A-Za-z]+) (\d{4})/i) : null;
           
           if (noteMatch) {
@@ -730,17 +731,14 @@ app.get('/api/employee-ledger', authorize('employee_account_view'), async (req, 
             const mIndex = monthNames.findIndex(m => m.toLowerCase() === monthName.toLowerCase()) + 1;
             yearMonthPrefix = `${yearNum}-${String(mIndex).padStart(2, '0')}`;
           } else {
-            // Backup fallback (agar note format alag ho)
             const eDate = new Date(entry.date);
             const year = eDate.getFullYear();
             const monthNum = eDate.getMonth() + 1;
             yearMonthPrefix = `${year}-${String(monthNum).padStart(2, '0')}`;
           }
 
-          // 2. Safe Employee ID Extraction
           const empIdToSearch = entry.employee._id ? entry.employee._id.toString() : entry.employee.toString();
 
-          // 3. Exact ussi maheene ki attendance fetch karna
           const attendances = await mongoose.model('Attendance').find({
             employeeId: empIdToSearch,
             date: { $regex: new RegExp(`^${yearMonthPrefix}`) }
@@ -752,7 +750,6 @@ app.get('/api/employee-ledger', authorize('employee_account_view'), async (req, 
             else if (att.status === 'Half-day') attendanceStats.halfDay++;
           });
 
-          // 4. Notes mein se deduction penalty nikalna
           if (entry.notes) {
             const deductionMatch = entry.notes.match(/Deducted Rs\.\s*(\d+)/i);
             if (deductionMatch) {
@@ -774,7 +771,7 @@ app.get('/api/employee-ledger', authorize('employee_account_view'), async (req, 
           previousBalance,
           net: runningBalance,
           notes: entry.notes,
-          attendanceStats // 💡 Real Stats successfully injected
+          attendanceStats 
         });
       }
     }
@@ -965,7 +962,6 @@ app.post('/api/products', authorize('products_add'), async (req, res) => {  try 
     await product.save();
     const savedProduct = await newProduct.save();
 
-// 💡 AGAR OPENING STOCK HAI, TOH BATCH AUR MOVEMENT CREATE KAREIN
 if (savedProduct.quantity > 0) {
   const batchNo = `OPEN-${Date.now()}`;
   await Batch.create({
@@ -1043,7 +1039,6 @@ app.get('/api/products/deleted', authorize('products_view'), async (req, res) =>
   }
 });
 
-// 2. Activate a deleted product
 app.put('/api/products/:id/activate', authorize('products_edit'), async (req, res) => {  try {
     const product = await Product.findByIdAndUpdate(
       req.params.id,
@@ -1121,7 +1116,6 @@ app.post('/api/purchases', authorize('purchases_add'), async (req, res) => {
 
     const autoPurchaseNumber = `PO-${counter.seq}`;
     
-    // 💡 3. Purchase schema mein transporter aur freightAmount dono pass kar diye
     const newPurchase = new Purchase({
       purchaseNumber: autoPurchaseNumber,
       invoiceNumber: invoiceNumber, 
@@ -1226,8 +1220,7 @@ app.get('/api/purchases', authorize('purchases_view'), async (req, res) => {  tr
   }
 });
 
-// ==================== SEARCH PURCHASE BY INVOICE NUMBER ====================
-app.get('/api/purchases/search', authorize('purchases_view'), async (req, res) => {  // Now extracting invoiceNumber from the query parameters
+app.get('/api/purchases/search', authorize('purchases_view'), async (req, res) => { 
   const { invoiceNumber } = req.query;
 
   if (!invoiceNumber || !invoiceNumber.trim()) {
@@ -1573,7 +1566,6 @@ app.post('/api/purchase-returns/complete', authorize('purchase_returns_add'), as
     );
     const returnNumber = `PR-${counter.seq.toString()}`;
 
-    // Create the return record directly as Completed
     const created = await PurchaseReturn.create([{
       returnNumber,
       purchase: purchaseId,
@@ -1591,7 +1583,6 @@ app.post('/api/purchase-returns/complete', authorize('purchase_returns_add'), as
     }], { session });
     const savedReturn = created[0];
 
-    // Deduct stock and log the movement
     for (const item of items) {
       const product = await Product.findById(item.product).session(session);
       if (!product) {
@@ -1614,7 +1605,7 @@ app.post('/api/purchase-returns/complete', authorize('purchase_returns_add'), as
 
   // LEDGER MATH
     const priorEntries = await SupplierAccount.find({ supplier: supplierId }).session(session);
-    const previousBalance = priorEntries.reduce((sum, e) => sum + (e.credit - e.debit), 0); // 💡 Fix: Credit - Debit
+    const previousBalance = priorEntries.reduce((sum, e) => sum + (e.credit - e.debit), 0);
 
     await SupplierAccount.create([{
       supplier: supplierId,
@@ -1671,7 +1662,6 @@ app.post('/api/purchase-returns/blind-return', authorize('purchase_returns_add')
       throw new Error('Supplier is required for blind return.');
     }
 
-    // Validate stock for each item
     for (const item of items) {
       const product = await Product.findById(item.product).session(session);
       if (!product) {
@@ -1684,7 +1674,6 @@ app.post('/api/purchase-returns/blind-return', authorize('purchase_returns_add')
 
     const totalAmount = items.reduce((sum, i) => sum + (i.quantity * i.unitPrice), 0);
 
-    // Generate PR-XXXX return number
     const counter = await Counter.findOneAndUpdate(
       { name: 'returnNumber' },
       { $inc: { seq: 1 } },
@@ -1692,10 +1681,9 @@ app.post('/api/purchase-returns/blind-return', authorize('purchase_returns_add')
     );
     const returnNumber = `PR-${counter.seq.toString()}`;
 
-    // Create a blind return (no purchase reference)
     const created = await PurchaseReturn.create([{
       returnNumber,
-      purchase: null, // No purchase reference for blind returns
+      purchase: null, 
       supplier: supplierId,
       items: items.map(i => ({
         product: i.product,
@@ -1711,7 +1699,6 @@ app.post('/api/purchase-returns/blind-return', authorize('purchase_returns_add')
     }], { session });
     const savedReturn = created[0];
 
-    // Deduct stock and log the movement
     for (const item of items) {
       const product = await Product.findById(item.product).session(session);
       if (!product) {
@@ -1730,9 +1717,8 @@ app.post('/api/purchase-returns/blind-return', authorize('purchase_returns_add')
       }], { session });
     }
 
-   // LEDGER MATH for blind return
     const priorEntries = await SupplierAccount.find({ supplier: supplierId }).session(session);
-    const previousBalance = priorEntries.reduce((sum, e) => sum + (e.credit - e.debit), 0); // 💡 Fix: Credit - Debit
+    const previousBalance = priorEntries.reduce((sum, e) => sum + (e.credit - e.debit), 0); 
 
     await SupplierAccount.create([{
       supplier: supplierId,
@@ -1784,7 +1770,7 @@ app.post('/api/supplier-payments', authorize('supplier_account_add'), async (req
       return res.status(404).json({ success: false, message: 'Supplier not found.' });
     }
 
-    const txnType = type === 'Debit' ? 'Debit' : 'Credit'; // default Credit (normal payment)
+    const txnType = type === 'Debit' ? 'Debit' : 'Credit'; 
 
     let finalInvoiceNumber = invoiceNumber;
     if (!finalInvoiceNumber) {
@@ -1863,7 +1849,6 @@ const balance = (entry.credit || 0) - (entry.debit || 0);
     return res.status(500).json({ success: false, message: 'Server error', error: error.message });
   }
 });
-// Get a supplier's full ledger
 app.get('/api/suppliers/:id/ledger', authorize('supplier_account_view'), async (req, res) => {
   try {
     const supplier = await Supplier.findById(req.params.id);
@@ -1949,8 +1934,6 @@ app.get('/api/customer-ledger', authorize('customer_account_view'), async (req, 
     const filter = {};
     if (customerId) filter.customer = customerId;
 
-    // Fetch ALL entries in date-ascending order — needed so "previous balance"
-    // is correct even for rows that fall inside the filtered date range.
     const allEntries = await CustomerAccount.find(filter)
       .populate('customer', 'name customerName')
       .sort({ date: 1, createdAt: 1 });
@@ -1994,7 +1977,6 @@ app.get('/api/customer-ledger', authorize('customer_account_view'), async (req, 
   }
 });
 
-// Get a customer's full ledger
 app.get('/api/customers/:id/ledger', authorize('customer_account_view'), async (req, res) => {
   try {
     const customer = await Customer.findById(req.params.id);
@@ -2030,7 +2012,6 @@ app.get('/api/customers/:id/ledger', authorize('customer_account_view'), async (
   }
 });
 
-// Create a stock adjustment (increase or decrease)
 app.post('/api/stock-adjustment', authorize('stock_adjustment_add'), async (req, res) => {  const { productId, adjustmentType, quantity, reason, notes, invoiceNumber } = req.body;
   const session = await mongoose.startSession();
 
@@ -2054,7 +2035,6 @@ app.post('/api/stock-adjustment', authorize('stock_adjustment_add'), async (req,
     if (adjustmentType === 'Increase') {
       newQuantity = previousQuantity + qty;
     } else {
-      // Decrease — never allow stock to go negative
       if (qty > previousQuantity) {
         throw new Error(`Cannot decrease by ${qty} units — only ${previousQuantity} units in stock.`);
       }
@@ -2064,7 +2044,6 @@ app.post('/api/stock-adjustment', authorize('stock_adjustment_add'), async (req,
     product.quantity = newQuantity;
     await product.save({ session });
 
-    // Auto-incrementing adjustment number, same pattern as Purchases/Returns
     const counter = await Counter.findOneAndUpdate(
       { name: 'adjustmentNumber' },
       { $inc: { seq: 1 } },
@@ -2085,7 +2064,6 @@ app.post('/api/stock-adjustment', authorize('stock_adjustment_add'), async (req,
     }], { session });
     const savedAdjustment = created[0];
 
-    // Log it in the shared StockMovement audit trail, same as Purchase/Return do
     await StockMovement.create([{
       product: productId,
       movementType: adjustmentType === 'Increase' ? 'IN' : 'OUT',
@@ -2122,7 +2100,6 @@ app.post('/api/stock-adjustment/batch', authorize('stock_adjustment_add'), async
       throw new Error('At least one adjustment is required.');
     }
 
-    // ONE invoice/batch number for the WHOLE batch — generated by backend, not guessed by frontend
     const batchCounter = await Counter.findOneAndUpdate(
       { name: 'adjustmentInvoiceNumber' },
       { $inc: { seq: 1 } },
@@ -2209,7 +2186,6 @@ app.post('/api/stock-adjustment/batch', authorize('stock_adjustment_add'), async
     session.endSession();
   }
 });
-// List all stock adjustments (history)
 app.get('/api/stock-adjustment', authorize('stock_adjustment_view'), async (req, res) => {  try {
     const adjustments = await StockAdjustment.find()
       .populate('product', 'name')
@@ -2221,7 +2197,6 @@ app.get('/api/stock-adjustment', authorize('stock_adjustment_view'), async (req,
   }
 });
 
-// Get a single product's adjustment history (optional, useful for a product detail view)
 app.get('/api/products/:id/stock-adjustment', authorize('stock_adjustment_view'), async (req, res) => {
   try {
     const adjustments = await StockAdjustment.find({ product: req.params.id })
@@ -2387,9 +2362,6 @@ app.post('/api/sales', authorize('pos_add'), async (req, res) => {
       }], { session });
     }
 
-    // =======================================================
-    // 💡 SALESMAN COMMISSION LOGIC ADDED HERE
-    // =======================================================
     if (salesmanId) {
       const salesmanData = await Employee.findById(salesmanId).session(session);
       
@@ -2452,7 +2424,7 @@ app.get('/api/sales', authorize('pos_view'), async (req, res) => {  try {
     res.status(500).json({ success: false, message: error.message });
   }
 });
-app.get('/api/sales/search', authorize('pos_view'), async (req, res) => {  const { invoiceNumber } = req.query; // this is actually the saleNumber, e.g. "SL-12"
+app.get('/api/sales/search', authorize('pos_view'), async (req, res) => {  const { invoiceNumber } = req.query; 
 
   if (!invoiceNumber || !invoiceNumber.trim()) {
     return res.status(400).json({ success: false, message: 'Invoice number is required.' });
@@ -2874,7 +2846,7 @@ app.post('/api/cash-register/open', authorize('cash_register_manage'), async (re
       totalReturn: 0,
       purchaseAmount: 0,
       purchaseReturnAmount: 0,
-      expenseAmount: 0 // 💡 Added expense tracker
+      expenseAmount: 0
     });
 
     await newRegister.save();
@@ -2894,7 +2866,6 @@ app.post('/api/cash-register/close', authorize('cash_register_manage'), async (r
       return res.status(400).json({ success: false, message: 'No open register found.' });
     }
 
-    // 💡 Proper calculation including expenses
     const closingAmount =
       (activeRegister.openingAmount + activeRegister.salesAmount + (activeRegister.purchaseReturnAmount || 0))
       - (activeRegister.totalReturn || 0)
@@ -2939,7 +2910,6 @@ app.post('/api/expenses', authorize('expenses_add'), async (req, res) => {
 
     await expense.save({ session });
 
-    // 💡 TRACK EXPENSE IN ACTIVE CASH REGISTER
     const activeRegister = await CashRegister.findOne({ closingDate: null }).session(session);
     if (activeRegister) {
       activeRegister.expenseAmount = (activeRegister.expenseAmount || 0) + Number(amount);
@@ -3068,17 +3038,16 @@ app.post('/api/sale-returns/complete', authorize('sale_returns_add'), async (req
     }], { session });
     const savedReturn = created[0];
 
-    // 4. Update Stock & Log Movement (Stock IN)
     for (const item of items) {
       const product = await Product.findById(item.product).session(session);
       if (!product) throw new Error(`Product not found.`);
 
-      product.quantity += item.quantity; // Restore Stock
+      product.quantity += item.quantity;
       await product.save({ session });
 
       await StockMovement.create([{
         product: item.product,
-        movementType: 'IN', // Stock comes back in
+        movementType: 'IN',
         quantity: item.quantity,
         referenceType: 'SaleReturn',
         referenceId: savedReturn._id,
@@ -3086,14 +3055,12 @@ app.post('/api/sale-returns/complete', authorize('sale_returns_add'), async (req
       }], { session });
     }
 
-    // 5. Update Cash Register (Refunded Cash goes to totalReturn)
     const activeRegister = await CashRegister.findOne({ closingDate: null }).session(session);
     if (activeRegister) {
-      activeRegister.totalReturn += totalAmount; // This reduces expected cash
+      activeRegister.totalReturn += totalAmount; 
       await activeRegister.save({ session });
     }
 
-    // 6. Update Customer Ledger (Credit the customer balance)
     const priorEntries = await CustomerAccount.find({ customer: customerId }).session(session);
     const previousBalance = priorEntries.reduce((sum, e) => sum + (e.debit - e.credit), 0);
 
@@ -3129,7 +3096,6 @@ app.post('/api/sale-returns/complete', authorize('sale_returns_add'), async (req
 });
 
 
-// 2. Return WITHOUT Invoice (Blind Return)
 app.post('/api/sale-returns/blind-return', authorize('sale_returns_add'), async (req, res) => {  const { customerId, returnDate, items } = req.body;
   const session = await mongoose.startSession();
 
@@ -3695,7 +3661,6 @@ app.get('/api/purchase-rebates', authorize('purchase_rebates_view'), async (req,
   }
 });
 
-// Get a single rebate with its line items (for the View modal)
 app.get('/api/purchase-rebates/:id', authorize('purchase_rebates_view'), async (req, res) => {  try {
     const rebate = await PurchaseRebate.findById(req.params.id)
       .populate('supplier')
@@ -3712,7 +3677,6 @@ app.get('/api/purchase-rebates/:id', authorize('purchase_rebates_view'), async (
   }
 });
 
-// 1. Complete Purchase Rate Difference & Hit Supplier Account
 app.post('/api/purchase-rate-difference/complete', authorize('purchase_rate_difference_add'), async (req, res) => {  const { purchaseId, supplierId, invoiceNumber, netDifference, items } = req.body;
   const session = await mongoose.startSession();
 
@@ -3728,7 +3692,6 @@ app.post('/api/purchase-rate-difference/complete', authorize('purchase_rate_diff
       throw new Error('Original purchase not found.');
     }
 
-    // Generate unique PRD-XXXX difference number
     const counter = await Counter.findOneAndUpdate(
       { name: 'rateDifferenceNumber' },
       { $inc: { seq: 1 } },
@@ -3736,7 +3699,6 @@ app.post('/api/purchase-rate-difference/complete', authorize('purchase_rate_diff
     );
     const differenceNumber = `PRD-${counter.seq.toString()}`;
 
-    // Create the Rate Difference record
     const createdRateDiff = await PurchaseRateDifference.create([{
       differenceNumber,
       purchaseId,
@@ -3757,8 +3719,6 @@ app.post('/api/purchase-rate-difference/complete', authorize('purchase_rate_diff
       const priorEntries = await SupplierAccount.find({ supplier: supplierId }).session(session);
       const previousBalance = priorEntries.reduce((sum, e) => sum + (e.credit - e.debit), 0); 
 
-      // netDifference > 0 means rate increased (we owe them more -> Credit)
-      // netDifference < 0 means rate decreased (we owe them less -> Debit)
       const creditAmount = netDifference > 0 ? netDifference : 0; 
       const debitAmount = netDifference < 0 ? Math.abs(netDifference) : 0; 
 
@@ -3825,7 +3785,6 @@ app.get('/api/purchase-rate-difference/search', authorize('purchase_rate_differe
   }
 });
 
-// 2. List all Rate Difference records (Main table view)
 app.get('/api/purchase-rate-difference', authorize('purchase_rate_difference_view'), async (req, res) => {  try {
     const records = await PurchaseRateDifference.find()
       .populate('supplierId', 'companyName contactPerson')
@@ -3867,7 +3826,6 @@ app.get('/api/sales/:id/rebatable-items', authorize('sales_rebates_view'), async
       return res.status(404).json({ success: false, message: 'No items found for this sale.' });
     }
 
-    // Subtract quantities already rebated (across all prior sales rebates on this sale)
     const existingRebates = await SalesRebate.find({ sale: sale._id });
     const rebateIds = existingRebates.map(r => r._id);
     const existingDetails = await SalesRebateDetail.find({ rebate: { $in: rebateIds } });
@@ -3909,7 +3867,6 @@ app.get('/api/sales/:id/rebatable-items', authorize('sales_rebates_view'), async
   }
 });
 
-// Complete a sales rebate — one-step, customer ledger only, NO stock/StockMovement effect
 app.post('/api/sales-rebates/complete', authorize('sales_rebates_add'), async (req, res) => {  const { saleId, customerId, invoiceNumber, items } = req.body;
   const session = await mongoose.startSession();
 
@@ -3927,7 +3884,6 @@ app.post('/api/sales-rebates/complete', authorize('sales_rebates_add'), async (r
 
     const saleDetails = await SaleDetail.find({ sale: saleId }).session(session);
 
-    // Re-validate quantities against already-rebated amounts
     const existingRebates = await SalesRebate.find({ sale: saleId }).session(session);
     const rebateIds = existingRebates.map(r => r._id);
     const existingDetails = await SalesRebateDetail.find({ rebate: { $in: rebateIds } }).session(session);
@@ -3955,7 +3911,6 @@ app.post('/api/sales-rebates/complete', authorize('sales_rebates_add'), async (r
 
     const totalAmount = items.reduce((sum, i) => sum + (i.quantity * i.unitPrice), 0);
 
-    // Generate SRB-XXXX rebate number
     const counter = await Counter.findOneAndUpdate(
       { name: 'salesRebateNumber' },
       { $inc: { seq: 1 } },
@@ -3972,7 +3927,6 @@ app.post('/api/sales-rebates/complete', authorize('sales_rebates_add'), async (r
     }], { session });
     const savedRebate = createdRebate[0];
 
-    // Line items — NO stock/product/StockMovement changes here
     for (const item of items) {
       await SalesRebateDetail.create([{
         rebate: savedRebate._id,
@@ -3983,7 +3937,6 @@ app.post('/api/sales-rebates/complete', authorize('sales_rebates_add'), async (r
       }], { session });
     }
 
-    // LEDGER — credit the customer (reduces what they owe us), NO cash/register movement
     const priorEntries = await CustomerAccount.find({ customer: customerId }).session(session);
     const previousBalance = priorEntries.reduce((sum, e) => sum + (e.debit - e.credit), 0);
 
@@ -4050,7 +4003,6 @@ app.get('/api/sales-rebates', authorize('sales_rebates_view'), async (req, res) 
   }
 });
 
-// Get a single rebate with its line items (for the View modal)
 app.get('/api/sales-rebates/:id', authorize('sales_rebates_view'), async (req, res) => {  try {
     const rebate = await SalesRebate.findById(req.params.id)
       .populate('customer')
@@ -4083,7 +4035,27 @@ app.get('/api/sale-rate-difference', authorize('sale_rate_difference_view'), asy
     res.status(500).json({ success: false, message: error.message });
   }
 });
+// ================= SPECIFIC SEARCH FOR SALE RATE DIFFERENCE =================
+app.get('/api/sale-rate-difference/search', authorize('sale_rate_difference_view'), async (req, res) => {
+    const { invoiceNumber } = req.query;
 
+    if (!invoiceNumber || !invoiceNumber.trim()) {
+        return res.json([]);
+    }
+
+    try {
+        const records = await SaleRateDifference.find()
+            .populate('customerId', 'name customerName')
+            .populate('saleId', 'saleNumber invoiceNumber')
+            .populate('items.product', 'name')
+            .sort({ createdAt: 1 });
+
+        res.json(records);
+    } catch (error) {
+        console.error('Error fetching sale rate difference search:', error);
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
 // 4. GET SINGLE SALE RATE DIFFERENCE
 app.get('/api/sale-rate-difference/:id', authorize('sale_rate_difference_view'), async (req, res) => {  try {
     const record = await SaleRateDifference.findById(req.params.id)
@@ -4118,7 +4090,6 @@ app.post('/api/sale-rate-difference/complete', authorize('sale_rate_difference_a
       throw new Error('Original sale not found.');
     }
 
-    // Generate unique SRD-XXXX difference number
     const counter = await Counter.findOneAndUpdate(
       { name: 'saleRateDifferenceNumber' },
       { $inc: { seq: 1 } },
@@ -4126,7 +4097,6 @@ app.post('/api/sale-rate-difference/complete', authorize('sale_rate_difference_a
     );
     const differenceNumber = `SRD-${counter.seq.toString()}`;
 
-    // Create the Rate Difference record
     const createdRateDiff = await SaleRateDifference.create([{
       differenceNumber,
       saleId,
@@ -4144,8 +4114,7 @@ app.post('/api/sale-rate-difference/complete', authorize('sale_rate_difference_a
     const savedRateDiff = createdRateDiff[0];
     if (netDifference !== 0 && customerId) {
 
-      // netDifference > 0 means rate increased (customer owes us MORE -> Debit)
-      // netDifference < 0 means rate decreased (customer owes us LESS / we owe them -> Credit)
+
       const debitAmount = netDifference > 0 ? netDifference : 0;
       const creditAmount = netDifference < 0 ? Math.abs(netDifference) : 0;
 
@@ -4201,7 +4170,6 @@ app.get('/api/users/:id', authorize(), async (req, res) => {
       return res.status(404).json({ message: 'User not found' });
     }
     
-    // Return user without sending the password
     const { password: _pw, ...userData } = user.toObject();
     return res.json(userData);
   } catch (error) {
@@ -4213,10 +4181,7 @@ app.get('/api/users/:id', authorize(), async (req, res) => {
 
 // ==================== PAYABLE & RECEIVABLE REPORT ====================
 app.get('/api/reports/balances', authorize('report_payable_receivable_view'), async (req, res) => {
-  try {
-    // 1. CUSTOMERS BALANCE
-    // Sale: Debit = Goods given (Receivable), Credit = Payment received
-    // Balance (Debit - Credit) > 0 means Receivable (Amount we need to collect)
+  try {  
     const customersAg = await CustomerAccount.aggregate([
       { $group: { _id: '$customer', totalDebit: { $sum: '$debit' }, totalCredit: { $sum: '$credit' } } },
       { $lookup: { from: 'customers', localField: '_id', foreignField: '_id', as: 'info' } },
@@ -4232,15 +4197,14 @@ app.get('/api/reports/balances', authorize('report_payable_receivable_view'), as
         entityGroup: 'Customer',
         name: c.info.name || c.info.customerName || 'Unknown Customer',
         designation: c.typeInfo?.name || 'Standard',
-        payable: bal < 0 ? Math.abs(bal) : 0,    // If negative, it means we owe them money (Advance received)
-        receivable: bal > 0 ? bal : 0,           // If positive, it means they owe us
+        payable: bal < 0 ? Math.abs(bal) : 0,   
+        receivable: bal > 0 ? bal : 0,          
         netBalance: bal
       };
     }).filter(c => c.netBalance !== 0);
 
 // 2. SUPPLIERS BALANCE
-    // Purchase: Debit = Goods received (Payable), Credit = Payment sent
-    // Balance (Debit - Credit) > 0 means Payable (Amount we need to pay)
+
     const suppliersAg = await SupplierAccount.aggregate([
       { $group: { _id: '$supplier', totalDebit: { $sum: '$debit' }, totalCredit: { $sum: '$credit' } } },
       { $lookup: { from: 'suppliers', localField: '_id', foreignField: '_id', as: 'info' } },
@@ -4282,7 +4246,6 @@ app.get('/api/reports/balances', authorize('report_payable_receivable_view'), as
       };
     }).filter(e => e.netBalance !== 0);
 
-    // Combine all entities into a single list
     const allBalances = [...customers, ...suppliers, ...employees];
 
     res.json({ success: true, data: allBalances });
@@ -4303,7 +4266,6 @@ app.get('/api/reports/profit-loss', authorize('report_profit_loss_view'), async 
       dateMatch.$lte = new Date(new Date(toDate).setHours(23, 59, 59, 999));
     }
 
-    // Match conditions for different date fields
     const saleDateFilter = dateMatch.$gte ? { saleDate: dateMatch } : {};
     const expenseDateFilter = dateMatch.$gte ? { date: dateMatch } : {};
     const createdDateFilter = dateMatch.$gte ? { createdAt: dateMatch } : {};
@@ -4337,14 +4299,14 @@ app.get('/api/reports/profit-loss', authorize('report_profit_loss_view'), async 
     ]);
     const totalSalaries = salariesAgg[0]?.total || 0;
 
-    // 💡 3C. Salesman Commission (New)
+    //  3C. Salesman Commission (New)
     const commissionAgg = await EmployeeAccount.aggregate([
       { $match: { transactionType: 'Commission (Sale)', ...expenseDateFilter } },
       { $group: { _id: null, total: { $sum: '$debit' } } }
     ]);
     const totalCommission = commissionAgg[0]?.total || 0;
 
-    // 💡 3D. Company Paid Freight & Labour (New)
+    //  3D. Company Paid Freight & Labour (New)
     const companyPaidChargesAgg = await Sale.aggregate([
       { $match: { status: 'Completed', ...saleDateFilter } },
       { 
@@ -4361,8 +4323,7 @@ app.get('/api/reports/profit-loss', authorize('report_profit_loss_view'), async 
     ]);
     const companyFreight = companyPaidChargesAgg[0]?.totalCompanyFreight || 0;
     const companyLabour = companyPaidChargesAgg[0]?.totalCompanyLabour || 0;
-
-    // 💡 Calculate Grand Total Expenses
+    //  Calculate Grand Total Expenses
     const totalExpenses = regularExpenses + totalSalaries + totalCommission + companyFreight + companyLabour;
 
     // ==================== SEND RESPONSE ====================
@@ -4379,7 +4340,7 @@ app.get('/api/reports/profit-loss', authorize('report_profit_loss_view'), async 
           totalCommission,
           companyFreight,
           companyLabour,
-          totalExpenses // Grand total of all expenses
+          totalExpenses 
         }
       }
     });
@@ -4428,7 +4389,6 @@ app.get('/api/reports/business-capital', authorize('report_business_capital_view
     });
 
     // 4. EMPLOYEE BALANCES (Receivables & Payables)
-    // 💡 Note: This automatically handles unpaid Salesman Commission because Commission is saved as Debit!
     const employeeAgg = await EmployeeAccount.aggregate([
       { $group: { _id: '$employee', totalDebit: { $sum: '$debit' }, totalCredit: { $sum: '$credit' } } }
     ]);
@@ -4547,7 +4507,6 @@ app.get('/api/dashboard/summary', authorize(), async (req, res) => {
       const y = d.getFullYear();
       const monthLabel = monthNames[m - 1];
 
-      // Match aggregated data or set to 0
       const s = monthlySales.find(x => x._id.year === y && x._id.month === m)?.total || 0;
       const p = monthlyPurchases.find(x => x._id.year === y && x._id.month === m)?.total || 0;
       const e = monthlyExpenses.find(x => x._id.year === y && x._id.month === m)?.total || 0;
@@ -4575,7 +4534,6 @@ app.get('/api/dashboard/summary', authorize(), async (req, res) => {
 
 // ==================== ATTENDANCE ROUTES ====================
 
-// GET: Fetch attendance report with date filters
 app.get('/api/attendance/report', authorize('employees_view'), async (req, res) => {
   try {
     const { dateFrom, dateTo, employeeId } = req.query;
@@ -4606,7 +4564,6 @@ app.get('/api/attendance/report', authorize('employees_view'), async (req, res) 
   }
 });
 
-// POST: Bulk save/update attendance (Single or All)
 app.post('/api/attendance', authorize('employees_edit'), async (req, res) => {
   try {
     const { date, records } = req.body;
@@ -4615,7 +4572,6 @@ app.post('/api/attendance', authorize('employees_edit'), async (req, res) => {
       return res.status(400).json({ success: false, message: 'Invalid payload. Date and records are required.' });
     }
 
-    // Validate that every record has a valid employeeId
     for (const record of records) {
       const empId = record.employeeId || record.employee;
       if (!empId) {
@@ -4623,7 +4579,6 @@ app.post('/api/attendance', authorize('employees_edit'), async (req, res) => {
       }
     }
 
-    // Prepare bulk operations for upsert
     const bulkOps = records.map(record => {
       const empId = record.employeeId || record.employee;
       return {
@@ -4653,7 +4608,6 @@ app.post('/api/attendance', authorize('employees_edit'), async (req, res) => {
   }
 });
 
-// DELETE: Remove an attendance record by ID
 app.delete('/api/attendance/:id', authorize('employees_edit'), async (req, res) => {
   try {
     const { id } = req.params;
@@ -4700,7 +4654,6 @@ app.put('/api/attendance-rules', authorize('settings_edit'), async (req, res) =>
   }
 });
 
-// GET: Fetch Attendance Summary Report (For Payroll / Analytics)
 app.get('/api/reports/attendance-summary', authorize('reports_view'), async (req, res) => {
   try {
     const { dateFrom, dateTo } = req.query;
@@ -4709,7 +4662,6 @@ app.get('/api/reports/attendance-summary', authorize('reports_view'), async (req
       return res.status(400).json({ success: false, message: 'Date range is required' });
     }
 
-    // 1. Fetch all attendance records in the date range
     const records = await Attendance.find({
       date: { $gte: dateFrom, $lte: dateTo }
     }).populate('employeeId', 'name designation');
@@ -4791,7 +4743,6 @@ app.get('/api/reports/expiring-stock', authorize('report_view'), async (req, res
 });
 
 // ==================== BATCH MANAGEMENT ====================
-// Get all active batches
 app.get('/api/batches', authorize('products_view'), async (req, res) => {
   try {
     const batches = await Batch.find({ quantity: { $gt: 0 } })
@@ -4803,7 +4754,6 @@ app.get('/api/batches', authorize('products_view'), async (req, res) => {
   }
 });
 
-// Update specific batch expiry date
 app.put('/api/batches/:id/expiry', authorize('products_edit'), async (req, res) => {
   try {
     const { expiryDate } = req.body;
@@ -4869,7 +4819,7 @@ app.post('/api/employee-loans', authorize('employee_account_add'), async (req, r
     await EmployeeAccount.create([{
       employee: employeeId,
       invoiceNumber: loanNumber,
-      transactionType: 'Loan', // 💡 YAHAN 'Payment' KI JAGAH 'Loan' KAR DIYA HAI
+      transactionType: 'Loan', 
       debit: 0,
       credit: loanAmount,
       date: date || new Date(),
@@ -4995,7 +4945,6 @@ app.get('/api/payroll/preview', authorize('employee_account_view'), async (req, 
       
       let baseSalary = config.totalAmount || config.netSalary || (config.monthlySalary + (config.allowanceAmount || 0));
 
-      // Mid-month joining proration check
       let effectiveStart = monthStart;
       if (emp.joiningDate) {
         const joinD = new Date(emp.joiningDate);
@@ -5107,18 +5056,14 @@ app.post('/api/payroll/process', authorize('employee_account_add'), async (req, 
     session.endSession();
   }
 });
-// ==========================================
-// GET & POST: Employee Loan Recovery
-// ==========================================
+
 
 app.get('/api/employee-loan-recoveries', authorize('employee_account_view'), async (req, res) => {
   try {
-    // 💡 Ab yeh directly aapke 'EmployeeLoanRecovery' model se data uthayega
     const recoveries = await EmployeeLoanRecovery.find()
       .populate('employee', 'name designation')
       .sort({ recoveryDate: -1, date: -1, createdAt: -1 });  
 
-    // Frontend table ki asani ke liye data ko format kar diya
     const formattedData = recoveries.map(r => ({
       _id: r._id,
       employee: r.employee,
@@ -5152,7 +5097,6 @@ app.post('/api/employee-loan-recoveries', authorize('employee_account_add'), asy
 
     const recDate = new Date(recoveryDate);
 
-    // 1. Employee ka balance check karein (Ledger se)
     const empLedger = await EmployeeAccount.find({ employee: employeeId }).session(session);
     const currentBalance = empLedger.reduce((sum, e) => sum + (e.debit || 0) - (e.credit || 0), 0);
 
@@ -5165,7 +5109,6 @@ app.post('/api/employee-loan-recoveries', authorize('employee_account_add'), asy
       throw new Error(`Aap sirf PKR ${totalLoanOwed} tak hi recover kar sakte hain.`);
     }
 
-    // Date Logic Check
     const lastLoanEntry = await EmployeeAccount.findOne({
       employee: employeeId,
       transactionType: { $regex: /loan|advance/i }
@@ -5186,7 +5129,6 @@ app.post('/api/employee-loan-recoveries', authorize('employee_account_add'), asy
     );
     const invoiceNumber = `LN-REC-${counter.seq}`;
 
-    // 💡 3. LEDGER ENTRY (Pehla hissa, taake balance sahi rahay)
     const ledgerEntry = new EmployeeAccount({
       employee: employeeId,
       invoiceNumber: invoiceNumber,
@@ -5198,12 +5140,11 @@ app.post('/api/employee-loan-recoveries', authorize('employee_account_add'), asy
     });
     await ledgerEntry.save({ session });
 
-    // 💡 4. DEDICATED COLLECTION ENTRY (Dusra hissa: Aapka gray import issue theek karega aur MongoDB mein alag table show hoga)
     const recoveryEntry = new EmployeeLoanRecovery({
       employee: employeeId,
       invoiceNumber: invoiceNumber,
       amount: Number(amount),
-      debit: Number(amount), // schema ke mutabiq safe rakhne ke liye dono pass kar diye
+      debit: Number(amount), 
       recoveryDate: recDate,
       date: recDate, 
       notes: notes || 'Loan Recovery'
@@ -5344,7 +5285,6 @@ app.put('/api/salary-calendar/process', authorize('settings_edit'), async (req, 
       const emp = config.employee;
       let baseSalary = config.totalAmount || config.netSalary || (config.monthlySalary + (config.allowanceAmount || 0));
       
-      // 💡 PRORATION 1: MID-MONTH JOINING CHECK
       let effectiveStart = monthStart;
       if (emp.joiningDate) {
         const joinD = new Date(emp.joiningDate);
@@ -5363,7 +5303,6 @@ app.put('/api/salary-calendar/process', authorize('settings_edit'), async (req, 
           }
       }
 
-      // Total active days in this month for this employee
       const activeDaysCount = Math.round((monthEnd - effectiveStart) / (1000 * 60 * 60 * 24)) + 1;
       let prorationMultiplier = activeDaysCount / totalDaysInMonth;
       if (prorationMultiplier > 1) prorationMultiplier = 1;
@@ -5374,7 +5313,7 @@ app.put('/api/salary-calendar/process', authorize('settings_edit'), async (req, 
         notes += ` (Prorated for ${activeDaysCount} active days)`;
       }
 
-      // 💡 ATTENDANCE BASED DEDUCTION CHECK
+      //  ATTENDANCE BASED DEDUCTION CHECK
       if (config.salaryWithAttendance === 'Yes') {
         const attendances = await mongoose.model('Attendance').find({
           employeeId: emp._id,
@@ -5695,13 +5634,11 @@ app.get('/api/reports/salary', authorize('employee_account_view'), async (req, r
 
       const netPayable = Math.max(0, totalGrossEarnings - attendanceDeduction - loanDeduction);
 
-      // 💡 THE FIX: Real-time Live Balance from Ledger
       const currentBalance = empLedger.reduce((sum, e) => sum + (e.debit || 0) - (e.credit || 0), 0);
 
       const salEntry = salaryEntries.find(e => e.employee.toString() === empId);
       let status = 'Pending';
       
-      // Dynamic Smart Status Logic
       if (cycleStatus === 'Paid') {
         status = 'Paid';
       } else if (cycleStatus === 'Processed' || salEntry) {
@@ -5736,7 +5673,7 @@ app.get('/api/reports/salary', authorize('employee_account_view'), async (req, r
         totalLoanReturnedThisMonth,
         loanDeduction,
         netPayable,
-        currentBalance, // Added Live Ledger Balance
+        currentBalance,
         status,
         loanHistory,
         totalLoanOutstanding
@@ -5752,7 +5689,6 @@ app.get('/api/reports/salary', authorize('employee_account_view'), async (req, r
 
 // ==================== EMPLOYEE SELF-SERVICE ====================
 
-// 1. My Ledger (Perfectly synced with main ledger logic)
 app.get('/api/my-ledger', authorize(), async (req, res) => {
   try {
     const employeeId = req.user.employeeId;
@@ -5827,9 +5763,6 @@ app.get('/api/my-ledger', authorize(), async (req, res) => {
   }
 });
 
-
-
-// 3. My Loan Status
 app.get('/api/my-loan-status', authorize(), async (req, res) => {
   try {
     const employeeId = req.user.employeeId;
@@ -5851,8 +5784,6 @@ app.get('/api/my-salary-slips', authorize(), async (req, res) => {
     if (!employeeId) {
       return res.json({ success: false, notLinked: true, message: 'No employee record linked.' });
     }
-
-    // Fetch ONLY this employee's salary entries
     const salaries = await EmployeeAccount.find({
       employee: employeeId,
       transactionType: 'Salary'
@@ -6149,7 +6080,6 @@ app.post('/api/transporter-payments', authorize(), async (req, res) => {
     const amt = Number(amount);
     if (!amt || amt <= 0) return res.status(400).json({ success: false, message: 'Valid amount is required.' });
 
-    // Cash Register se deduct karne ki logic
     const activeRegister = await CashRegister.findOne({ closingDate: null });
     if (!activeRegister) return res.status(400).json({ success: false, message: 'Cash register is closed.' });
 
@@ -6157,12 +6087,11 @@ app.post('/api/transporter-payments', authorize(), async (req, res) => {
       transporter: transporterId,
       date: date ? new Date(date) : new Date(),
       transactionType: 'Payment',
-      debit: amt, // Direct amount debit mein jayegi
+      debit: amt, 
       credit: 0,
       notes: notes || `Freight Payment`
     });
 
-    // Register se cash expense out
     activeRegister.expenseAmount = (activeRegister.expenseAmount || 0) + amt;
     await activeRegister.save();
 
@@ -6456,7 +6385,6 @@ app.get('/api/notifications', authorize(), async (req, res) => {
     const roleName = String(req.user?.role?.role || req.user?.role || '').toLowerCase();
     const permissions = req.user?.permissions || req.user?.role?.permissions || [];
     
-    // Check if user has admin/HR leave view rights
     const hasAdminAccess = 
       userEmail === 'admin@gmail.com' || 
       roleName === 'admin' || 
@@ -6533,13 +6461,11 @@ app.get('/api/cities', authorize(), async (req, res) => {
   }
 });
 
-// Add new city
 app.post('/api/cities', authorize(), async (req, res) => {
   try {
     const { name } = req.body;
     if (!name) return res.status(400).json({ success: false, message: 'City name is required' });
     
-    // Check duplicate
     const existing = await City.findOne({ name: { $regex: new RegExp(`^${name.trim()}$`, 'i') } });
     if (existing) return res.status(400).json({ success: false, message: 'City already exists.' });
 
@@ -6588,5 +6514,5 @@ if (process.env.NODE_ENV !== 'test') {
     console.log('Server is running on port 5000');
   });
 }
-
+//fixed
 export default app;

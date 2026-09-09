@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faEnvelope, faLock, faRightToBracket, faBoxesStacked, faEye, faEyeSlash } from '@fortawesome/free-solid-svg-icons';
 
-const API_BASE_URL = 'http://localhost:5000';
+const API_BASE_URL = 'https://stockify-indol.vercel.app';
 
 function Login({ onLoginSuccess }) {
   const [email, setEmail] = useState('');

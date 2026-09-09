@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 
-const API_BASE_URL = 'http://localhost:5000';
+const API_BASE_URL = 'https://stockify-indol.vercel.app';
 const todayStr = () => new Date().toISOString().slice(0, 10);
 
 function CustomerAccount() {

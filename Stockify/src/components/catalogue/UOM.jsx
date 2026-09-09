@@ -82,7 +82,7 @@ function UOM() {
   const fetchUOMs = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch('http://localhost:5000/api/uoms', {
+      const res = await fetch('https://stockify-indol.vercel.app/api/uoms', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {
@@ -101,7 +101,7 @@ function UOM() {
   const fetchProducts = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch('http://localhost:5000/api/products', {
+      const res = await fetch('https://stockify-indol.vercel.app/api/products', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {
@@ -144,7 +144,7 @@ function UOM() {
 
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch('http://localhost:5000/api/uoms', {
+      const res = await fetch('https://stockify-indol.vercel.app/api/uoms', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -217,7 +217,7 @@ function UOM() {
 
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`http://localhost:5000/api/uoms/${editUOM.id}`, {
+      const res = await fetch(`https://stockify-indol.vercel.app/api/uoms/${editUOM.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -277,7 +277,7 @@ function UOM() {
 
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`http://localhost:5000/api/uoms/${deleteTargetId}`, {
+      const res = await fetch(`https://stockify-indol.vercel.app/api/uoms/${deleteTargetId}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       });

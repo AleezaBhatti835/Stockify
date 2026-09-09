@@ -88,7 +88,7 @@ function Category() {
   const fetchCategories = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch('http://localhost:5000/api/categories', {
+      const res = await fetch('https://stockify-indol.vercel.app/api/categories', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {
@@ -106,7 +106,7 @@ function Category() {
   const fetchProducts = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch('http://localhost:5000/api/products', {
+      const res = await fetch('https://stockify-indol.vercel.app/api/products', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {
@@ -147,7 +147,7 @@ function Category() {
 
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch('http://localhost:5000/api/categories', {
+      const res = await fetch('https://stockify-indol.vercel.app/api/categories', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -215,7 +215,7 @@ function Category() {
 
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`http://localhost:5000/api/categories/${editCategory.id}`, {
+      const res = await fetch(`https://stockify-indol.vercel.app/api/categories/${editCategory.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -275,7 +275,7 @@ function Category() {
 
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`http://localhost:5000/api/categories/${deleteTargetId}`, {
+      const res = await fetch(`https://stockify-indol.vercel.app/api/categories/${deleteTargetId}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       });

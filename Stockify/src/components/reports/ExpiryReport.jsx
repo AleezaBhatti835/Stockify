@@ -5,7 +5,7 @@ import * as XLSX from 'xlsx';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faSearch, faPrint, faFilePdf, faFileExcel, faExclamationTriangle } from '@fortawesome/free-solid-svg-icons';
 
-const API_BASE_URL = 'http://localhost:5000';
+const API_BASE_URL = 'https://stockify-indol.vercel.app';
 
 const ExpiryReport = () => {
     const [days, setDays] = useState(30); // Default next 30 days

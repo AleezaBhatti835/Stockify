@@ -133,7 +133,7 @@ function Roles() {
   const fetchRoles = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:5000/api/roles', {
+      const response = await fetch('https://stockify-indol.vercel.app/api/roles', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (response.ok) {
@@ -158,7 +158,7 @@ function Roles() {
   const fetchUsers = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:5000/api/users', {
+      const response = await fetch('https://stockify-indol.vercel.app/api/users', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (response.ok) {
@@ -217,7 +217,7 @@ function Roles() {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:5000/api/roles', {
+      const response = await fetch('https://stockify-indol.vercel.app/api/roles', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -271,7 +271,7 @@ function Roles() {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:5000/api/roles/${editRoleId}`, {
+      const response = await fetch(`https://stockify-indol.vercel.app/api/roles/${editRoleId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -309,7 +309,7 @@ function Roles() {
   const checkRoleAssignedToUsers = async (roleId) => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:5000/api/roles/${roleId}/users`, {
+      const response = await fetch(`https://stockify-indol.vercel.app/api/roles/${roleId}/users`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (response.ok) {
@@ -348,7 +348,7 @@ function Roles() {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:5000/api/roles/${roleToDelete}`, {
+      const response = await fetch(`https://stockify-indol.vercel.app/api/roles/${roleToDelete}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       });

@@ -88,7 +88,7 @@ import {
 import AttendanceSummaryReport from './reports/AttendanceReport.jsx';
 import ProductSupplierReport from './reports/ProductSupplierReport.jsx';
 
-const API_BASE_URL = 'http://localhost:5000';
+const API_BASE_URL = 'https://stockify-indol.vercel.app';
 
 const getImageUrl = (pic) => {
   if (!pic) return null;

@@ -3,7 +3,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faExclamationCircle, faCheckCircle } from '@fortawesome/free-solid-svg-icons';
 import { usePrintSettings } from '../../context/PrintSettingsContext';
 
-const API_BASE_URL = 'http://localhost:5000';
+const API_BASE_URL = 'https://stockify-indol.vercel.app';
 
 const getPaperConfig = (paperSize) => {
     switch (paperSize) {
@@ -148,7 +148,7 @@ const handleSaveRecovery = async () => {
 
     setIsSubmitting(true);
     try {
-        const res = await fetch('http://localhost:5000/api/employee-loan-recoveries', {
+        const res = await fetch('https://stockify-indol.vercel.app/api/employee-loan-recoveries', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

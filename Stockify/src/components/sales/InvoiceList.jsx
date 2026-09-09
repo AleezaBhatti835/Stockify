@@ -73,7 +73,7 @@ function InvoiceList() {
         setLoading(true);
         try {
             const token = localStorage.getItem('token');
-            const res = await fetch('http://localhost:5000/api/sales', {
+            const res = await fetch('https://stockify-indol.vercel.app/api/sales', {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             const data = await res.json();
@@ -93,7 +93,7 @@ function InvoiceList() {
     const fetchCustomers = async () => {
         try {
             const token = localStorage.getItem('token');
-            const res = await fetch('http://localhost:5000/api/customers', {
+            const res = await fetch('https://stockify-indol.vercel.app/api/customers', {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             const data = await res.json();
@@ -106,7 +106,7 @@ function InvoiceList() {
     const handleView = async (id) => {
         try {
             const token = localStorage.getItem('token');
-            const res = await fetch(`http://localhost:5000/api/sales/${id}`, {
+            const res = await fetch(`https://stockify-indol.vercel.app/api/sales/${id}`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             const data = await res.json();
@@ -143,7 +143,7 @@ function InvoiceList() {
         if (!cancelTarget) return;
         try {
             const token = localStorage.getItem('token');
-            const res = await fetch(`http://localhost:5000/api/sales/${cancelTarget._id}/cancel`, {
+            const res = await fetch(`https://stockify-indol.vercel.app/api/sales/${cancelTarget._id}/cancel`, {
                 method: 'PUT',
                 headers: { 'Authorization': `Bearer ${token}` }
             });

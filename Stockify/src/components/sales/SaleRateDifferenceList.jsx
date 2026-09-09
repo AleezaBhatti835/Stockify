@@ -85,7 +85,7 @@ const SaleRateDifferenceList = () => {
     const fetchDifferences = async () => {
         try {
             const token = localStorage.getItem('token');
-            const response = await fetch('http://localhost:5000/api/sale-rate-difference', {
+            const response = await fetch('https://stockify-indol.vercel.app/api/sale-rate-difference', {
                 cache: 'no-store',
                 headers: {
                     'Authorization': `Bearer ${token}`
@@ -113,7 +113,7 @@ const SaleRateDifferenceList = () => {
     const fetchCustomers = async () => {
         try {
             const token = localStorage.getItem('token');
-            const response = await fetch('http://localhost:5000/api/customers', {
+            const response = await fetch('https://stockify-indol.vercel.app/api/customers', {
                 headers: {
                     'Authorization': `Bearer ${token}`
                 }

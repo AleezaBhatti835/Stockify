@@ -171,7 +171,7 @@ const StockAdjustment = () => {
   const fetchProducts = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch('http://localhost:5000/api/products', {
+      const res = await fetch('https://stockify-indol.vercel.app/api/products', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
@@ -186,7 +186,7 @@ const StockAdjustment = () => {
     try {
       setHistoryLoading(true);
       const token = localStorage.getItem('token');
-      const res = await fetch('http://localhost:5000/api/stock-adjustment', {
+      const res = await fetch('https://stockify-indol.vercel.app/api/stock-adjustment', {
         cache: 'no-store',
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -313,7 +313,7 @@ const StockAdjustment = () => {
 
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch('http://localhost:5000/api/stock-adjustment/batch', {
+      const res = await fetch('https://stockify-indol.vercel.app/api/stock-adjustment/batch', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

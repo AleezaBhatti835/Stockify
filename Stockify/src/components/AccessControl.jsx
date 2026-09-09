@@ -132,7 +132,7 @@ const AccessControl = () => {
   const fetchRoles = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch('http://localhost:5000/api/roles', {
+      const res = await fetch('https://stockify-indol.vercel.app/api/roles', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -255,7 +255,7 @@ const AccessControl = () => {
       
       expandedPermissions = [...new Set(expandedPermissions)];
 
-      const res = await fetch(`http://localhost:5000/api/roles/${selectedRole._id}`, {
+      const res = await fetch(`https://stockify-indol.vercel.app/api/roles/${selectedRole._id}`, {
         method: 'PUT',
         headers: { 
           'Content-Type': 'application/json',

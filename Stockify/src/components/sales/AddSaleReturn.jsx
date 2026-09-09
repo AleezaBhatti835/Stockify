@@ -82,9 +82,9 @@ const SalesReturnByInvoice = () => {
         const headers = { 'Authorization': `Bearer ${token}` };
 
         const [invRes, custRes, prodRes] = await Promise.all([
-          fetch('http://localhost:5000/api/sales', { cache: 'no-store', headers }),
-          fetch('http://localhost:5000/api/customers', { cache: 'no-store', headers }),
-          fetch('http://localhost:5000/api/products', { cache: 'no-store', headers })
+          fetch('https://stockify-indol.vercel.app/api/sales', { cache: 'no-store', headers }),
+          fetch('https://stockify-indol.vercel.app/api/customers', { cache: 'no-store', headers }),
+          fetch('https://stockify-indol.vercel.app/api/products', { cache: 'no-store', headers })
         ]);
 
         const invData = await invRes.json();
@@ -238,7 +238,7 @@ const SalesReturnByInvoice = () => {
 
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`http://localhost:5000/api/sales/search?invoiceNumber=${encodeURIComponent(queryNumber.trim())}`, {
+      const res = await fetch(`https://stockify-indol.vercel.app/api/sales/search?invoiceNumber=${encodeURIComponent(queryNumber.trim())}`, {
         cache: 'no-store',
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -301,7 +301,7 @@ const SalesReturnByInvoice = () => {
     setCompleting(true);
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch('http://localhost:5000/api/sale-returns/complete', {
+      const res = await fetch('https://stockify-indol.vercel.app/api/sale-returns/complete', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -420,7 +420,7 @@ const SalesReturnByInvoice = () => {
     if (woCustomerId) {
       try {
         const token = localStorage.getItem('token');
-        const res = await fetch(`http://localhost:5000/api/sales/check-customer-purchase?customerId=${woCustomerId}&productId=${woSelectedProduct._id}`, {
+        const res = await fetch(`https://stockify-indol.vercel.app/api/sales/check-customer-purchase?customerId=${woCustomerId}&productId=${woSelectedProduct._id}`, {
           cache: 'no-store',
           headers: { 'Authorization': `Bearer ${token}` }
         });
@@ -483,7 +483,7 @@ const SalesReturnByInvoice = () => {
     setCompleting(true);
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch('http://localhost:5000/api/sale-returns/blind-return', {
+      const res = await fetch('https://stockify-indol.vercel.app/api/sale-returns/blind-return', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

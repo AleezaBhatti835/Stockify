@@ -36,7 +36,7 @@ const getPaperConfig = (paperSize) => {
   }
 };
 
-const API_BASE_URL = 'http://localhost:5000';
+const API_BASE_URL = 'https://stockify-indol.vercel.app';
 
 function SalesRebateList() {
   const { settings: printSettings } = usePrintSettings();

@@ -125,7 +125,7 @@ const showAddMessage = (text, type) => {
   const fetchProducts = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch('http://localhost:5000/api/products', { headers: { 'Authorization': `Bearer ${token}` } });
+      const res = await fetch('https://stockify-indol.vercel.app/api/products', { headers: { 'Authorization': `Bearer ${token}` } });
       if (res.ok) {
         const data = await res.json();
         const sortedData = Array.isArray(data) ? [...data].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt)) : [];
@@ -137,7 +137,7 @@ const showAddMessage = (text, type) => {
   const fetchCategories = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch('http://localhost:5000/api/categories', { headers: { 'Authorization': `Bearer ${token}` } });
+      const res = await fetch('https://stockify-indol.vercel.app/api/categories', { headers: { 'Authorization': `Bearer ${token}` } });
       if (res.ok) {
         const data = await res.json();
         setCategories(Array.isArray(data) ? data : []);
@@ -148,7 +148,7 @@ const showAddMessage = (text, type) => {
   const fetchUOMs = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch('http://localhost:5000/api/uoms', { headers: { 'Authorization': `Bearer ${token}` } });
+      const res = await fetch('https://stockify-indol.vercel.app/api/uoms', { headers: { 'Authorization': `Bearer ${token}` } });
       if (res.ok) {
         const data = await res.json();
         setUoms(Array.isArray(data) ? data : []);
@@ -159,7 +159,7 @@ const showAddMessage = (text, type) => {
 const fetchSuppliers = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch('http://localhost:5000/api/suppliers', {
+      const res = await fetch('https://stockify-indol.vercel.app/api/suppliers', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {
@@ -256,7 +256,7 @@ const fetchSuppliers = async () => {
 
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch('http://localhost:5000/api/products', {
+      const res = await fetch('https://stockify-indol.vercel.app/api/products', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify(productToSave)
@@ -326,7 +326,7 @@ const handleUpdateProduct = async () => {
 
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`http://localhost:5000/api/products/${editProduct.id}`, {
+      const res = await fetch(`https://stockify-indol.vercel.app/api/products/${editProduct.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify(productToSave)
@@ -361,7 +361,7 @@ const handleUpdateProduct = async () => {
     if (!deleteTargetId) return;
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`http://localhost:5000/api/products/${deleteTargetId}`, {
+      const res = await fetch(`https://stockify-indol.vercel.app/api/products/${deleteTargetId}`, {
         method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {
@@ -386,7 +386,7 @@ const handleUpdateProduct = async () => {
     setIsViewModalOpen(true);
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`http://localhost:5000/api/reports/expiring-stock?days=3650`, { 
+      const res = await fetch(`https://stockify-indol.vercel.app/api/reports/expiring-stock?days=3650`, { 
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();

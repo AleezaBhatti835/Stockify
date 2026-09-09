@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 
 const todayStr = () => new Date().toISOString().slice(0, 10);
-const API_BASE_URL = 'http://localhost:5000';
+const API_BASE_URL = 'https://stockify-indol.vercel.app';
 
 function PurchaseRebateList() {
     const [rebates, setRebates] = useState([]);

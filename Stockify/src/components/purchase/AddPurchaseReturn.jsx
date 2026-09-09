@@ -65,15 +65,15 @@ const PurchaseReturnByInvoice = () => {
         };
 
         const [invRes, supRes, prodRes] = await Promise.all([
-          fetch('http://localhost:5000/api/purchases', { 
+          fetch('https://stockify-indol.vercel.app/api/purchases', { 
             cache: 'no-store',
             headers 
           }),
-          fetch('http://localhost:5000/api/suppliers', { 
+          fetch('https://stockify-indol.vercel.app/api/suppliers', { 
             cache: 'no-store',
             headers 
           }),
-          fetch('http://localhost:5000/api/products', { 
+          fetch('https://stockify-indol.vercel.app/api/products', { 
             cache: 'no-store',
             headers 
           })
@@ -257,7 +257,7 @@ const PurchaseReturnByInvoice = () => {
 
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`http://localhost:5000/api/purchases/search?invoiceNumber=${encodeURIComponent(queryNumber.trim())}`, {
+      const res = await fetch(`https://stockify-indol.vercel.app/api/purchases/search?invoiceNumber=${encodeURIComponent(queryNumber.trim())}`, {
         cache: 'no-store',
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -320,7 +320,7 @@ const PurchaseReturnByInvoice = () => {
     setCompleting(true);
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch('http://localhost:5000/api/purchase-returns/complete', {
+      const res = await fetch('https://stockify-indol.vercel.app/api/purchase-returns/complete', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -490,7 +490,7 @@ const PurchaseReturnByInvoice = () => {
     setCompleting(true);
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch('http://localhost:5000/api/purchase-returns/blind-return', {
+      const res = await fetch('https://stockify-indol.vercel.app/api/purchase-returns/blind-return', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
