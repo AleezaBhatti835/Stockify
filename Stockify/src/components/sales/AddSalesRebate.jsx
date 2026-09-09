@@ -316,8 +316,6 @@ const AddSalesRebate = () => {
 
   return (
     <div className="dashboard-wrapper" ref={messageRef}>
-
-
       {message.text && <InlineMessage message={message.text} type={message.type} />}
 
       <div className="card" style={{ position: 'relative', zIndex: 100 }}>

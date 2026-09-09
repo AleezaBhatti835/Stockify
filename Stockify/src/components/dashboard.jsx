@@ -832,7 +832,7 @@ function Dashboard({ user, onLogout }) {
                 )}
               </div>
               {isNotifOpen && (
-                <div style={{ position: 'absolute', top: '48px', right: '-50px', backgroundColor: '#fff', borderRadius: '8px', boxShadow: '0 10px 25px rgba(0,0,0,0.1)', width: '320px', zIndex: 100, border: '1px solid var(--border-color)', overflow: 'hidden' }}>
+                <div style={{ position: 'absolute', top: '48px', right: '-50px', backgroundColor: '#fff', borderRadius: '8px', boxShadow: '0 10px 25px rgba(0,0,0,0.1)', width: '320px', zIndex: 9999, border: '1px solid var(--border-color)', overflow: 'hidden' }}>
                   
                   {(() => {
                     const activeNotifications = notifications.filter(n => !readNotificationIds.includes(n.id));
