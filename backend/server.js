@@ -183,6 +183,16 @@ const connectDB = async () => {
 };
 
 connectDB().catch((err) => console.error('Connection error:', err));
+
+app.use(async (req, res, next) => {
+  try {
+    await connectDB();
+    next();
+  } catch (err) {
+    console.error('Global DB Connection Error:', err);
+    res.status(500).json({ success: false, message: 'Database connection failed' });
+  }
+});
 const VALID_SIZES = ['A4', 'A5', 'Thermal58'];
 
 const transporter = nodemailer.createTransport({
@@ -4091,8 +4101,10 @@ app.get('/api/sale-rate-difference/search', authorize('sale_rate_difference_view
 
         const items = saleDetails.map(detail => ({
             product: detail.product,
-            soldQuantity: detail.quantity,
-            prevRate: detail.unitPrice
+            saleQty: detail.quantity,      
+            unitPrice: detail.unitPrice,   
+            prevRate: detail.unitPrice,    
+            qty: detail.quantity           
         }));
 
         return res.json({
