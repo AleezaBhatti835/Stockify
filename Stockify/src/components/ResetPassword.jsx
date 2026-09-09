@@ -6,7 +6,7 @@ import { faLock, faEye, faEyeSlash } from '@fortawesome/free-solid-svg-icons';
 const API_BASE_URL = 'http://localhost:5000';
 
 function ResetPassword() {
-  const { token } = useParams(); // URL se token pakadne ke liye
+  const { token } = useParams(); 
   const navigate = useNavigate();
 
   const [password, setPassword] = useState('');
