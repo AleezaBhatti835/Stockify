@@ -361,7 +361,7 @@ const AddSalesRebate = () => {
 
           {showSuggestions && filteredSuggestions.length > 0 && (
             <ul style={{ 
-              position: 'absolute', top: '100%', left: 0, right: 0, 
+              position: 'absolute', top: '100%', left: 0, right: 0, textAlign:'left', fontSize: '12px',
               backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-color)', 
               borderTop: 'none', borderRadius: '0 0 var(--radius-md) var(--radius-md)', 
               maxHeight: '200px', overflowY: 'auto', padding: 0, margin: 'var(--space-xs) 0 0 0',
@@ -380,7 +380,7 @@ const AddSalesRebate = () => {
                   }}
                   onMouseEnter={() => setHighlightedIndex(index)}
                   style={{ 
-                    padding: '10px 14px', cursor: 'pointer', 
+                    padding: '5px 14px', cursor: 'pointer', 
                     backgroundColor: index === highlightedIndex ? 'var(--primary-light)' : 'var(--bg-surface)', 
                     color: 'var(--text-main)', 
                     borderBottom: index < filteredSuggestions.length - 1 ? '1px solid var(--border-color)' : 'none',

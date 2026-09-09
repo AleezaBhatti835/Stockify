@@ -203,7 +203,6 @@ const SaleRateDifference = () => {
         }
     };
 
-    // DATA INTEGRITY: Validate line items, aggregate financial differences, and securely complete rate modification workflows.
     const handleCompleteDifference = async () => {
         closeConfirmDialog();
 
@@ -318,7 +317,7 @@ const SaleRateDifference = () => {
                         onKeyDown={handleKeyDown}
                     />
                     {showSuggestions && filteredSuggestions.length > 0 && (
-                        <ul style={{ position: 'absolute', top: '100%', left: 0, right: 0, backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-color)', borderTop: 'none', borderRadius: '0 0 var(--radius-md) var(--radius-md)', maxHeight: '200px', overflowY: 'auto', zIndex: 9999, margin: 0, padding: 0, listStyle: 'none', boxShadow: 'var(--shadow-md)' }}>
+                        <ul style={{ position: 'absolute', top: '100%', left: 0, right: 0,textAlign:'left', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-color)', borderTop: 'none', borderRadius: '0 0 var(--radius-md) var(--radius-md)', maxHeight: '200px', overflowY: 'auto', zIndex: 9999, margin: 0, padding: 0, listStyle: 'none', boxShadow: 'var(--shadow-md)' }}>
                             {filteredSuggestions.map((num, index) => (
                                 <li
                                     key={index}
@@ -331,7 +330,7 @@ const SaleRateDifference = () => {
                                         handleSearch(num); 
                                     }}
                                     onMouseEnter={() => setHighlightedIndex(index)}
-                                    style={{ padding: '10px 14px', cursor: 'pointer', borderBottom: '1px solid var(--border-color)', backgroundColor: index === highlightedIndex ? 'var(--primary-light)' : 'var(--bg-surface)', color: index === highlightedIndex ? 'var(--primary)' : 'var(--text-main)', fontWeight: index === highlightedIndex ? '600' : '400', fontSize: '13px' }}
+                                    style={{ padding: '5px 14px', cursor: 'pointer', borderBottom: '1px solid var(--border-color)', backgroundColor: index === highlightedIndex ? 'var(--primary-light)' : 'var(--bg-surface)', color: index === highlightedIndex ? 'var(--primary)' : 'var(--text-main)', fontWeight: index === highlightedIndex ? '600' : '400', fontSize: '13px' }}
                                 >
                                     {num}
                                 </li>

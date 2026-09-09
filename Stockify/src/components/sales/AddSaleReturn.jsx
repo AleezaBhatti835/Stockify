@@ -556,14 +556,14 @@ const SalesReturnByInvoice = () => {
                   onKeyDown={handleWithInvoiceKeyDown}
                 />
                 {showSuggestions && filteredSuggestions.length > 0 && (
-                  <div style={{ position: 'absolute', top: '100%', left: 0, textAlign: 'left', fontSize: '13px', right: 0, backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-color)', borderTop: 'none', borderRadius: '0 0 var(--radius-md) var(--radius-md)', maxHeight: '200px', overflowY: 'auto', zIndex: 1000, boxShadow: 'var(--shadow-md)' }}>
+                  <div style={{ position: 'absolute', top: '100%',textAlign:'left',  left: 0, textAlign: 'left', fontSize: '13px', right: 0, backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-color)', borderTop: 'none', borderRadius: '0 0 var(--radius-md) var(--radius-md)', maxHeight: '200px', overflowY: 'auto', zIndex: 1000, boxShadow: 'var(--shadow-md)' }}>
                     {filteredSuggestions.map((num, index) => (
                       <div
                         key={index}
                         onClick={() => { setSearchInvoiceNumber(num); setShowSuggestions(false); handleSearch(num); }}
                         onMouseEnter={() => setHighlightedIndex(index)}
                         style={{
-                          padding: '10px 14px',
+                          padding: '5px 14px',
                           cursor: 'pointer',
                           backgroundColor: index === highlightedIndex ? 'var(--primary-light)' : 'var(--bg-surface)',
                           color: index === highlightedIndex ? 'var(--primary)' : 'var(--text-main)',

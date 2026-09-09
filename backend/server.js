@@ -4509,61 +4509,31 @@ app.get('/api/stock-movements', authorize('report_stock_movement_view'), async (
 // ==================== DASHBOARD SUMMARY API ====================
 app.get('/api/dashboard/summary', authorize(), async (req, res) => {
   try {
-    // 1. Get Counts
-    const customers = await Customer.countDocuments({ status: { $ne: 'Inactive' } }); 
-    const suppliers = await Supplier.countDocuments({ status: { $ne: 'inactive' } });
-    const employees = await Employee.countDocuments({ status: { $ne: 'inactive' } }); 
-    const products = await Product.countDocuments({ status: { $ne: 'inactive' } });
-
-    // 2. Get Overall Financial Totals
-    const salesAgg = await Sale.aggregate([
-      { $match: { status: { $nin: ['Hold', 'Cancelled'] } } }, 
-      { $group: { _id: null, total: { $sum: '$totalAmount' } } }
-    ]);
-    const purchasesAgg = await Purchase.aggregate([
-      { $group: { _id: null, total: { $sum: '$totalAmount' } } }
-    ]);
-    const expensesAgg = await Expense.aggregate([
-      { $match: { status: { $ne: 'inactive' } } },
-      { $group: { _id: null, total: { $sum: '$amount' } } }
-    ]);
-
-    const sales = salesAgg[0]?.total || 0;
-    const purchases = purchasesAgg[0]?.total || 0;
-    const expenses = expensesAgg[0]?.total || 0;
-
-  
     const sixMonthsAgo = new Date();
     sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 5);
     sixMonthsAgo.setDate(1);
     sixMonthsAgo.setHours(0, 0, 0, 0);
 
-    // Group Sales by Month
-    const monthlySales = await Sale.aggregate([
-      { $match: { status: { $nin: ['Hold', 'Cancelled'] }, saleDate: { $gte: sixMonthsAgo } } },
-      { $group: {
-          _id: { year: { $year: "$saleDate" }, month: { $month: "$saleDate" } },
-          total: { $sum: '$totalAmount' }
-      }}
+    const [
+      customers, suppliers, employees, products,
+      salesAgg, purchasesAgg, expensesAgg,
+      monthlySales, monthlyPurchases, monthlyExpenses
+    ] = await Promise.all([
+      Customer.countDocuments({ status: { $ne: 'Inactive' } }),
+      Supplier.countDocuments({ status: { $ne: 'inactive' } }),
+      Employee.countDocuments({ status: { $ne: 'inactive' } }),
+      Product.countDocuments({ status: { $ne: 'inactive' } }),
+      Sale.aggregate([{ $match: { status: { $nin: ['Hold', 'Cancelled'] } } }, { $group: { _id: null, total: { $sum: '$totalAmount' } } }]),
+      Purchase.aggregate([{ $group: { _id: null, total: { $sum: '$totalAmount' } } }]),
+      Expense.aggregate([{ $match: { status: { $ne: 'inactive' } } }, { $group: { _id: null, total: { $sum: '$amount' } } }]),
+      Sale.aggregate([{ $match: { status: { $nin: ['Hold', 'Cancelled'] }, saleDate: { $gte: sixMonthsAgo } } }, { $group: { _id: { year: { $year: "$saleDate" }, month: { $month: "$saleDate" } }, total: { $sum: '$totalAmount' } } }]),
+      Purchase.aggregate([{ $match: { purchaseDate: { $gte: sixMonthsAgo } } }, { $group: { _id: { year: { $year: "$purchaseDate" }, month: { $month: "$purchaseDate" } }, total: { $sum: '$totalAmount' } } }]),
+      Expense.aggregate([{ $match: { status: { $ne: 'inactive' }, date: { $gte: sixMonthsAgo } } }, { $group: { _id: { year: { $year: "$date" }, month: { $month: "$date" } }, total: { $sum: '$amount' } } }])
     ]);
 
-    // Group Purchases by Month
-    const monthlyPurchases = await Purchase.aggregate([
-      { $match: { purchaseDate: { $gte: sixMonthsAgo } } },
-      { $group: {
-          _id: { year: { $year: "$purchaseDate" }, month: { $month: "$purchaseDate" } },
-          total: { $sum: '$totalAmount' }
-      }}
-    ]);
-
-    // Group Expenses by Month
-    const monthlyExpenses = await Expense.aggregate([
-      { $match: { status: { $ne: 'inactive' }, date: { $gte: sixMonthsAgo } } },
-      { $group: {
-          _id: { year: { $year: "$date" }, month: { $month: "$date" } },
-          total: { $sum: '$amount' }
-      }}
-    ]);
+    const sales = salesAgg[0]?.total || 0;
+    const purchases = purchasesAgg[0]?.total || 0;
+    const expenses = expensesAgg[0]?.total || 0;
 
     const chartData = [];
     const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -4571,7 +4541,7 @@ app.get('/api/dashboard/summary', authorize(), async (req, res) => {
     for (let i = 5; i >= 0; i--) {
       const d = new Date();
       d.setMonth(d.getMonth() - i);
-      const m = d.getMonth() + 1; // Month 1-12
+      const m = d.getMonth() + 1; 
       const y = d.getFullYear();
       const monthLabel = monthNames[m - 1];
 
