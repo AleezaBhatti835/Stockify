@@ -1,9 +1,9 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 
-// Yahan name EXACTLY PrintSettingsContext hona zaroori hai
 const PrintSettingsContext = createContext();
 
-const API_BASE = import.meta.env.VITE_API_URL || 'https://stockify-indol.vercel.app/api';
+const RAW_API_URL = import.meta.env.VITE_API_URL || 'https://stockify-indol.vercel.app';
+const API_BASE = RAW_API_URL.endsWith('/api') ? RAW_API_URL : `${RAW_API_URL}/api`;
 
 const DEFAULT_SETTINGS = {
   paperSize: 'A4',

@@ -144,17 +144,45 @@ try {
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 
-const dbURI = process.env.NODE_ENV === 'test' 
-  ? 'mongodb://localhost:27017/stockify_test_db' 
+const dbURI = process.env.NODE_ENV === 'test'
+  ? 'mongodb://localhost:27017/stockify_test_db'
   : process.env.MONGO_URI;
 
-mongoose.connect(dbURI)
-  .then(() => {
-    if (process.env.NODE_ENV !== 'test') {
-      console.log('Connected to MongoDB');
-    }
-  })
-  .catch((err) => console.error('Connection error:', err));
+let cached = global.mongoose;
+
+if (!cached) {
+  cached = global.mongoose = { conn: null, promise: null };
+}
+
+const connectDB = async () => {
+  if (cached.conn) {
+    return cached.conn;
+  }
+
+  if (!cached.promise) {
+    const opts = {
+      bufferCommands: false, 
+    };
+
+    cached.promise = mongoose.connect(dbURI, opts).then((mongoose) => {
+      if (process.env.NODE_ENV !== 'test') {
+        console.log('Connected to MongoDB');
+      }
+      return mongoose;
+    });
+  }
+
+  try {
+    cached.conn = await cached.promise;
+  } catch (e) {
+    cached.promise = null;
+    throw e;
+  }
+
+  return cached.conn;
+};
+
+connectDB().catch((err) => console.error('Connection error:', err));
 const VALID_SIZES = ['A4', 'A5', 'Thermal58'];
 
 const transporter = nodemailer.createTransport({
