@@ -117,10 +117,15 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const app = express();
 app.use(cors({
-    origin: [
-        'http://localhost:5173', 
-        'https://stockify-erp.vercel.app' 
-    ],
+    origin: function (origin, callback) {
+        if (!origin) return callback(null, true);
+        
+        if (origin.includes('localhost:5173') || origin.endsWith('.vercel.app')) {
+            return callback(null, true);
+        } else {
+            return callback(new Error('Not allowed by CORS'));
+        }
+    },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS']
 }));
