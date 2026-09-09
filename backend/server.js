@@ -213,6 +213,8 @@ app.post('/api/upload', authorize('settings_edit'), upload.single('image'), (req
 app.post('/api/login', async (req, res) => {
   const { email, password, rememberMe } = req.body; 
   try {
+    await connectDB(); 
+
     const user = await User.findOne({ email }).populate('role');
 
     if (user && user.password === password) {
