@@ -4070,20 +4070,46 @@ app.get('/api/sale-rate-difference/search', authorize('sale_rate_difference_view
     const { invoiceNumber } = req.query;
 
     if (!invoiceNumber || !invoiceNumber.trim()) {
-        return res.json([]);
+        return res.status(400).json({ success: false, message: 'Invoice number is required.' });
     }
 
     try {
-        const records = await SaleRateDifference.find()
-            .populate('customerId', 'name customerName')
-            .populate('saleId', 'saleNumber invoiceNumber')
-            .populate('items.product', 'name')
-            .sort({ createdAt: 1 });
+        const sale = await Sale.findOne({
+            saleNumber: { $regex: new RegExp(`^${invoiceNumber.trim()}$`, 'i') },
+            status: { $nin: ['Hold', 'Cancelled'] }
+        }).populate('customer');
 
-        res.json(records);
+        if (!sale) {
+            return res.status(404).json({ success: false, message: `No sale found with invoice number "${invoiceNumber}".` });
+        }
+
+        const saleDetails = await SaleDetail.find({ sale: sale._id }).populate('product');
+
+        if (!saleDetails || saleDetails.length === 0) {
+            return res.status(404).json({ success: false, message: 'No items found for this sale.' });
+        }
+
+        const items = saleDetails.map(detail => ({
+            product: detail.product,
+            soldQuantity: detail.quantity,
+            prevRate: detail.unitPrice
+        }));
+
+        return res.json({
+            success: true,
+            sale: {
+                _id: sale._id,
+                saleNumber: sale.saleNumber,
+                invoiceNumber: sale.saleNumber,
+                customer: sale.customer,
+                saleDate: sale.saleDate
+            },
+            items
+        });
+
     } catch (error) {
         console.error('Error fetching sale rate difference search:', error);
-        res.status(500).json({ success: false, message: error.message });
+        res.status(500).json({ success: false, message: 'Server error', error: error.message });
     }
 });
 // 4. GET SINGLE SALE RATE DIFFERENCE
